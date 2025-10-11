@@ -3,11 +3,12 @@ Family Hub - FastAPI Backend
 Provides API endpoints for stats, push notifications, and service management
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pywebpush import webpush, WebPushException
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import json
@@ -31,6 +32,24 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# Cache Control Middleware
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Setze Cache-Control für statische Dateien
+        if request.url.path.endswith(('.js', '.css')):
+            # JavaScript/CSS: Kurze Cache-Zeit, must-revalidate
+            response.headers['Cache-Control'] = 'public, max-age=300, must-revalidate'
+        elif request.url.path.endswith(('.png', '.jpg', '.jpeg', '.svg', '.ico')):
+            # Images: Längere Cache-Zeit
+            response.headers['Cache-Control'] = 'public, max-age=86400, immutable'
+        elif request.url.path.endswith('.json'):
+            # JSON: Keine Cache (immer aktuell)
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+
+        return response
+
 # CORS Middleware für lokales Netzwerk
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +58,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Cache Control Middleware hinzufügen
+app.add_middleware(CacheControlMiddleware)
 
 # === CONFIGURATION ===
 
