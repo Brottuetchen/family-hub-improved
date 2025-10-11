@@ -3,7 +3,7 @@
  * Enhanced with Push Notifications, Offline Support, and Caching
  */
 
-const CACHE_VERSION = 'family-hub-v2.2';
+const CACHE_VERSION = 'family-hub-v3.0';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -15,8 +15,6 @@ const STATIC_ASSETS = [
     '/styles.css',
     '/app.js',
     '/push-manager.js',
-    '/service-viewer.html',
-    '/service-viewer.js',
     '/manifest.webmanifest',
     '/assets/icons/app-icon.svg',
     '/data/services.json'
