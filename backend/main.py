@@ -105,8 +105,8 @@ class PushNotification(BaseModel):
 
 # === ROUTES ===
 
-@app.get("/")
-async def root():
+@app.get("/api/health")
+async def health_check():
     """API Health Check"""
     return {
         "status": "online",
