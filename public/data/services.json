@@ -37,7 +37,7 @@
   {
     "name": "SABnzbd",
     "description": "Usenet Downloader für schnelle und sichere Downloads",
-    "url": "http://192.168.188.90:8080",
+    "url": "http://192.168.188.90:7777",
     "icon": "assets/icons/overseerr.svg",
     "category": "automation"
   },
