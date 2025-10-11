@@ -2,8 +2,11 @@
 // Enhanced with Quick Stats, Push Notifications, and In-App Browser
 
 // API Configuration
-const API_BASE_URL = 'http://192.168.188.143:8000'; // FastAPI Backend (anpassen wenn deployed)
-const USE_MOCK_DATA = true; // Auf false setzen wenn Backend läuft
+const API_BASE_URL = window.location.origin;
+const USE_MOCK_DATA = false; // Auf false setzen wenn Backend läuft
+
+// Local Storage Keys
+const PUSH_DISMISSED_KEY = 'pushDismissed';
 
 // DOM Elements
 const servicesGrid = document.getElementById('servicesGrid');
@@ -338,6 +341,7 @@ async function initPushNotifications() {
 
         if (hasSubscription) {
             notificationToggle.classList.add('active');
+            localStorage.removeItem(PUSH_DISMISSED_KEY);
         }
     };
     document.head.appendChild(script);
@@ -441,6 +445,7 @@ enablePushBtn?.addEventListener('click', async () => {
         await pushManager.subscribe();
         notificationToggle.classList.add('active');
         pushModal.hidden = true;
+        localStorage.removeItem(PUSH_DISMISSED_KEY);
         alert('Benachrichtigungen aktiviert!');
     } catch (error) {
         console.error('Push subscription failed:', error);
@@ -450,6 +455,7 @@ enablePushBtn?.addEventListener('click', async () => {
 
 cancelPushBtn?.addEventListener('click', () => {
     pushModal.hidden = true;
+    localStorage.setItem(PUSH_DISMISSED_KEY, '1');
 });
 
 // Schließe Modal bei Klick auf Overlay
@@ -487,6 +493,10 @@ document.addEventListener('visibilitychange', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Family Hub initialized');
+
+    if (localStorage.getItem(PUSH_DISMISSED_KEY) === '1') {
+        pushModal.hidden = true;
+    }
 
     // Core Functions
     registerServiceWorker();
