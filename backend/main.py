@@ -49,11 +49,11 @@ app.add_middleware(
 # Dann mit: python -c "import base64; print(base64.urlsafe_b64encode(open('vapid_public.pem', 'rb').read()))"
 VAPID_PRIVATE_KEY = os.getenv(
     "VAPID_PRIVATE_KEY",
-    "YOUR_VAPID_PRIVATE_KEY_HERE"  # Wird bei Deployment ersetzt
+    "jqSDEM10LnAAJ1vaMPNQPA4yiGAtz4CNCPRbhY0aS74"  # Wird bei Deployment ersetzt
 )
 VAPID_PUBLIC_KEY = os.getenv(
     "VAPID_PUBLIC_KEY",
-    "YOUR_VAPID_PUBLIC_KEY_HERE"   # Wird bei Deployment ersetzt
+    "BMu4f7EOE-CxK2xrMMAa587Fmu_keSyYClMEEq4QjWE2UXagXIEJl0Q-aHuA_lDC8KKabeENonCOrSkq6yoWiLg"   # Wird bei Deployment ersetzt
 )
 VAPID_CLAIMS = {
     "sub": "mailto:trapp.constantin@gmail.com"
@@ -105,7 +105,7 @@ async def root():
 @app.get("/api/vapid-public-key")
 async def get_vapid_public_key():
     """Gibt VAPID Public Key für Push Subscriptions zurück"""
-    if VAPID_PUBLIC_KEY == "YOUR_VAPID_PUBLIC_KEY_HERE":
+    if VAPID_PUBLIC_KEY == "BMu4f7EOE-CxK2xrMMAa587Fmu_keSyYClMEEq4QjWE2UXagXIEJl0Q-aHuA_lDC8KKabeENonCOrSkq6yoWiLg":
         logger.warning("VAPID keys not configured!")
         raise HTTPException(
             status_code=501,
@@ -432,7 +432,7 @@ else:
 async def startup_event():
     logger.info("=" * 50)
     logger.info("Family Hub API started")
-    logger.info(f"VAPID configured: {VAPID_PUBLIC_KEY != 'YOUR_VAPID_PUBLIC_KEY_HERE'}")
+    logger.info(f"VAPID configured: {VAPID_PUBLIC_KEY != 'BMu4f7EOE-CxK2xrMMAa587Fmu_keSyYClMEEq4QjWE2UXagXIEJl0Q-aHuA_lDC8KKabeENonCOrSkq6yoWiLg'}")
     logger.info(f"Push subscriptions: {len(push_subscriptions)}")
     logger.info("=" * 50)
 
