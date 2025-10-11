@@ -841,161 +841,280 @@ def fallback_selection(movies: List[MediaItem], shows: List[MediaItem]) -> Tuple
 def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
                        all_movies: List[MediaItem], all_shows: List[MediaItem],
                        plex_stats: Dict) -> str:
-    """Generate HTML email newsletter with Plex statistics, styled like the Family Hub website."""
+    """Generate a full HTML WEBSITE page for the newsletter, styled like the Family Hub website."""
 
     # Create lookup dictionaries
     movies_dict = {m.title: m for m in all_movies}
     shows_dict = {s.title: s for s in all_shows}
 
-    # Farben und Schriften aus deiner styles.css
-    color_primary = "#4a46e4"
-    color_background = "#f1f3fb"
-    color_surface = "#ffffff"
-    color_text = "#1f2337"
-    color_text_muted = "#525a75"
-    color_success = "#10b981"
-    color_warning = "#f59e0b"
-    font_family = "Arial, 'Helvetica Neue', Helvetica, sans-serif"
-
     current_date = datetime.now().strftime("%d. %B %Y")
     current_kw = f"KW {datetime.now().isocalendar()[1]}"
+
+    # Relevante CSS-Regeln aus deiner styles.css hier eingebettet
+    # Dadurch ist die HTML-Datei eigenständig und benötigt keine externe CSS-Datei
+    css_styles = """
+    :root {
+        --color-primary: #4a46e4;
+        --color-primary-light: #6b67ff;
+        --color-surface: #ffffff;
+        --color-background: #f1f3fb;
+        --color-text: #1f2337;
+        --color-text-muted: #525a75;
+        --color-success: #10b981;
+        --color-warning: #f59e0b;
+        --radius-lg: 24px;
+        --radius-md: 18px;
+        --radius-sm: 12px;
+        --radius-full: 999px;
+        --shadow-md: 0 18px 40px rgba(39, 44, 68, 0.12);
+        --shadow-sm: 0 12px 24px rgba(39, 44, 68, 0.08);
+        font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    body {
+        margin: 0;
+        padding: 0;
+        background: var(--color-background);
+        color: var(--color-text);
+        line-height: 1.6;
+    }
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 10% 20%, rgba(116, 90, 241, 0.15), transparent 45%),
+                    radial-gradient(circle at 90% 10%, rgba(59, 215, 255, 0.18), transparent 40%);
+        pointer-events: none;
+        z-index: -2;
+    }
+    .app-header {
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+        box-shadow: var(--shadow-md);
+        padding: 12px 0;
+        color: white;
+    }
+    .app-header__container {
+        width: min(1000px, 95vw);
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .app-header__logo img {
+        width: 36px;
+        height: 36px;
+    }
+    .app-header__logo h1 {
+        margin: 0;
+        font-size: 20px;
+    }
+    main {
+        width: min(1000px, 95vw);
+        margin: 0 auto;
+        padding: 32px 0 80px;
+    }
+    .section h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--color-text);
+        margin: 0 0 25px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .media-item {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 24px;
+        padding: 24px;
+        background-color: var(--color-surface);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        transition: all 0.25s ease;
+    }
+    .media-item:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+    }
+    .poster img {
+        width: 150px;
+        height: 225px;
+        object-fit: cover;
+        border-radius: var(--radius-md);
+        flex-shrink: 0;
+    }
+    .details h3 {
+        font-size: 1.5em;
+        color: var(--color-text);
+        margin: 0 0 10px;
+    }
+    .meta {
+        font-size: 14px;
+        color: var(--color-text-muted);
+        margin: 0 0 10px;
+    }
+    .rating {
+        background-color: #ffd700;
+        color: #333;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        font-weight: bold;
+    }
+    .genres {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    .genre {
+        background-color: rgba(74, 70, 228, 0.1);
+        color: var(--color-primary);
+        padding: 3px 12px;
+        border-radius: var(--radius-full);
+        font-size: 0.85em;
+        font-weight: 500;
+    }
+    .ai-reason {
+        background-color: rgba(74, 70, 228, 0.05);
+        border-left: 4px solid var(--color-primary);
+        padding: 10px 15px;
+        margin: 0 0 15px;
+        font-style: italic;
+        color: var(--color-text-muted);
+    }
+    .overview {
+        color: var(--color-text-muted);
+        margin-bottom: 20px;
+        line-height: 1.5;
+    }
+    .actions a, .actions span {
+        display: inline-block;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: var(--radius-full);
+        font-weight: 600;
+        font-size: 14px;
+        margin-right: 10px;
+        transition: transform 0.2s ease;
+    }
+    .actions a:hover {
+        transform: scale(1.05);
+    }
+    .btn-trailer { background-color: #ff0000; color: white; }
+    .btn-request { background-color: var(--color-primary); color: white; }
+    .status-available { background-color: var(--color-success); color: white; }
+    .status-requested { background-color: var(--color-warning); color: white; }
+
+    .stats-section {
+        background-color: var(--color-surface);
+        border-radius: var(--radius-lg);
+        padding: 30px;
+        box-shadow: var(--shadow-sm);
+        margin-top: 40px;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        text-align: center;
+    }
+    .stat-icon { font-size: 2.5em; margin-bottom: 10px; }
+    .stat-value { font-size: 2em; font-weight: bold; color: var(--color-primary); }
+    .stat-label { color: var(--color-text-muted); font-size: 0.95em; }
+    """
 
     # Helper function for the media item HTML
     def create_media_item_html(item, media_obj):
         if not media_obj:
             return ""
 
-        poster_html = f'<img src="{media_obj.poster_url}" alt="{media_obj.title}" width="150" style="display: block; border-radius: 8px; border: 0;">' if media_obj.poster_url else f'<div style="width: 150px; height: 225px; background-color: {color_primary}; border-radius: 8px; color: white; font-size: 50px; text-align: center; line-height: 225px;">{"🎬" if media_obj.media_type == "movie" else "📺"}</div>'
-        genres_html = ''.join([f'<span style="background-color: rgba(74, 70, 228, 0.1); color: {color_primary}; padding: 3px 10px; border-radius: 15px; font-size: 12px; margin-right: 5px; white-space: nowrap;">{g}</span>' for g in media_obj.genres])
-        trailer_html = f'<a href="{media_obj.trailer_url}" target="_blank" style="display: inline-block; background-color: #ff0000; color: #ffffff; padding: 8px 16px; text-decoration: none; border-radius: 999px; font-weight: bold; font-size: 14px; margin-right: 10px;">▶ Trailer</a>' if media_obj.trailer_url else ''
+        poster_html = f'<img src="{media_obj.poster_url}" alt="{media_obj.title}">' if media_obj.poster_url else ''
+        genres_html = ''.join([f'<span class="genre">{g}</span>' for g in media_obj.genres])
+        trailer_html = f'<a href="{media_obj.trailer_url}" target="_blank" class="btn-trailer">▶ Trailer</a>' if media_obj.trailer_url else ''
 
         # Overseerr button logic
         if media_obj.overseerr_status == "available":
-            overseerr_html = f'<span style="display: inline-block; background-color: {color_success}; color: #ffffff; padding: 8px 16px; border-radius: 999px; font-weight: bold; font-size: 14px;">✓ Verfügbar</span>'
+            overseerr_html = '<span class="status-available">✓ Verfügbar</span>'
         elif media_obj.overseerr_status == "requested":
-            overseerr_html = f'<span style="display: inline-block; background-color: {color_warning}; color: #ffffff; padding: 8px 16px; border-radius: 999px; font-weight: bold; font-size: 14px;">⏳ Angefragt</span>'
+            overseerr_html = '<span class="status-requested">⏳ Angefragt</span>'
         else:  # not_available
-            overseerr_html = f'<a href="{media_obj.overseerr_url}" target="_blank" style="display: inline-block; background-color: {color_primary}; color: #ffffff; padding: 8px 16px; text-decoration: none; border-radius: 999px; font-weight: bold; font-size: 14px;">+ Anfordern</a>'
+            overseerr_html = f'<a href="{media_obj.overseerr_url}" target="_blank" class="btn-request">+ Anfordern</a>'
 
         return f"""
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 25px;">
-            <tr>
-                <td style="background-color: #f9f9f9; padding: 20px; border-radius: 18px;">
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                        <tr>
-                            <td width="150" valign="top" style="padding-right: 20px;">
-                                {poster_html}
-                            </td>
-                            <td valign="top">
-                                <h3 style="font-family: {font_family}; font-size: 20px; color: {color_text}; margin: 0 0 10px;">{media_obj.title}</h3>
-                                <p style="font-family: {font_family}; font-size: 14px; color: {color_text_muted}; margin: 0 0 10px;">
-                                    <span style="background-color: #ffd700; color: #333; padding: 4px 8px; border-radius: 5px; font-weight: bold;">⭐ {media_obj.rating:.1f}/10</span>
-                                    &nbsp;•&nbsp; 📅 {media_obj.release_date}
-                                </p>
-                                <p style="margin: 0 0 15px;">{genres_html}</p>
-                                <div style="background-color: rgba(74, 70, 228, 0.05); border-left: 4px solid {color_primary}; padding: 10px; margin-bottom: 15px; font-style: italic; color: {color_text_muted};">
-                                    <strong>💡 Empfehlung:</strong> {item.get('reason', 'Hochbewertet')}
-                                </div>
-                                <p style="font-family: {font_family}; font-size: 14px; color: {color_text_muted}; margin: 0 0 20px; line-height: 1.5;">{media_obj.overview}</p>
-                                <p style="margin: 0;">
-                                    {trailer_html}
-                                    {overseerr_html}
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
+        <article class="media-item">
+            <div class="poster">{poster_html}</div>
+            <div class="details">
+                <h3>{media_obj.title}</h3>
+                <p class="meta">
+                    <span class="rating">⭐ {media_obj.rating:.1f}/10</span> &nbsp;•&nbsp; 📅 {media_obj.release_date}
+                </p>
+                <div class="genres">{genres_html}</div>
+                <div class="ai-reason"><strong>💡 Empfehlung:</strong> {item.get('reason', 'Hochbewertet')}</div>
+                <p class="overview">{media_obj.overview}</p>
+                <div class="actions">
+                    {trailer_html}
+                    {overseerr_html}
+                </div>
+            </div>
+        </article>
         """
 
-    # --- Start of HTML Email ---
+    # --- Start of HTML Website ---
     html = f"""<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Hub Newsletter</title>
+    <title>Weekly Media Newsletter</title>
+    <style>{css_styles}</style>
 </head>
-<body style="margin: 0; padding: 0; background-color: {color_background}; font-family: {font_family};">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-        <tr>
-            <td>
-                <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="border-collapse: collapse; margin: 20px auto;">
+<body>
+    <header class="app-header">
+        <div class="app-header__container">
+            <div class="app-header__logo">
+                <img src="assets/icons/app-icon.svg" alt="Family Hub Logo">
+                <h1>Family Hub Newsletter</h1>
+            </div>
+            <span>{current_kw} • {current_date}</span>
+        </div>
+    </header>
 
-                    <tr>
-                        <td align="center" style="background-color: {color_primary}; padding: 20px 20px; border-radius: 24px 24px 0 0;">
-                            <img src="https://raw.githubusercontent.com/Tommy-ACC/Family-Hub/main/assets/icons/app-icon.svg" alt="Family Hub Logo" width="40" height="40" style="display: block; margin-bottom: 10px;">
-                            <h1 style="color: #ffffff; font-size: 24px; margin: 0;">Family Hub Newsletter</h1>
-                            <p style="color: rgba(255, 255, 255, 0.85); font-size: 16px; margin: 5px 0 0;">{current_kw} • {current_date}</p>
-                        </td>
-                    </tr>
+    <main>
+        <section class="section">
+            <h2><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>Top 5 Filme</h2>
+            {''.join([create_media_item_html(item, movies_dict.get(item['title'])) for item in selected_movies])}
+        </section>
 
-                    <tr>
-                        <td style="background-color: {color_surface}; padding: 30px 25px;">
-                            """
-    # Movies Section
-    if selected_movies:
-        html += f"""
-                            <h2 style="font-size: 28px; font-weight: 700; color: {color_text}; margin: 0 0 25px;">🎥 Top 5 Filme</h2>
-                            """
-        for item in selected_movies:
-            movie = movies_dict.get(item['title'])
-            html += create_media_item_html(item, movie)
-
-    # TV Shows Section
-    if selected_shows:
-        html += f"""
-                            <h2 style="font-size: 28px; font-weight: 700; color: {color_text}; margin: 0 0 25px; padding-top: 15px;">📺 Top 5 Serien</h2>
-                            """
-        for item in selected_shows:
-            show = shows_dict.get(item['title'])
-            html += create_media_item_html(item, show)
-
+        <section class="section">
+            <h2><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>Top 5 Serien</h2>
+            {''.join([create_media_item_html(item, shows_dict.get(item['title'])) for item in selected_shows])}
+        </section>
+        """
     # Plex Statistics section (if available)
     if plex_stats.get('success', False):
         html += f"""
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 20px;">
-                                <tr>
-                                    <td style="background-color: #f9f9f9; border-radius: 18px; padding: 25px;">
-                                        <h2 style="font-size: 28px; font-weight: 700; color: {color_text}; margin: 0 0 20px; text-align: center;">📊 Deine Woche in Zahlen</h2>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                            <tr>
-                                                <td valign="top" width="33.3%" align="center">
-                                                    <div style="font-size: 32px; margin-bottom: 5px;">🎬</div>
-                                                    <div style="font-size: 24px; font-weight: bold; color: {color_primary};">{plex_stats.get('movies_watched', 0)}</div>
-                                                    <div style="font-size: 14px; color: {color_text_muted};">Filme geschaut</div>
-                                                </td>
-                                                <td valign="top" width="33.3%" align="center">
-                                                    <div style="font-size: 32px; margin-bottom: 5px;">📺</div>
-                                                    <div style="font-size: 24px; font-weight: bold; color: {color_primary};">{plex_stats.get('episodes_watched', 0)}</div>
-                                                    <div style="font-size: 14px; color: {color_text_muted};">Episoden geschaut</div>
-                                                </td>
-                                                <td valign="top" width="33.3%" align="center">
-                                                    <div style="font-size: 32px; margin-bottom: 5px;">⏱️</div>
-                                                    <div style="font-size: 24px; font-weight: bold; color: {color_primary};">{plex_stats.get('total_hours', 0)}</div>
-                                                    <div style="font-size: 14px; color: {color_text_muted};">Stunden gestreamt</div>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                            """
+        <section class="section stats-section">
+            <h2>📊 Deine Woche in Zahlen</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-icon">🎬</div>
+                    <div class="stat-value">{plex_stats.get('movies_watched', 0)}</div>
+                    <div class="stat-label">Filme geschaut</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon">📺</div>
+                    <div class="stat-value">{plex_stats.get('episodes_watched', 0)}</div>
+                    <div class="stat-label">Episoden geschaut</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-value">{plex_stats.get('total_hours', 0)}</div>
+                    <div class="stat-label">Stunden gestreamt</div>
+                </div>
+            </div>
+        </section>
+        """
     html += """
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td align="center" style="background-color: {color_text}; color: {color_text_muted}; padding: 20px; border-radius: 0 0 24px 24px; font-size: 12px;">
-                            <p style="margin: 0;">Bereitgestellt von deinem Homelab</p>
-                            <p style="margin: 5px 0 0;"><a href="https://family.t-acc.com" style="color: {color_primary}; text-decoration: none;">family.t-acc.com</a></p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+    </main>
 </body>
 </html>
 """
