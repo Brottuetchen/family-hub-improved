@@ -1,0 +1,29 @@
+# Family Hub Backend Dependencies
+
+# FastAPI Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Push Notifications
+pywebpush==1.14.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Data Validation
+pydantic==2.5.0
+
+# Optional: Database (für spätere Erweiterung)
+# sqlalchemy==2.0.23
+# alembic==1.12.1
+
+# Optional: Redis Cache (für spätere Erweiterung)
+# redis==5.0.1
+
+# Optional: Async HTTP Client (für bessere Performance)
+# httpx==0.25.2
+
+# Development Tools (optional)
+# pytest==7.4.3
+# black==23.11.0
+# flake8==6.1.0

@@ -1,0 +1,111 @@
+{
+  "name": "Family Hub - Media Portal",
+  "short_name": "Family Hub",
+  "description": "Zentrale Familien-App für Media Services, Newsletter und Homelab-Verwaltung",
+  "lang": "de-DE",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f1f3fb",
+  "theme_color": "#4a46e4",
+  "categories": ["entertainment", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "assets/icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/app-icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/screenshots/home-light.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Family Hub Homepage"
+    },
+    {
+      "src": "assets/screenshots/home-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Family Hub Mobile"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Plex öffnen",
+      "short_name": "Plex",
+      "description": "Direkt zu Plex Media Server",
+      "url": "/service-viewer.html?url=http%3A%2F%2F192.168.188.7%3A32400%2Fweb&name=Plex",
+      "icons": [
+        {
+          "src": "assets/icons/plex.svg",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Overseerr öffnen",
+      "short_name": "Requests",
+      "description": "Media Requests verwalten",
+      "url": "/service-viewer.html?url=http%3A%2F%2F192.168.188.79%3A5055&name=Overseerr",
+      "icons": [
+        {
+          "src": "assets/icons/overseerr.svg",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Newsletter",
+      "short_name": "Newsletter",
+      "description": "Neueste Newsletter-Ausgabe",
+      "url": "/#newsletter",
+      "icons": [
+        {
+          "src": "assets/icons/app-icon.svg",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+familyhub",
+      "url": "/?handler=%s"
+    }
+  ]
+}

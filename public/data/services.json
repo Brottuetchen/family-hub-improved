@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Plex Media Server",
+    "description": "Deine persönliche Streaming-Bibliothek für Filme, Serien und Musik",
+    "url": "http://192.168.188.7:32400/web",
+    "icon": "assets/icons/plex.svg",
+    "category": "media"
+  },
+  {
+    "name": "Overseerr",
+    "description": "Media-Requests verwalten und neue Filme oder Serien anfordern",
+    "url": "http://192.168.188.79:5055",
+    "icon": "assets/icons/overseerr.svg",
+    "category": "media"
+  },
+  {
+    "name": "Sonarr",
+    "description": "Automatisches Download-Management für TV-Serien",
+    "url": "http://192.168.188.71:8989",
+    "icon": "assets/icons/overseerr.svg",
+    "category": "automation"
+  },
+  {
+    "name": "Radarr",
+    "description": "Automatisches Download-Management für Filme",
+    "url": "http://192.168.188.73:7878",
+    "icon": "assets/icons/overseerr.svg",
+    "category": "automation"
+  },
+  {
+    "name": "Lidarr",
+    "description": "Automatisches Download-Management für Musik",
+    "url": "http://192.168.188.76:8686",
+    "icon": "assets/icons/audiobookshelf.svg",
+    "category": "automation"
+  },
+  {
+    "name": "SABnzbd",
+    "description": "Usenet Downloader für schnelle und sichere Downloads",
+    "url": "http://192.168.188.90:8080",
+    "icon": "assets/icons/overseerr.svg",
+    "category": "automation"
+  },
+  {
+    "name": "Trilium Notes",
+    "description": "Deine persönliche Wissensdatenbank und Notizen-App",
+    "url": "http://192.168.188.62:8080",
+    "icon": "assets/icons/trilium.svg",
+    "category": "productivity"
+  },
+  {
+    "name": "Immich",
+    "description": "Selbst-gehostete Foto- und Video-Backup-Lösung",
+    "url": "http://192.168.188.94:2283",
+    "icon": "assets/icons/immich.svg",
+    "category": "productivity"
+  },
+  {
+    "name": "Audiobookshelf",
+    "description": "Hörbücher und Podcasts organisieren und streamen",
+    "url": "http://192.168.188.84:13378",
+    "icon": "assets/icons/audiobookshelf.svg",
+    "category": "media"
+  },
+  {
+    "name": "Nextcloud",
+    "description": "Cloud-Speicher, Kalender und Kontakte synchronisieren",
+    "url": "http://192.168.188.139:443",
+    "icon": "assets/icons/nextcloud.svg",
+    "category": "productivity"
+  },
+  {
+    "name": "n8n Workflows",
+    "description": "Workflow-Automation und Service-Integration",
+    "url": "http://192.168.188.131:5678",
+    "icon": "assets/icons/trilium.svg",
+    "category": "automation"
+  },
+  {
+    "name": "Grafana",
+    "description": "System-Monitoring und Performance-Dashboards",
+    "url": "http://192.168.188.142:3000",
+    "icon": "assets/icons/overseerr.svg",
+    "category": "monitoring"
+  }
+]
