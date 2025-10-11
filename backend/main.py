@@ -88,6 +88,8 @@ PLEX_TOKEN = "oe1a9iRoLZktgJEAXFvo"
 OVERSEERR_URL = "http://192.168.188.79:5055"
 OVERSEERR_API_KEY = "MTc1ODU1NDgxMzY0NGE3MWZjZDY4LWJhMzItNGI5NC1hNDNiLWEyZWViODE4MmE2OQ=="
 
+NEWSLETTER_DIR = Path('/opt/newsletter-output')
+
 # In-Memory Storage (später: SQLite oder Redis für Persistence)
 push_subscriptions: List[Dict] = []
 
@@ -444,11 +446,17 @@ async def check_new_content():
 # Mount static files (Frontend)
 # WICHTIG: Dies muss am Ende stehen!
 static_path = Path(__file__).parent.parent / "public"
-if static_path.exists():
-    app.mount("/", StaticFiles(directory=str(static_path), html=True), name="static")
-    logger.info(f"Serving static files from: {static_path}")
+if NEWSLETTER_DIR.exists():
+    app.mount('/newsletters', StaticFiles(directory=str(NEWSLETTER_DIR)), name='newsletters')
+    logger.info(f'Serving newsletters from: {NEWSLETTER_DIR}')
 else:
-    logger.warning(f"Static files directory not found: {static_path}")
+    logger.warning(f'Newsletter output directory not found: {NEWSLETTER_DIR}')
+
+if static_path.exists():
+    app.mount('/', StaticFiles(directory=str(static_path), html=True), name='static')
+    logger.info(f'Serving static files from: {static_path}')
+else:
+    logger.warning(f'Static files directory not found: {static_path}')
 
 # === STARTUP / SHUTDOWN ===
 
