@@ -671,6 +671,10 @@ main {
 }
 
 /* === MODAL === */
+.modal.is-hidden {
+    display: none !important;
+}
+
 
 .modal {
     position: fixed;

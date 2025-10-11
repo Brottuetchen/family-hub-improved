@@ -8,6 +8,16 @@ const USE_MOCK_DATA = false; // Auf false setzen wenn Backend läuft
 // Local Storage Keys
 const PUSH_DISMISSED_KEY = 'pushDismissed';
 
+function showPushModal() {
+    if (!pushModal) return;
+    pushModal.classList.remove('is-hidden');
+}
+
+function hidePushModal() {
+    if (!pushModal) return;
+    pushModal.classList.add('is-hidden');
+}
+
 // DOM Elements
 const servicesGrid = document.getElementById('servicesGrid');
 const newsletterList = document.getElementById('newsletterList');
@@ -437,14 +447,14 @@ notificationToggle?.addEventListener('click', () => {
         return;
     }
 
-    pushModal.hidden = false;
+    showPushModal();
 });
 
 enablePushBtn?.addEventListener('click', async () => {
     try {
         await pushManager.subscribe();
         notificationToggle.classList.add('active');
-        pushModal.hidden = true;
+        hidePushModal();
         localStorage.removeItem(PUSH_DISMISSED_KEY);
         alert('Benachrichtigungen aktiviert!');
     } catch (error) {
@@ -454,13 +464,13 @@ enablePushBtn?.addEventListener('click', async () => {
 });
 
 cancelPushBtn?.addEventListener('click', () => {
-    pushModal.hidden = true;
+    hidePushModal();
     localStorage.setItem(PUSH_DISMISSED_KEY, '1');
 });
 
 // Schließe Modal bei Klick auf Overlay
 pushModal?.querySelector('.modal__overlay')?.addEventListener('click', () => {
-    pushModal.hidden = true;
+    hidePushModal();
 });
 
 // === STATS AUTO-REFRESH ===
@@ -495,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Family Hub initialized');
 
     if (localStorage.getItem(PUSH_DISMISSED_KEY) === '1') {
-        pushModal.hidden = true;
+        hidePushModal();
     }
 
     // Core Functions
