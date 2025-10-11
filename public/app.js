@@ -1,5 +1,5 @@
 // Family Hub - Main Application Logic
-// Enhanced with Quick Stats, Push Notifications, and In-App Browser
+// Enhanced with Quick Stats and Push Notifications
 
 // API Configuration
 const API_BASE_URL = window.location.origin;
@@ -102,12 +102,9 @@ function getMockData(endpoint) {
 function createServiceCard(service) {
     const card = document.createElement('a');
     card.className = 'service-card';
-
-    // WICHTIG: Verwende In-App Viewer statt direktem Link
-    const viewerUrl = `service-viewer.html?url=${encodeURIComponent(service.url)}&name=${encodeURIComponent(service.name)}`;
-    card.href = viewerUrl;
-
-    // KEIN target="_blank" mehr - öffnet in der App
+    card.href = service.url;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
     card.role = 'listitem';
 
     card.innerHTML = `
