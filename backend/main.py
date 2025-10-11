@@ -71,11 +71,11 @@ app.add_middleware(CacheControlMiddleware)
 # Dann mit: python -c "import base64; print(base64.urlsafe_b64encode(open('vapid_public.pem', 'rb').read()))"
 VAPID_PRIVATE_KEY = os.getenv(
     "VAPID_PRIVATE_KEY",
-    "jqSDEM10LnAAJ1vaMPNQPA4yiGAtz4CNCPRbhY0aS74"  # Wird bei Deployment ersetzt
+    "8MVhjaFj6C0DyMeldIQiJccEtRywAZIxgbvyOVQBtmc"
 )
 VAPID_PUBLIC_KEY = os.getenv(
     "VAPID_PUBLIC_KEY",
-    "BMu4f7EOE-CxK2xrMMAa587Fmu_keSyYClMEEq4QjWE2UXagXIEJl0Q-aHuA_lDC8KKabeENonCOrSkq6yoWiLg"   # Wird bei Deployment ersetzt
+    "BCd4UmkQcwVgZy5kJTm7llHbOBuFwYKTOS3jP3Dn97g_rSUMH_V4WFGVyuJvzwyuzhAOCM3h4K249kilbJK4td0"
 )
 VAPID_CLAIMS = {
     "sub": "mailto:trapp.constantin@gmail.com"
