@@ -154,21 +154,15 @@ function truncateReason(reason) {
 }
 
 function renderNewsletterHighlight(entry) {
-    const movieItems = entry.movies.slice(0, 3).map(movie => `
-        <li>
-            <strong>${movie.title}</strong>
-            <span class="highlight-card__reason">${truncateReason(movie.reason)}</span>
-        </li>
+    const movieItems = entry.movies.slice(0, 5).map(movie => `
+        <li>${movie.title}</li>
     `).join('');
 
-    const showItems = entry.shows.slice(0, 3).map(show => `
-        <li>
-            <strong>${show.title}</strong>
-            <span class="highlight-card__reason">${truncateReason(show.reason)}</span>
-        </li>
+    const showItems = entry.shows.slice(0, 5).map(show => `
+        <li>${show.title}</li>
     `).join('');
 
-    const absoluteUrl = `newsletters/${entry.path}`;
+    const absoluteUrl = `/newsletters/${entry.path}`;
 
     latestNewsletter.innerHTML = `
         <header>
@@ -204,7 +198,7 @@ function renderNewsletterArchive(entries) {
     const items = entries.map(entry => {
         const movieCount = entry.movies?.length ?? 0;
         const showCount = entry.shows?.length ?? 0;
-        const absoluteUrl = `newsletters/${entry.path}`;
+        const absoluteUrl = `/newsletters/${entry.path}`;
 
         return `
             <li class="newsletter-list__item">
@@ -227,7 +221,7 @@ function renderNewsletterArchive(entries) {
 
 async function loadNewsletters() {
     try {
-        const entries = await fetchJson('newsletters/index.json');
+        const entries = await fetchJson('/newsletters/index.json');
         const sorted = entries.sort((a, b) => b.date.localeCompare(a.date));
 
         if (sorted.length) {
