@@ -1395,7 +1395,7 @@ def send_push_notification(newsletter_title: str) -> bool:
     Sendet Push Notification an Family Hub Backend
     """
     try:
-        FAMILY_HUB_URL = "http://192.168.188.123:8000"
+        FAMILY_HUB_URL = "http://192.168.188.150:8000"
 
         payload = {
             "title": "📰 Neuer Newsletter verfügbar!",
