@@ -181,11 +181,12 @@ async def send_push_notification(data: Dict):
 
     for subscription in push_subscriptions[:]:  # Copy list für safe removal
         try:
-            webpush(
+            response = webpush(
                 subscription_info=subscription,
                 data=json.dumps(payload),
                 vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims=VAPID_CLAIMS
+                vapid_claims=VAPID_CLAIMS,
+                ttl=86400  # 24 hours
             )
             success_count += 1
             logger.info(f"Push sent successfully to {subscription['endpoint'][:50]}...")
@@ -244,11 +245,12 @@ async def reload_newsletter():
 
         for subscription in push_subscriptions[:]:
             try:
-                webpush(
+                response = webpush(
                     subscription_info=subscription,
                     data=json.dumps(notification_data),
                     vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS
+                    vapid_claims=VAPID_CLAIMS,
+                    ttl=86400
                 )
                 success += 1
             except WebPushException as e:
