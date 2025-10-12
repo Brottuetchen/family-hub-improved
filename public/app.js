@@ -377,23 +377,28 @@ async function updateOverseerrStats() {
         const stats = await fetchAPI('/api/overseerr/stats');
         const requestsEl = document.getElementById('overseerrRequests');
 
-        const requestCount = stats.pending_requests || 0;
-        requestsEl.textContent = `${requestCount} offene Request${requestCount !== 1 ? 's' : ''}`;
+        const requestCount = stats?.pending_requests ?? 0;
+        if (requestsEl) {
+            requestsEl.textContent = `${requestCount} offene Request${requestCount !== 1 ? 's' : ''}`;
+        }
 
-        if (requestCount > 0) {
-            notificationBadge.textContent = requestCount;
-            notificationBadge.hidden = false;
+        if (notificationBadge) {
+            if (requestCount > 0) {
+                notificationBadge.textContent = requestCount;
+                notificationBadge.hidden = false;
+            } else {
+                notificationBadge.hidden = true;
+            }
         }
     } catch (error) {
         console.error('Overseerr Stats Error:', error);
-        document.getElementById('overseerrRequests').textContent = 'Nicht verfügbar';
-    }
-}
-
-    } catch (error) {
-        console.error('System Stats Error:', error);
-        document.getElementById('systemServices').textContent = 'Fehler';
-        document.querySelector('#systemStats .stat-card__detail').textContent = 'Konnte nicht geladen werden';
+        const requestsEl = document.getElementById('overseerrRequests');
+        if (requestsEl) {
+            requestsEl.textContent = 'Nicht verfügbar';
+        }
+        if (notificationBadge) {
+            notificationBadge.hidden = true;
+        }
     }
 }
 
