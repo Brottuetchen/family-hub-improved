@@ -7,6 +7,7 @@ const USE_MOCK_DATA = false; // Auf false setzen wenn Backend läuft
 
 // Local Storage Keys
 const PUSH_DISMISSED_KEY = 'pushDismissed';
+const NEWSLETTER_LAST_READ_KEY = 'newsletterLastRead';
 
 function showPushModal() {
     if (!pushModal) return;
@@ -219,17 +220,26 @@ function updateNewsletterQuickCard(entry) {
         linkEl.removeAttribute('rel');
         linkEl.textContent = 'Zum Archiv';
         linkEl.classList.add('is-disabled');
+        linkEl.onclick = null;
     };
 
     if (!entry || !entry.path) {
         card.classList.remove('stat-card--active');
         titleEl.textContent = 'Noch kein Newsletter verfügbar';
         metaEl.textContent = 'Schau später wieder rein.';
+        localStorage.removeItem(NEWSLETTER_LAST_READ_KEY);
         resetLink();
         return;
     }
 
-    card.classList.add('stat-card--active');
+    const lastReadPath = localStorage.getItem(NEWSLETTER_LAST_READ_KEY);
+    const isLatestRead = lastReadPath === entry.path;
+
+    if (isLatestRead) {
+        card.classList.remove('stat-card--active');
+    } else {
+        card.classList.add('stat-card--active');
+    }
     titleEl.textContent = entry.title || 'Weekly Newsletter';
 
     const formattedDate = entry.date ? formatDate(entry.date) : '';
@@ -250,6 +260,10 @@ function updateNewsletterQuickCard(entry) {
     linkEl.rel = 'noopener';
     linkEl.textContent = 'Im Browser öffnen →';
     linkEl.classList.remove('is-disabled');
+    linkEl.onclick = () => {
+        localStorage.setItem(NEWSLETTER_LAST_READ_KEY, entry.path);
+        card.classList.remove('stat-card--active');
+    };
 }
 
 async function loadNewsletters() {
