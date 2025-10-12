@@ -379,10 +379,44 @@ async function updatePlexStats() {
         }
 
         if (recentStreamEl) {
+            // Create a container for stream information
+            recentStreamEl.innerHTML = '';
+            
             if (stats?.streams && stats.streams.length > 0) {
-                // Show up to 2 current streams
-                const streamTitles = stats.streams.slice(0, 2).map(s => s.title).join(', ');
-                recentStreamEl.textContent = `Läuft: ${streamTitles}`;
+                const streamInfo = document.createElement('div');
+                streamInfo.textContent = `${stats.streams.length} aktive Stream(s)`;
+                streamInfo.style.marginBottom = '12px';
+                recentStreamEl.appendChild(streamInfo);
+
+                // Create grid for stream covers
+                const streamGrid = document.createElement('div');
+                streamGrid.className = 'stream-grid';
+
+                stats.streams.forEach(stream => {
+                    const streamCover = document.createElement('a');
+                    streamCover.className = 'stream-cover';
+                    const plexUrl = resolvePlexItemUrl(stream);
+                    if (plexUrl) {
+                        streamCover.href = plexUrl;
+                        streamCover.target = '_blank';
+                        streamCover.rel = 'noopener noreferrer';
+                    }
+                    
+                    // Wenn thumb_url vorhanden ist, nutze es als Hintergrundbild
+                    if (stream.thumb_url) {
+                        streamCover.style.backgroundImage = `url('${stream.thumb_url}')`;
+                    }
+                    
+                    // Füge Titel-Overlay hinzu
+                    const titleOverlay = document.createElement('div');
+                    titleOverlay.className = 'stream-cover__title';
+                    titleOverlay.textContent = stream.title || 'Aktiver Stream';
+                    streamCover.appendChild(titleOverlay);
+                    
+                    streamGrid.appendChild(streamCover);
+                });
+
+                recentStreamEl.appendChild(streamGrid);
             } else {
                 recentStreamEl.textContent = 'Keine aktiven Streams';
             }

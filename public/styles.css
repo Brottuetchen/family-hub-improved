@@ -550,8 +550,10 @@ a:hover {
 main {
     width: min(1200px, 95vw);
     margin: 0 auto;
-    padding: 90px 0 80px;
+    padding-top: 120px; /* Erhöht für den fixed header */
     padding-bottom: max(80px, calc(80px + var(--safe-area-bottom)));
+    padding-left: 0;
+    padding-right: 0;
 }
 
 /* === QUICK STATS WIDGET === */
@@ -668,7 +670,8 @@ main {
     margin-top: 16px;
 }
 
-.recent-cover {
+.recent-cover,
+.stream-cover {
     position: relative;
     display: block;
     width: 100%;
@@ -681,6 +684,48 @@ main {
     background-repeat: no-repeat;
     box-shadow: var(--shadow-sm);
     transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.stream-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.stream-cover {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding-top: 150%; /* Höheres Verhältnis für Poster */
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16));
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+}
+
+.stream-cover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.stream-cover__title {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    font-size: 12px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .recent-cover::after {
