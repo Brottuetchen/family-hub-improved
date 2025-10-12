@@ -1,19 +1,19 @@
 /* Family Hub - Enhanced Styles with Dark Mode, Modern Header & Animations */
 
 :root {
-    color-scheme: light dark;
+    color-scheme: dark;
 
     /* Primary Colors */
     --color-primary: #4a46e4;
     --color-primary-dark: #362fbb;
     --color-primary-light: #6b67ff;
 
-    /* Surface Colors (Light Mode) */
-    --color-surface: #ffffff;
-    --color-surface-alt: rgba(255, 255, 255, 0.7);
-    --color-background: #f1f3fb;
-    --color-text: #1f2337;
-    --color-text-muted: #525a75;
+    /* Surface Colors (Dark Mode - Always) */
+    --color-surface: #1e1e2e;
+    --color-surface-alt: rgba(30, 30, 46, 0.9);
+    --color-background: #0f0f1a;
+    --color-text: #e4e4f0;
+    --color-text-muted: #9ca3b8;
 
     /* Semantic Colors */
     --color-success: #10b981;
@@ -28,9 +28,9 @@
     --radius-full: 999px;
 
     /* Shadows */
-    --shadow-lg: 0 32px 80px rgba(39, 44, 68, 0.15);
-    --shadow-md: 0 18px 40px rgba(39, 44, 68, 0.12);
-    --shadow-sm: 0 12px 24px rgba(39, 44, 68, 0.08);
+    --shadow-lg: 0 32px 80px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 18px 40px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 12px 24px rgba(0, 0, 0, 0.3);
 
     /* Typography */
     font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
@@ -47,21 +47,6 @@
     --safe-area-bottom: env(safe-area-inset-bottom);
     --safe-area-left: env(safe-area-inset-left);
     --safe-area-right: env(safe-area-inset-right);
-}
-
-/* Dark Mode Colors */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --color-surface: #1e1e2e;
-        --color-surface-alt: rgba(30, 30, 46, 0.9);
-        --color-background: #0f0f1a;
-        --color-text: #e4e4f0;
-        --color-text-muted: #9ca3b8;
-
-        --shadow-lg: 0 32px 80px rgba(0, 0, 0, 0.5);
-        --shadow-md: 0 18px 40px rgba(0, 0, 0, 0.4);
-        --shadow-sm: 0 12px 24px rgba(0, 0, 0, 0.3);
-    }
 }
 
 /* === BASE STYLES === */

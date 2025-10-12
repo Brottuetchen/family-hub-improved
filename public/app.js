@@ -352,26 +352,25 @@ async function updatePlexStats() {
             };
 
             if (recentItems.length) {
-                recentItems.forEach((item, index) => {
-                    const cover = document.createElement('div');
-                    cover.className = 'recent-cover';
-                    cover.dataset.title = item.title || 'Neuer Plex Inhalt';
-                    cover.setAttribute('role', 'img');
-                    cover.setAttribute('aria-label', item.title || 'Neuer Plex Inhalt');
+                let addedCount = 0;
 
+                recentItems.forEach((item, index) => {
                     if (item.thumb_url && item.thumb_url.trim()) {
+                        const cover = document.createElement('div');
+                        cover.className = 'recent-cover';
+                        cover.dataset.title = item.title || 'Neuer Plex Inhalt';
+                        cover.setAttribute('role', 'img');
+                        cover.setAttribute('aria-label', item.title || 'Neuer Plex Inhalt');
                         cover.style.backgroundImage = `url('${item.thumb_url}')`;
                         cover.style.backgroundSize = 'cover';
                         cover.style.backgroundPosition = 'center';
-                    } else {
-                        renderPlaceholder();
-                        return;
+                        recentGridEl.appendChild(cover);
+                        addedCount++;
                     }
-
-                    recentGridEl.appendChild(cover);
                 });
 
-                for (let i = recentItems.length; i < 4; i += 1) {
+                // Fill remaining slots with placeholders
+                for (let i = addedCount; i < 4; i += 1) {
                     renderPlaceholder();
                 }
             } else {
