@@ -3,7 +3,7 @@
 
 // API Configuration
 const API_BASE_URL = window.location.origin;
-const USE_MOCK_DATA = false; // Auf false setzen wenn Backend läuft
+const USE_MOCK_DATA = true; // Auf false setzen wenn Backend läuft
 
 // Local Storage Keys
 const PUSH_DISMISSED_KEY = 'pushDismissed';
@@ -78,10 +78,10 @@ function getMockData(endpoint) {
                 { title: 'Avatar: The Way of Water', user: 'Mama' }
             ],
             recently_added: [
-                { title: 'Dune: Part Two', type: 'movie', thumb_url: 'assets/icons/plex.png' },
-                { title: 'Fallout S01E01', type: 'episode', thumb_url: 'assets/icons/plex.png' },
-                { title: 'The Bear S02E01', type: 'episode', thumb_url: 'assets/icons/plex.png' },
-                { title: 'Interstellar', type: 'movie', thumb_url: 'assets/icons/plex.png' }
+                { title: 'Dune: Part Two', type: 'movie', thumb_url: '' },
+                { title: 'Fallout S01E01', type: 'episode', thumb_url: '' },
+                { title: 'The Bear S02E01', type: 'episode', thumb_url: '' },
+                { title: 'Interstellar', type: 'movie', thumb_url: '' }
             ],
             timestamp: new Date().toISOString()
         }
@@ -359,17 +359,26 @@ async function updatePlexStats() {
             };
 
             if (recentItems.length) {
-                recentItems.forEach(item => {
+                // Color gradients for placeholders
+                const gradients = [
+                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+                ];
+
+                recentItems.forEach((item, index) => {
                     const cover = document.createElement('div');
                     cover.className = 'recent-cover';
                     cover.dataset.title = item.title || 'Neuer Plex Inhalt';
                     cover.setAttribute('role', 'img');
                     cover.setAttribute('aria-label', item.title || 'Neuer Plex Inhalt');
 
-                    if (item.thumb_url) {
+                    if (item.thumb_url && item.thumb_url.trim()) {
                         cover.style.backgroundImage = `url('${item.thumb_url}')`;
                     } else {
-                        cover.classList.add('recent-cover--placeholder');
+                        // Use colorful gradient instead of placeholder
+                        cover.style.backgroundImage = gradients[index % gradients.length];
                     }
 
                     recentGridEl.appendChild(cover);
@@ -686,10 +695,17 @@ notificationToggle?.addEventListener('click', (e) => {
     }
 });
 
-// Mark all as read button
-document.getElementById('markAllRead')?.addEventListener('click', () => {
-    markAllNotificationsAsRead();
-});
+// Mark all as read button - needs to be initialized after DOM is ready
+function initMarkAllReadButton() {
+    const markAllReadBtn = document.getElementById('markAllRead');
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            markAllNotificationsAsRead();
+        });
+    }
+}
 
 // Close notification dropdown when clicking outside
 document.addEventListener('click', (e) => {
@@ -769,6 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startStatsRefresh();
     initPushNotifications();
     renderNotifications(); // Initialize notification badge
+    initMarkAllReadButton(); // Initialize mark all read button
 
     // Show welcome message on first visit
     if (!localStorage.getItem('hasVisited')) {
