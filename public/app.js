@@ -435,19 +435,14 @@ async function updatePlexStats() {
                     }
                     
                     // Verwende den Backend-Proxy für Plex-Bilder
-                    const thumb = stream.thumb || stream.art || (stream.type === 'episode' && stream.grandparentThumb);
+                    // Bevorzuge das Serien-Cover (grandparentThumb) für Episoden
+                    const thumb = (stream.type === 'episode' && stream.grandparentThumb) || stream.thumb || stream.art;
                     if (thumb) {
                         streamCover.style.backgroundImage = `url('/api/plex/image${thumb}')`;
                     }
 
                     streamCover.title = stream.title || 'Aktiver Stream';
                     streamCover.dataset.title = stream.title || 'Aktiver Stream';
-                    
-                    // Füge Titel-Overlay hinzu
-                    const titleOverlay = document.createElement('div');
-                    titleOverlay.className = 'stream-cover__title';
-                    titleOverlay.textContent = stream.title || 'Aktiver Stream';
-                    streamCover.appendChild(titleOverlay);
 
                     streamGrid.appendChild(streamCover);
                 });
