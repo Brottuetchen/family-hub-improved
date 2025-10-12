@@ -774,7 +774,8 @@ def get_ollama_recommendations(movies: List[MediaItem], shows: List[MediaItem]) 
     ]
 
     prompt = f"""Analyze these items and select the TOP 5 movies and TOP 5 TV shows based on ratings, vote counts, and relevance.
-Provide a brief reason for each selection (max 50 words).
+Provide a brief reason for each selection (max 50 words). Answer in German. Give a concise summary. 
+1 of those 5 recommandations should be a wildcard (lower rating but interesting).
 
 Movies: {json.dumps(movies_data, ensure_ascii=False)}
 
