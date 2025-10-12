@@ -24,7 +24,6 @@ const newsletterList = document.getElementById('newsletterList');
 const latestNewsletter = document.getElementById('latestNewsletter');
 const installButton = document.getElementById('installButton');
 const notificationToggle = document.getElementById('notificationToggle');
-const notificationBadge = document.getElementById('notificationBadge');
 const pushModal = document.getElementById('pushModal');
 const enablePushBtn = document.getElementById('enablePush');
 const cancelPushBtn = document.getElementById('cancelPush');
@@ -85,21 +84,7 @@ function getMockData(endpoint) {
                 { title: 'Interstellar', type: 'movie', thumb_url: 'assets/icons/plex.png' }
             ],
             timestamp: new Date().toISOString()
-        },
-        '/api/overseerr/stats': {
-            pending_requests: 3,
-            recent_requests: [
-                { title: 'Oppenheimer', type: 'movie' },
-                { title: 'The Bear S02', type: 'tv' }
-            ]
-        },
-        '/api/services/status': [
-            { name: 'Plex', status: 'online' },
-            { name: 'Overseerr', status: 'online' },
-            { name: 'Trilium', status: 'online' },
-            { name: 'Immich', status: 'online' },
-            { name: 'SABnzbd', status: 'online' }
-        ]
+        }
     };
     return Promise.resolve(mockData[endpoint] || {});
 }
@@ -226,19 +211,71 @@ function renderNewsletterArchive(entries) {
     newsletterList.innerHTML = items;
 }
 
+function updateNewsletterQuickCard(entry) {
+    const card = document.getElementById('newsletterQuickCard');
+    const titleEl = document.getElementById('newsletterQuickTitle');
+    const metaEl = document.getElementById('newsletterQuickMeta');
+    const linkEl = document.getElementById('newsletterQuickLink');
+
+    if (!card || !titleEl || !metaEl || !linkEl) {
+        return;
+    }
+
+    const resetLink = () => {
+        linkEl.href = '#newsletter';
+        linkEl.removeAttribute('target');
+        linkEl.removeAttribute('rel');
+        linkEl.textContent = 'Zum Archiv';
+        linkEl.classList.add('is-disabled');
+    };
+
+    if (!entry || !entry.path) {
+        card.classList.remove('stat-card--active');
+        titleEl.textContent = 'Noch kein Newsletter verfügbar';
+        metaEl.textContent = 'Schau später wieder rein.';
+        resetLink();
+        return;
+    }
+
+    card.classList.add('stat-card--active');
+    titleEl.textContent = entry.title || 'Weekly Newsletter';
+
+    const formattedDate = entry.date ? formatDate(entry.date) : '';
+    const weekMatch = entry.title ? entry.title.match(/KW\s*(\d+)/i) : null;
+    const metaParts = [];
+
+    if (weekMatch && weekMatch[1]) {
+        metaParts.push(`KW ${weekMatch[1]}`);
+    }
+    if (formattedDate) {
+        metaParts.push(formattedDate);
+    }
+
+    metaEl.textContent = metaParts.length ? metaParts.join(' · ') : 'Neueste Ausgabe';
+
+    linkEl.href = `/newsletters/${entry.path}`;
+    linkEl.target = '_blank';
+    linkEl.rel = 'noopener';
+    linkEl.textContent = 'Im Browser öffnen →';
+    linkEl.classList.remove('is-disabled');
+}
+
 async function loadNewsletters() {
     try {
         const entries = await fetchJson('/newsletters/index.json');
         const sorted = entries.sort((a, b) => b.date.localeCompare(a.date));
 
         if (sorted.length) {
-            renderNewsletterHighlight(sorted[0]);
+            const latest = sorted[0];
+            renderNewsletterHighlight(latest);
+            updateNewsletterQuickCard(latest);
         } else {
             latestNewsletter.innerHTML = `
                 <div class="placeholder">
                     <p>Noch keine Newsletter vorhanden.</p>
                 </div>
             `;
+            updateNewsletterQuickCard(null);
         }
 
         renderNewsletterArchive(sorted.slice(0, 50));
@@ -249,6 +286,7 @@ async function loadNewsletters() {
                 <p>Newsletter konnten nicht geladen werden. Bitte Verbindung prüfen.</p>
             </div>
         `;
+        updateNewsletterQuickCard(null);
     }
 }
 
@@ -372,41 +410,8 @@ async function updatePlexStats() {
 }
 
 
-async function updateOverseerrStats() {
-    try {
-        const stats = await fetchAPI('/api/overseerr/stats');
-        const requestsEl = document.getElementById('overseerrRequests');
-
-        const requestCount = stats?.pending_requests ?? 0;
-        if (requestsEl) {
-            requestsEl.textContent = `${requestCount} offene Request${requestCount !== 1 ? 's' : ''}`;
-        }
-
-        if (notificationBadge) {
-            if (requestCount > 0) {
-                notificationBadge.textContent = requestCount;
-                notificationBadge.hidden = false;
-            } else {
-                notificationBadge.hidden = true;
-            }
-        }
-    } catch (error) {
-        console.error('Overseerr Stats Error:', error);
-        const requestsEl = document.getElementById('overseerrRequests');
-        if (requestsEl) {
-            requestsEl.textContent = 'Nicht verfügbar';
-        }
-        if (notificationBadge) {
-            notificationBadge.hidden = true;
-        }
-    }
-}
-
 async function updateAllStats() {
-    await Promise.all([
-        updatePlexStats(),
-        updateOverseerrStats()
-    ]);
+    await updatePlexStats();
 }
 
 // === PUSH NOTIFICATIONS ===

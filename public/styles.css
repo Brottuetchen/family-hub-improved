@@ -309,6 +309,39 @@ main {
     color: var(--color-text-muted);
 }
 
+.stat-card__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.stat-card__cta::after {
+    content: '→';
+    font-size: 14px;
+    transition: transform var(--transition-fast);
+}
+
+.stat-card__cta:hover {
+    color: var(--color-primary-dark);
+    transform: translateX(2px);
+}
+
+.stat-card__cta:hover::after {
+    transform: translateX(2px);
+}
+
+.stat-card__cta.is-disabled {
+    pointer-events: none;
+    color: var(--color-text-muted);
+    opacity: 0.6;
+}
+
 .stat-card__recent-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
