@@ -274,8 +274,10 @@ a:hover {
 
 .menu-dropdown {
     position: absolute;
-    top: calc(100% + 8px);
+    top: calc(100% + 12px);
     right: 0;
+    left: auto;
+    margin: 0;
     background: var(--color-surface);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
@@ -326,10 +328,10 @@ a:hover {
 
 .notification-dropdown {
     position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
+    top: calc(100% + 12px);
+    left: auto;
     right: 0;
-    margin: 0 auto;
+    margin: 0;
     background: var(--color-surface);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
@@ -542,15 +544,6 @@ a:hover {
     text-align: center;
     color: var(--color-text-muted);
     font-size: 0.9rem;
-}
-
-@media (min-width: 768px) {
-    .notification-dropdown {
-        left: auto;
-        margin: 0;
-        right: calc(var(--safe-area-right, 16px) + 50px);
-        width: min(400px, calc(100vw - 2 * var(--dropdown-padding-inline)));
-    }
 }
 
 /* === MAIN CONTENT === */
@@ -1448,8 +1441,3 @@ main {
         display: none;
     }
 }
-
-
-
-
-

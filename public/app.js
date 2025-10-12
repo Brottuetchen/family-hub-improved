@@ -113,6 +113,15 @@ function resolvePlexItemUrl(item) {
     return null;
 }
 
+function sanitizeNewsletterTitle(title) {
+    if (typeof title !== 'string' || !title.trim()) {
+        return '';
+    }
+
+    const cleaned = title.replace(/\s*[-–—]?\s*kw\s*\d+.*$/i, '').trim();
+    return cleaned || title.trim();
+}
+
 async function fetchJson(url) {
     const response = await fetch(url, { cache: 'no-cache' });
     if (!response.ok) {
@@ -212,11 +221,12 @@ function renderNewsletterHighlight(entry) {
     `).join('');
 
     const absoluteUrl = `/newsletters/${entry.path}`;
+    const displayTitle = sanitizeNewsletterTitle(entry.title) || 'Weekly Media Newsletter';
 
     latestNewsletter.innerHTML = `
         <header>
             <span class="newsletter-highlight__date">📅 ${formatDate(entry.date)}</span>
-            <h3 class="newsletter-highlight__title">${entry.title || 'Weekly Media Newsletter'}</h3>
+            <h3 class="newsletter-highlight__title">${displayTitle}</h3>
         </header>
         <div class="newsletter-highlight__meta">
             <div class="highlight-card">
@@ -252,7 +262,7 @@ function renderNewsletterArchive(entries) {
         return `
             <li class="newsletter-list__item">
                 <a href="${absoluteUrl}" target="_blank" rel="noopener" class="newsletter-list__title">
-                    <span>${entry.title || 'Weekly Media Newsletter'}</span>
+                    <span>${sanitizeNewsletterTitle(entry.title) || 'Weekly Media Newsletter'}</span>
                     <span class="newsletter-list__badges">
                         <span class="badge">🎬 ${movieCount}</span>
                         <span class="badge">📺 ${showCount}</span>
@@ -313,20 +323,10 @@ function updateNewsletterQuickCard(entry) {
     } else {
         card.classList.add('stat-card--active');
     }
-    titleEl.textContent = entry.title || 'Weekly Newsletter';
+    titleEl.textContent = sanitizeNewsletterTitle(entry.title) || 'Weekly Newsletter';
 
     const formattedDate = entry.date ? formatDate(entry.date) : '';
-    const weekMatch = entry.title ? entry.title.match(/KW\s*(\d+)/i) : null;
-    const metaParts = [];
-
-    if (weekMatch && weekMatch[1]) {
-        metaParts.push(`KW ${weekMatch[1]}`);
-    }
-    if (formattedDate) {
-        metaParts.push(formattedDate);
-    }
-
-    metaEl.textContent = metaParts.length ? metaParts.join(' · ') : 'Neueste Ausgabe';
+    metaEl.textContent = '';
 
     // Sneak Peek Sektion
     if (sneakPeekEl && entry.path) {
