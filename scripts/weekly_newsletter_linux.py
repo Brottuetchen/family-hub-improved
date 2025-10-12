@@ -841,283 +841,484 @@ def fallback_selection(movies: List[MediaItem], shows: List[MediaItem]) -> Tuple
 def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
                        all_movies: List[MediaItem], all_shows: List[MediaItem],
                        plex_stats: Dict) -> str:
-    """Generate a full HTML WEBSITE page for the newsletter, styled like the Family Hub website."""
+    """Generate HTML email newsletter with Plex statistics"""
 
     # Create lookup dictionaries
     movies_dict = {m.title: m for m in all_movies}
     shows_dict = {s.title: s for s in all_shows}
 
     current_date = datetime.now().strftime("%d. %B %Y")
-    current_kw = f"KW {datetime.now().isocalendar()[1]}"
 
-    # Relevante CSS-Regeln aus deiner styles.css hier eingebettet
-    # Dadurch ist die HTML-Datei eigenständig und benötigt keine externe CSS-Datei
-    css_styles = """
-    :root {
-        --color-primary: #4a46e4;
-        --color-primary-light: #6b67ff;
-        --color-surface: #ffffff;
-        --color-background: #f1f3fb;
-        --color-text: #1f2337;
-        --color-text-muted: #525a75;
-        --color-success: #10b981;
-        --color-warning: #f59e0b;
-        --radius-lg: 24px;
-        --radius-md: 18px;
-        --radius-sm: 12px;
-        --radius-full: 999px;
-        --shadow-md: 0 18px 40px rgba(39, 44, 68, 0.12);
-        --shadow-sm: 0 12px 24px rgba(39, 44, 68, 0.08);
-        font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    body {
-        margin: 0;
-        padding: 0;
-        background: var(--color-background);
-        color: var(--color-text);
-        line-height: 1.6;
-    }
-    body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background: radial-gradient(circle at 10% 20%, rgba(116, 90, 241, 0.15), transparent 45%),
-                    radial-gradient(circle at 90% 10%, rgba(59, 215, 255, 0.18), transparent 40%);
-        pointer-events: none;
-        z-index: -2;
-    }
-    .app-header {
-        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-        box-shadow: var(--shadow-md);
-        padding: 12px 0;
-        color: white;
-    }
-    .app-header__container {
-        width: min(1000px, 95vw);
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    .app-header__logo img {
-        width: 36px;
-        height: 36px;
-    }
-    .app-header__logo h1 {
-        margin: 0;
-        font-size: 20px;
-    }
-    main {
-        width: min(1000px, 95vw);
-        margin: 0 auto;
-        padding: 32px 0 80px;
-    }
-    .section h2 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--color-text);
-        margin: 0 0 25px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    .media-item {
-        display: flex;
-        gap: 24px;
-        margin-bottom: 24px;
-        padding: 24px;
-        background-color: var(--color-surface);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        transition: all 0.25s ease;
-    }
-    .media-item:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-md);
-    }
-    .poster img {
-        width: 150px;
-        height: 225px;
-        object-fit: cover;
-        border-radius: var(--radius-md);
-        flex-shrink: 0;
-    }
-    .details h3 {
-        font-size: 1.5em;
-        color: var(--color-text);
-        margin: 0 0 10px;
-    }
-    .meta {
-        font-size: 14px;
-        color: var(--color-text-muted);
-        margin: 0 0 10px;
-    }
-    .rating {
-        background-color: #ffd700;
-        color: #333;
-        padding: 4px 8px;
-        border-radius: var(--radius-sm);
-        font-weight: bold;
-    }
-    .genres {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 15px;
-    }
-    .genre {
-        background-color: rgba(74, 70, 228, 0.1);
-        color: var(--color-primary);
-        padding: 3px 12px;
-        border-radius: var(--radius-full);
-        font-size: 0.85em;
-        font-weight: 500;
-    }
-    .ai-reason {
-        background-color: rgba(74, 70, 228, 0.05);
-        border-left: 4px solid var(--color-primary);
-        padding: 10px 15px;
-        margin: 0 0 15px;
-        font-style: italic;
-        color: var(--color-text-muted);
-    }
-    .overview {
-        color: var(--color-text-muted);
-        margin-bottom: 20px;
-        line-height: 1.5;
-    }
-    .actions a, .actions span {
-        display: inline-block;
-        padding: 10px 20px;
-        text-decoration: none;
-        border-radius: var(--radius-full);
-        font-weight: 600;
-        font-size: 14px;
-        margin-right: 10px;
-        transition: transform 0.2s ease;
-    }
-    .actions a:hover {
-        transform: scale(1.05);
-    }
-    .btn-trailer { background-color: #ff0000; color: white; }
-    .btn-request { background-color: var(--color-primary); color: white; }
-    .status-available { background-color: var(--color-success); color: white; }
-    .status-requested { background-color: var(--color-warning); color: white; }
-
-    .stats-section {
-        background-color: var(--color-surface);
-        border-radius: var(--radius-lg);
-        padding: 30px;
-        box-shadow: var(--shadow-sm);
-        margin-top: 40px;
-    }
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-        text-align: center;
-    }
-    .stat-icon { font-size: 2.5em; margin-bottom: 10px; }
-    .stat-value { font-size: 2em; font-weight: bold; color: var(--color-primary); }
-    .stat-label { color: var(--color-text-muted); font-size: 0.95em; }
-    """
-
-    # Helper function for the media item HTML
-    def create_media_item_html(item, media_obj):
-        if not media_obj:
-            return ""
-
-        poster_html = f'<img src="{media_obj.poster_url}" alt="{media_obj.title}">' if media_obj.poster_url else ''
-        genres_html = ''.join([f'<span class="genre">{g}</span>' for g in media_obj.genres])
-        trailer_html = f'<a href="{media_obj.trailer_url}" target="_blank" class="btn-trailer">▶ Trailer</a>' if media_obj.trailer_url else ''
-
-        # Overseerr button logic
-        if media_obj.overseerr_status == "available":
-            overseerr_html = '<span class="status-available">✓ Verfügbar</span>'
-        elif media_obj.overseerr_status == "requested":
-            overseerr_html = '<span class="status-requested">⏳ Angefragt</span>'
-        else:  # not_available
-            overseerr_html = f'<a href="{media_obj.overseerr_url}" target="_blank" class="btn-request">+ Anfordern</a>'
-
-        return f"""
-        <article class="media-item">
-            <div class="poster">{poster_html}</div>
-            <div class="details">
-                <h3>{media_obj.title}</h3>
-                <p class="meta">
-                    <span class="rating">⭐ {media_obj.rating:.1f}/10</span> &nbsp;•&nbsp; 📅 {media_obj.release_date}
-                </p>
-                <div class="genres">{genres_html}</div>
-                <div class="ai-reason"><strong>💡 Empfehlung:</strong> {item.get('reason', 'Hochbewertet')}</div>
-                <p class="overview">{media_obj.overview}</p>
-                <div class="actions">
-                    {trailer_html}
-                    {overseerr_html}
-                </div>
-            </div>
-        </article>
-        """
-
-    # --- Start of HTML Website ---
     html = f"""<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weekly Media Newsletter</title>
-    <style>{css_styles}</style>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f0f1a;
+            background-image: radial-gradient(circle at 10% 20%, rgba(116, 90, 241, 0.28), transparent 55%),
+                              radial-gradient(circle at 90% 10%, rgba(59, 215, 255, 0.22), transparent 48%);
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            color: #1f2337;
+            padding: 20px;
+            line-height: 1.6;
+        }}
+
+        .container {{
+            max-width: 800px;
+            margin: 0 auto;
+            background: linear-gradient(155deg, rgba(234, 237, 255, 0.65), rgba(213, 218, 255, 0.45));
+            border: 1px solid rgba(74, 70, 228, 0.15);
+            border-radius: 16px;
+            box-shadow: 0 28px 64px rgba(39, 44, 68, 0.16);
+            overflow: hidden;
+            backdrop-filter: blur(18px);
+        }}
+
+        .header {{
+            background: linear-gradient(135deg, rgba(74, 70, 228, 0.22), rgba(107, 103, 255, 0.2));
+            color: #1f2337;
+            padding: 40px 20px;
+            text-align: center;
+        }}
+
+        .header h1 {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }}
+
+        .header p {{
+            font-size: 1.1em;
+            opacity: 0.9;
+        }}
+
+        .content {{
+            padding: 40px 20px;
+        }}
+
+        .section {{
+            margin-bottom: 50px;
+            background: linear-gradient(150deg, rgba(232, 235, 255, 0.5), rgba(208, 214, 255, 0.35));
+            border-radius: 18px;
+            padding: 28px 24px;
+            border: 1px solid rgba(74, 70, 228, 0.16);
+            box-shadow: 0 24px 40px rgba(39, 44, 68, 0.15);
+            backdrop-filter: blur(16px);
+        }}
+
+        .section h2 {{
+            font-size: 2em;
+            color: #1f2337;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #4a46e4;
+        }}
+
+        .media-item {{
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(145deg, rgba(237, 240, 255, 0.7), rgba(214, 220, 255, 0.45));
+            border-radius: 12px;
+            border: 1px solid rgba(74, 70, 228, 0.18);
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 18px 36px rgba(39, 44, 68, 0.14);
+            backdrop-filter: blur(14px);
+        }}
+
+        .media-item:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 28px 56px rgba(39, 44, 68, 0.22);
+        }}
+
+        .poster {{
+            flex-shrink: 0;
+            width: 150px;
+            height: 225px;
+            border-radius: 5px;
+            overflow: hidden;
+            background-color: #ddd;
+        }}
+
+        .poster img {{
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }}
+
+        .poster-placeholder {{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #4a46e4 0%, #6b67ff 100%);
+            color: white;
+            font-size: 3em;
+        }}
+
+        .details {{
+            flex: 1;
+            color: #1f2337;
+        }}
+
+        .details h3 {{
+            font-size: 1.5em;
+            color: #1f2337;
+            margin-bottom: 10px;
+        }}
+
+        .meta {{
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }}
+
+        .meta span:not(.rating) {{
+            color: #525a75;
+        }}
+
+        .meta span:not(.rating) {{
+            color: #525a75;
+        }}
+
+        .rating {{
+            background-color: #ffd700;
+            color: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }}
+
+        .genres {{
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }}
+
+        .genre {{
+            background: rgba(74, 70, 228, 0.12);
+            color: #1f2337;
+            padding: 3px 12px;
+            border-radius: 999px;
+            font-size: 0.85em;
+            border: 1px solid rgba(74, 70, 228, 0.24);
+        }}
+
+        .overview {{
+            color: #525a75;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }}
+
+        .ai-reason {{
+            background: rgba(236, 239, 255, 0.75);
+            border-left: 4px solid rgba(74, 70, 228, 0.3);
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            font-style: italic;
+            color: #1f2337;
+        }}
+
+        .trailer-btn {{
+            display: inline-block;
+            background-color: #ff0000;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            margin-right: 10px;
+        }}
+
+        .trailer-btn:hover {{
+            background-color: #cc0000;
+        }}
+
+        .request-btn {{
+            display: inline-block;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }}
+
+        .request-btn.available {{
+            background-color: #28a745;
+            cursor: default;
+        }}
+
+        .request-btn.requested {{
+            background-color: #fd7e14;
+            cursor: default;
+        }}
+
+        .request-btn.not-available {{
+            background-color: #007bff;
+        }}
+
+        .request-btn.not-available:hover {{
+            background-color: #0056b3;
+        }}
+
+        .stats-section {{
+            background: linear-gradient(150deg, rgba(232, 235, 255, 0.55), rgba(213, 218, 255, 0.4));
+            padding: 32px;
+            border-radius: 18px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(74, 70, 228, 0.18);
+            box-shadow: 0 24px 40px rgba(39, 44, 68, 0.15);
+            backdrop-filter: blur(18px);
+        }}
+
+        .stats-section h2 {{
+            font-size: 1.8em;
+            color: #1f2337;
+            margin-bottom: 20px;
+            border-bottom: 3px solid rgba(74, 70, 228, 0.25);
+            padding-bottom: 10px;
+        }}
+
+        .stats-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }}
+
+        .stat-item {{
+            background: rgba(244, 246, 255, 0.78);
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 18px 32px rgba(39, 44, 68, 0.14);
+            border: 1px solid rgba(74, 70, 228, 0.16);
+            color: #1f2337;
+            backdrop-filter: blur(12px);
+        }}
+
+        .stat-icon {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }}
+
+        .stat-value {{
+            font-size: 2em;
+            font-weight: bold;
+            color: #1f2337;
+            margin-bottom: 5px;
+        }}
+
+        .stat-label {{
+            color: #525a75;
+            font-size: 0.95em;
+        }}
+
+        .footer {{
+            background: linear-gradient(145deg, rgba(234, 237, 255, 0.6), rgba(210, 215, 255, 0.4));
+            color: #1f2337;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
+            border-radius: 14px;
+            border: 1px solid rgba(74, 70, 228, 0.16);
+            box-shadow: 0 18px 32px rgba(39, 44, 68, 0.14);
+            backdrop-filter: blur(12px);
+        }}
+
+        @media (max-width: 600px) {{
+            .media-item {{
+                flex-direction: column;
+            }}
+
+            .poster {{
+                width: 100%;
+                height: 300px;
+            }}
+
+            .header h1 {{
+                font-size: 1.8em;
+            }}
+
+            .section h2 {{
+                font-size: 1.5em;
+            }}
+
+            .stats-grid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+    </style>
 </head>
 <body>
-    <header class="app-header">
-        <div class="app-header__container">
-            <div class="app-header__logo">
-                <img src="assets/icons/app-icon.svg" alt="Family Hub Logo">
-                <h1>Family Hub Newsletter</h1>
-            </div>
-            <span>{current_kw} • {current_date}</span>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Weekly Media Newsletter</h1>
+            <p>{current_date}</p>
+            <p>Deine persönlichen Top 5 Filme & Serien der Woche</p>
         </div>
-    </header>
 
-    <main>
-        <section class="section">
-            <h2><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>Top 5 Filme</h2>
-            {''.join([create_media_item_html(item, movies_dict.get(item['title'])) for item in selected_movies])}
-        </section>
+        <div class="content">
+"""
 
-        <section class="section">
-            <h2><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>Top 5 Serien</h2>
-            {''.join([create_media_item_html(item, shows_dict.get(item['title'])) for item in selected_shows])}
-        </section>
-        """
+    # Movies section
+    if selected_movies:
+        html += """
+            <div class="section">
+                <h2>🎥 Top 5 Filme</h2>
+"""
+
+        for item in selected_movies:
+            movie = movies_dict.get(item['title'])
+            if not movie:
+                continue
+
+            poster_html = f'<img src="{movie.poster_url}" alt="{movie.title}">' if movie.poster_url else '<div class="poster-placeholder">🎬</div>'
+
+            genres_html = ''.join([f'<span class="genre">{g}</span>' for g in movie.genres])
+
+            trailer_html = f'<a href="{movie.trailer_url}" class="trailer-btn" target="_blank">▶ Trailer ansehen</a>' if movie.trailer_url else ''
+
+            # Generate Overseerr button based on status
+            if movie.overseerr_status == "available":
+                overseerr_html = '<span class="request-btn available">✓ Verfügbar</span>'
+            elif movie.overseerr_status == "requested":
+                overseerr_html = '<span class="request-btn requested">⏳ Angefragt</span>'
+            else:  # not_available
+                overseerr_html = f'<a href="{movie.overseerr_url}" class="request-btn not-available" target="_blank">➕ In Overseerr anfordern</a>'
+
+            html += f"""
+                <div class="media-item">
+                    <div class="poster">
+                        {poster_html}
+                    </div>
+                    <div class="details">
+                        <h3>{movie.title}</h3>
+                        <div class="meta">
+                            <span class="rating">⭐ {movie.rating:.1f}/10</span>
+                            <span>📅 {movie.release_date}</span>
+                            <span>👥 {movie.vote_count} Bewertungen</span>
+                        </div>
+                        <div class="genres">
+                            {genres_html}
+                        </div>
+                        <div class="ai-reason">
+                            <strong>💡 Empfehlung:</strong> {item.get('reason', 'Hochbewertet')}
+                        </div>
+                        <p class="overview">{movie.overview}</p>
+                        {trailer_html}
+                        {overseerr_html}
+                    </div>
+                </div>
+"""
+
+        html += "            </div>\n"
+
+    # TV Shows section
+    if selected_shows:
+        html += """
+            <div class="section">
+                <h2>📺 Top 5 Serien</h2>
+"""
+
+        for item in selected_shows:
+            show = shows_dict.get(item['title'])
+            if not show:
+                continue
+
+            poster_html = f'<img src="{show.poster_url}" alt="{show.title}">' if show.poster_url else '<div class="poster-placeholder">📺</div>'
+
+            genres_html = ''.join([f'<span class="genre">{g}</span>' for g in show.genres])
+
+            trailer_html = f'<a href="{show.trailer_url}" class="trailer-btn" target="_blank">▶ Trailer ansehen</a>' if show.trailer_url else ''
+
+            # Generate Overseerr button based on status
+            if show.overseerr_status == "available":
+                overseerr_html = '<span class="request-btn available">✓ Verfügbar</span>'
+            elif show.overseerr_status == "requested":
+                overseerr_html = '<span class="request-btn requested">⏳ Angefragt</span>'
+            else:  # not_available
+                overseerr_html = f'<a href="{show.overseerr_url}" class="request-btn not-available" target="_blank">➕ In Overseerr anfordern</a>'
+
+            html += f"""
+                <div class="media-item">
+                    <div class="poster">
+                        {poster_html}
+                    </div>
+                    <div class="details">
+                        <h3>{show.title}</h3>
+                        <div class="meta">
+                            <span class="rating">⭐ {show.rating:.1f}/10</span>
+                            <span>📅 {show.release_date}</span>
+                            <span>👥 {show.vote_count} Bewertungen</span>
+                        </div>
+                        <div class="genres">
+                            {genres_html}
+                        </div>
+                        <div class="ai-reason">
+                            <strong>💡 Empfehlung:</strong> {item.get('reason', 'Hochbewertet')}
+                        </div>
+                        <p class="overview">{show.overview}</p>
+                        {trailer_html}
+                        {overseerr_html}
+                    </div>
+                </div>
+"""
+
+        html += "            </div>\n"
+
     # Plex Statistics section (if available)
     if plex_stats.get('success', False):
         html += f"""
-        <section class="section stats-section">
-            <h2>📊 Deine Woche in Zahlen</h2>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-icon">🎬</div>
-                    <div class="stat-value">{plex_stats.get('movies_watched', 0)}</div>
-                    <div class="stat-label">Filme geschaut</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-icon">📺</div>
-                    <div class="stat-value">{plex_stats.get('episodes_watched', 0)}</div>
-                    <div class="stat-label">Episoden geschaut</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-icon">⏱️</div>
-                    <div class="stat-value">{plex_stats.get('total_hours', 0)}</div>
-                    <div class="stat-label">Stunden gestreamt</div>
+            <div class="stats-section">
+                <h2>📊 Deine Woche in Zahlen</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-icon">🎬</div>
+                        <div class="stat-value">{plex_stats.get('movies_watched', 0)}</div>
+                        <div class="stat-label">Filme geschaut</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">📺</div>
+                        <div class="stat-value">{plex_stats.get('episodes_watched', 0)}</div>
+                        <div class="stat-label">Episoden geschaut</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value">{plex_stats.get('total_hours', 0)}</div>
+                        <div class="stat-label">Stunden gestreamt</div>
+                    </div>
                 </div>
             </div>
-        </section>
-        """
+"""
+
     html += """
-    </main>
+        </div>
+
+        <div class="footer">
+            <p>Generiert von weekly_newsletter.py</p>
+            <p>Powered by TMDB & Ollama AI</p>
+        </div>
+    </div>
 </body>
 </html>
 """
+
     return html
 
 
