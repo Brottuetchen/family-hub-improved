@@ -55,21 +55,24 @@
 
 * {
     box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 html {
     scroll-behavior: smooth;
     scroll-padding-top: 80px;
+    height: 100%;
 }
 
 body {
-    margin: 0;
-    padding: 0;
-    padding-top: 60px;
     background: var(--color-background);
     color: var(--color-text);
-    overflow-x: hidden;
     min-height: 100vh;
+    padding-top: 80px; /* Höhe des Headers */
+    position: relative;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 /* Gradient Background Overlay */
@@ -96,23 +99,22 @@ a:hover {
 /* === STICKY HEADER === */
 
 .app-header {
-    position: fixed;
+    position: fixed !important;
     top: 0;
     left: 0;
     right: 0;
+    height: 80px; /* Feste Höhe für den Header */
     width: 100%;
     z-index: 9999;
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     box-shadow: var(--shadow-md);
-    padding: 12px 0;
-    padding-top: max(12px, var(--safe-area-top));
-    padding-left: var(--safe-area-left);
-    padding-right: var(--safe-area-right);
-    backdrop-filter: blur(20px);
-}
-
-.app-header__container {
-    position: relative;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .app-header__container {
@@ -122,6 +124,8 @@ a:hover {
     align-items: center;
     justify-content: space-between;
     gap: 24px;
+    height: 100%;
+    padding: 0 20px;
 }
 
 .app-header__logo {
@@ -554,10 +558,8 @@ a:hover {
 main {
     width: min(1200px, 95vw);
     margin: 0 auto;
-    padding-top: 100px; /* Angepasst für den fixed header */
+    padding: 20px;
     padding-bottom: max(80px, calc(80px + var(--safe-area-bottom)));
-    padding-left: 0;
-    padding-right: 0;
     position: relative;
     z-index: 1;
 }
