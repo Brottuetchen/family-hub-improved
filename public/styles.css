@@ -835,7 +835,7 @@ main {
     position: relative;
     display: block;
     width: 100%;
-    padding-top: 75%;  /* Breiteres Format für das Hauptbild */
+    padding-top: 150%;  /* Breiteres Format für das Hauptbild */
     border-radius: var(--radius-md);
     overflow: hidden;
     background: linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16));
@@ -1448,3 +1448,8 @@ main {
         display: none;
     }
 }
+
+
+
+
+
