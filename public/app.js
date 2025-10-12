@@ -273,6 +273,7 @@ function updateNewsletterQuickCard(entry) {
     const titleEl = document.getElementById('newsletterQuickTitle');
     const metaEl = document.getElementById('newsletterQuickMeta');
     const linkEl = document.getElementById('newsletterQuickLink');
+    const sneakPeekEl = document.getElementById('newsletterSneakPeek');
 
     if (!card || !titleEl || !metaEl || !linkEl) {
         return;
@@ -293,6 +294,10 @@ function updateNewsletterQuickCard(entry) {
         metaEl.textContent = 'Schau später wieder rein.';
         localStorage.removeItem(NEWSLETTER_LAST_READ_KEY);
         resetLink();
+        
+        if (sneakPeekEl) {
+            sneakPeekEl.innerHTML = '';
+        }
         return;
     }
 
@@ -318,6 +323,42 @@ function updateNewsletterQuickCard(entry) {
     }
 
     metaEl.textContent = metaParts.length ? metaParts.join(' · ') : 'Neueste Ausgabe';
+
+    // Sneak Peek Sektion
+    if (sneakPeekEl && entry.movies && entry.movies.length > 0) {
+        let sneakPeekContent = `
+            <div class="stat-card__sneak-peek">
+                <div class="stat-card__sneak-peek-header">
+                    <div class="stat-card__sneak-peek-title">Diese Woche neu</div>
+                    <div class="stat-card__sneak-peek-date">${weekMatch ? weekMatch[1] : ''}</div>
+                </div>
+                <div class="stat-card__sneak-peek-grid">
+        `;
+
+        // Zeige die ersten 4 Filme im Grid
+        entry.movies.slice(0, 4).forEach(movie => {
+            sneakPeekContent += `
+                <div class="stat-card__sneak-peek-item">
+                    ${movie.thumb ? `<img src="${movie.thumb}" alt="${movie.title}">` : ''}
+                </div>
+            `;
+        });
+
+        sneakPeekContent += `
+                </div>
+                <div class="stat-card__sneak-peek-footer">
+                    <div class="stat-card__sneak-peek-count">${entry.movies.length} neue Titel</div>
+                    <a href="/newsletters/${entry.path}" target="_blank" rel="noopener" class="stat-card__sneak-peek-link">
+                        Alle anzeigen
+                    </a>
+                </div>
+            </div>
+        `;
+
+        sneakPeekEl.innerHTML = sneakPeekContent;
+    } else if (sneakPeekEl) {
+        sneakPeekEl.innerHTML = '';
+    }
 
     linkEl.href = `/newsletters/${entry.path}`;
     linkEl.target = '_blank';
