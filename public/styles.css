@@ -669,19 +669,21 @@ main {
 
 .stat-card__sneak-peek-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);  /* 4 Spalten statt 2 */
-    gap: 8px;  /* Kleinerer Abstand */
+    grid-template-columns: repeat(2, 1fr);  /* 2x2 Grid */
+    grid-template-rows: repeat(2, 1fr);     /* Explizit 2 Reihen */
+    gap: 8px;  /* Kleinerer Abstand beibehalten */
     margin-bottom: 12px;
+    height: calc(100% - 32px);  /* Volle Höhe minus Margin */
 }
 
 .stat-card__sneak-peek-item {
     position: relative;
-    padding-top: 140%;  /* Angepasstes Seitenverhältnis */
+    padding-top: 150%;  /* Filmplakat-Format (2:3) */
     border-radius: var(--radius-sm);
     overflow: hidden;
     background: rgba(74, 70, 228, 0.05);
     transition: all var(--transition-base);
-    background-size: contain;  /* Ensure whole image is visible */
+    background-size: cover;  /* Bildausschnitt füllt das Format */
     background-position: center;
     background-repeat: no-repeat;
     box-shadow: var(--shadow-sm);
