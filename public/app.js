@@ -676,6 +676,69 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
+// === ADMIN PUSH NOTIFICATION HELPER ===
+
+/**
+ * Admin Function: Sende benutzerdefinierte Push-Benachrichtigung an alle Subscribers
+ *
+ * Beispiel-Aufruf in der Browser-Konsole:
+ *
+ * sendAdminPush({
+ *     title: "Neue Filme verfügbar!",
+ *     body: "Schau dir die neuesten Blockbuster auf Plex an.",
+ *     url: "/index.html#services",
+ *     icon: "/assets/icons/app-icon-192.png"
+ * });
+ *
+ * Minimale Version:
+ * sendAdminPush({ title: "Test", body: "Das ist eine Testnachricht" });
+ */
+window.sendAdminPush = async function(options = {}) {
+    if (!options.title || !options.body) {
+        console.error('❌ Fehler: title und body sind erforderlich!');
+        console.log('Beispiel: sendAdminPush({ title: "Titel", body: "Nachricht" })');
+        return;
+    }
+
+    const payload = {
+        title: options.title,
+        body: options.body,
+        url: options.url || "/",
+        icon: options.icon || "/assets/icons/app-icon-192.png"
+    };
+
+    try {
+        console.log('📤 Sende Push-Benachrichtigung...');
+        const response = await fetch(`${API_BASE_URL}/api/push/admin/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Request failed');
+        }
+
+        const result = await response.json();
+        console.log('✅ Push-Benachrichtigung gesendet!');
+        console.log(`   Erfolgreich: ${result.success}`);
+        console.log(`   Fehlgeschlagen: ${result.failed}`);
+        console.log(`   Gesamt Subscribers: ${result.total_subscriptions}`);
+        return result;
+    } catch (error) {
+        console.error('❌ Fehler beim Senden:', error.message);
+        throw error;
+    }
+};
+
+// Helper info in console
+console.log('%c📢 Admin Push Helper geladen!', 'color: #4A46E4; font-weight: bold; font-size: 14px;');
+console.log('Verwende: sendAdminPush({ title: "Titel", body: "Nachricht" })');
+console.log('Beispiel: sendAdminPush({ title: "Neue Inhalte", body: "Schau dir die neuesten Filme an!", url: "/index.html#services" })');
+
 // === INITIALIZATION ===
 
 document.addEventListener('DOMContentLoaded', () => {

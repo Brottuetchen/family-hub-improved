@@ -163,6 +163,7 @@ async def health_check():
             "/api/vapid-public-key",
             "/api/push/subscribe",
             "/api/push/notify",
+            "/api/push/admin/send",
             "/api/services/status",
             "/api/plex/stats",
             "/api/overseerr/stats"
@@ -256,6 +257,56 @@ async def send_push_notification(data: Dict):
         "success": success_count,
         "failed": failed_count,
         "total_subscriptions": len(push_subscriptions)
+    }
+
+@app.post("/api/push/admin/send")
+async def admin_send_push(notification: PushNotification):
+    """Admin Endpoint: Sende benutzerdefinierte Push-Benachrichtigung"""
+    if not push_subscriptions:
+        return {"success": 0, "failed": 0, "message": "No subscribers"}
+
+    payload = {
+        "title": notification.title,
+        "body": notification.body,
+        "url": notification.url,
+        "icon": notification.icon
+    }
+
+    success_count = 0
+    failed_count = 0
+    subscriptions_changed = False
+
+    for subscription in push_subscriptions[:]:
+        try:
+            response = webpush(
+                subscription_info=subscription,
+                data=json.dumps(payload),
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS,
+                ttl=86400
+            )
+            success_count += 1
+            logger.info(f"Admin push sent to {subscription['endpoint'][:50]}...")
+
+        except WebPushException as e:
+            logger.error(f"Admin push failed: {e}")
+            failed_count += 1
+
+            if e.response and e.response.status_code in [410, 404]:
+                push_subscriptions.remove(subscription)
+                subscriptions_changed = True
+                logger.info(f"Removed invalid subscription: {subscription['endpoint'][:50]}...")
+
+    if subscriptions_changed:
+        persist_subscriptions()
+
+    logger.info(f"Admin notification sent: '{notification.title}' - {success_count} success, {failed_count} failed")
+
+    return {
+        "success": success_count,
+        "failed": failed_count,
+        "total_subscriptions": len(push_subscriptions),
+        "message": f"Push notification '{notification.title}' sent successfully"
     }
 
 @app.post("/api/newsletter/reload")
