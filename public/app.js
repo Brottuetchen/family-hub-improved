@@ -404,27 +404,25 @@ async function updatePlexStats() {
                     
                     // Erstelle ein img Element für das Cover
                     const coverImg = document.createElement('img');
-                    // Prüfe verschiedene mögliche Bild-URL-Quellen
-                    const imageUrl = stream.thumb_url || stream.thumbUrl || stream.cover || 
-                                   (stream.metadata && stream.metadata.thumb) || 
-                                   (stream.metadata && stream.metadata.cover);
-                                   
-                    if (imageUrl) {
-                        // Stelle sicher, dass die URL vollständig ist
-                        const fullImageUrl = imageUrl.startsWith('http') ? 
-                            imageUrl : 
-                            `http://192.168.188.7:32400${imageUrl}`;
-                            
-                        coverImg.src = fullImageUrl;
-                        coverImg.alt = stream.title || 'Stream Cover';
-                        coverImg.onerror = () => {
-                            coverImg.style.display = 'none';
-                            streamCover.style.background = 'linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16))';
-                        };
-                        
-                        // Debug-Ausgabe
-                        console.log('Stream cover URL:', fullImageUrl);
+                    
+                    // Verwende den Backend-Proxy für Plex-Bilder
+                    if (stream.type === 'episode' && stream.grandparentThumb) {
+                        coverImg.src = `/api/plex/image${stream.grandparentThumb}`;
+                    } else if (stream.thumb) {
+                        coverImg.src = `/api/plex/image${stream.thumb}`;
                     }
+                    
+                    // Fallback für den Fall, dass kein Bild verfügbar ist
+                    coverImg.alt = stream.title || 'Stream Cover';
+                    coverImg.onerror = () => {
+                        coverImg.style.display = 'none';
+                        streamCover.style.background = 'linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16))';
+                    };
+                    
+                    // Debug-Ausgabe
+                    console.log('Stream:', stream);
+                    console.log('Cover src:', coverImg.src);
+                    
                     streamCover.appendChild(coverImg);
                     
                     // Füge Titel-Overlay hinzu
