@@ -819,19 +819,10 @@ main {
     margin-bottom: 40px;
 }
 
-.stream-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
-    margin-top: 16px;
-    width: 100%;
-}
-
 .stream-cover {
     position: relative;
     display: block;
     width: 100%;
-    padding-top: 150%;  /* Breiteres Format für das Hauptbild */
     border-radius: var(--radius-md);
     overflow: hidden;
     background: linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16));
@@ -842,24 +833,24 @@ main {
     transition: all var(--transition-base);
 }
 
-.stream-cover img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: var(--radius-md);
-    background: linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16));
-}
-
 .stream-cover:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-md);
 }
 
 .stream-cover__title {
-    display: none;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 8px 8px;
+    background: linear-gradient(to top, rgba(15, 15, 26, 0.85), transparent);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    opacity: 1;
+    transition: opacity var(--transition-base);
 }
 
 .recent-cover::after {

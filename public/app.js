@@ -419,17 +419,13 @@ async function updatePlexStats() {
             recentStreamEl.innerHTML = '';
             
             if (stats?.streams && stats.streams.length > 0) {
-                const streamInfo = document.createElement('div');
-                streamInfo.textContent = `${stats.streams.length} aktive Stream(s)`;
-                streamInfo.style.marginBottom = '12px';
-                recentStreamEl.appendChild(streamInfo);
-
                 // Create grid for stream covers
                 const streamGrid = document.createElement('div');
-                streamGrid.className = 'stream-grid';
+                // Use the same grid class as other stat cards for consistency
+                streamGrid.className = 'stat-card__recent-grid';
 
                 stats.streams.forEach(stream => {
-                    const streamCover = document.createElement('a');
+                    const streamCover = document.createElement('a'); // Use 'a' tag for links
                     streamCover.className = 'stream-cover';
                     const plexUrl = resolvePlexItemUrl(stream);
                     if (plexUrl) {
@@ -438,34 +434,21 @@ async function updatePlexStats() {
                         streamCover.rel = 'noopener noreferrer';
                     }
                     
-                    // Erstelle ein img Element für das Cover
-                    const coverImg = document.createElement('img');
-                    
                     // Verwende den Backend-Proxy für Plex-Bilder
                     const thumb = stream.thumb || stream.art || (stream.type === 'episode' && stream.grandparentThumb);
                     if (thumb) {
-                        coverImg.src = `/api/plex/image${thumb}`;
+                        streamCover.style.backgroundImage = `url('/api/plex/image${thumb}')`;
                     }
-                    
-                    // Fallback für den Fall, dass kein Bild verfügbar ist
-                    coverImg.alt = stream.title || 'Stream Cover';
-                    coverImg.onerror = () => {
-                        coverImg.style.display = 'none';
-                        streamCover.style.background = 'linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16))';
-                    };
-                    
-                    // Debug-Ausgabe
-                    console.log('Stream:', stream);
-                    console.log('Cover src:', coverImg.src);
-                    
-                    streamCover.appendChild(coverImg);
+
+                    streamCover.title = stream.title || 'Aktiver Stream';
+                    streamCover.dataset.title = stream.title || 'Aktiver Stream';
                     
                     // Füge Titel-Overlay hinzu
                     const titleOverlay = document.createElement('div');
                     titleOverlay.className = 'stream-cover__title';
                     titleOverlay.textContent = stream.title || 'Aktiver Stream';
                     streamCover.appendChild(titleOverlay);
-                    
+
                     streamGrid.appendChild(streamCover);
                 });
 
