@@ -1210,7 +1210,7 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
 
             genres_html = ''.join([f'<span class="genre">{g}</span>' for g in movie.genres])
 
-            trailer_html = f'<a href="{movie.trailer_url}" class="trailer-btn" target="_blank">🎞 Trailer ansehen</a>' if movie.trailer_url else ''
+            trailer_html = f'<a href="{movie.trailer_url}" class="trailer-btn" target="_blank">🎞 Trailer</a>' if movie.trailer_url else ''
 
             # Generate Overseerr button based on status
             if movie.overseerr_status == "available":
@@ -1218,7 +1218,7 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
             elif movie.overseerr_status == "requested":
                 overseerr_html = '<span class="request-btn requested">⏳ Angefragt</span>'
             else:  # not_available
-                overseerr_html = f'<a href="{movie.overseerr_url}" class="request-btn not-available" target="_blank">➕ In Overseerr anfordern</a>'
+                overseerr_html = f'<a href="{movie.overseerr_url}" class="request-btn not-available" target="_blank">➕ Anfordern</a>'
 
             action_buttons = []
             if trailer_html:
@@ -1275,7 +1275,7 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
 
             genres_html = ''.join([f'<span class="genre">{g}</span>' for g in show.genres])
 
-            trailer_html = f'<a href="{show.trailer_url}" class="trailer-btn" target="_blank">🎞 Trailer ansehen</a>' if show.trailer_url else ''
+            trailer_html = f'<a href="{show.trailer_url}" class="trailer-btn" target="_blank">🎞 Trailer</a>' if show.trailer_url else ''
 
             # Generate Overseerr button based on status
             if show.overseerr_status == "available":
@@ -1283,7 +1283,7 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
             elif show.overseerr_status == "requested":
                 overseerr_html = '<span class="request-btn requested">⏳ Angefragt</span>'
             else:  # not_available
-                overseerr_html = f'<a href="{show.overseerr_url}" class="request-btn not-available" target="_blank">➕ In Overseerr anfordern</a>'
+                overseerr_html = f'<a href="{show.overseerr_url}" class="request-btn not-available" target="_blank">➕ Anfordern</a>'
 
             action_buttons = []
             if trailer_html:
