@@ -67,6 +67,8 @@ body {
     background: var(--color-background);
     color: var(--color-text);
     overflow-x: hidden;
+    min-height: 100vh;
+    position: relative;
 }
 
 /* Gradient Background Overlay */
@@ -105,6 +107,9 @@ a:hover {
     padding-left: var(--safe-area-left);
     padding-right: var(--safe-area-right);
     backdrop-filter: blur(20px);
+    position: -webkit-sticky;
+    position: sticky;
+    width: 100%;
 }
 
 .app-header__container {
@@ -550,17 +555,19 @@ a:hover {
 main {
     width: min(1200px, 95vw);
     margin: 0 auto;
-    padding-top: 120px; /* Erhöht für den fixed header */
+    padding-top: 100px; /* Angepasst für den fixed header */
     padding-bottom: max(80px, calc(80px + var(--safe-area-bottom)));
     padding-left: 0;
     padding-right: 0;
+    position: relative;
+    z-index: 1;
 }
 
 /* === QUICK STATS WIDGET === */
 
 .quick-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     margin-bottom: 40px;
 }
@@ -665,7 +672,8 @@ main {
 
 .stat-card__recent-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
     gap: 12px;
     margin-top: 16px;
 }
@@ -1274,7 +1282,8 @@ main {
     }
 
     .stat-card__recent-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(2, 1fr);
     }
 
     .newsletter-highlight__meta {
