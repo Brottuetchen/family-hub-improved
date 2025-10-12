@@ -326,20 +326,35 @@ function updateNewsletterQuickCard(entry) {
 
     // Sneak Peek Sektion
     if (sneakPeekEl && entry.movies && entry.movies.length > 0) {
+        console.log('Newsletter movies:', entry.movies); // Debug-Ausgabe
+        
         let sneakPeekContent = `
             <div class="stat-card__sneak-peek">
                 <div class="stat-card__sneak-peek-header">
                     <div class="stat-card__sneak-peek-title">Diese Woche neu</div>
-                    <div class="stat-card__sneak-peek-date">${weekMatch ? weekMatch[1] : ''}</div>
+                    <div class="stat-card__sneak-peek-date">${weekMatch ? `KW ${weekMatch[1]}` : ''}</div>
                 </div>
                 <div class="stat-card__sneak-peek-grid">
         `;
 
         // Zeige die ersten 4 Filme im Grid
         entry.movies.slice(0, 4).forEach(movie => {
+            // Überprüfe alle möglichen Thumbnail-Quellen und füge debug logging hinzu
+            console.log('Movie data:', movie); // Debug-Ausgabe
+            
+            const thumb = movie.thumb || movie.art || movie.poster || movie.cover || 
+                         (movie.metadata && (movie.metadata.thumb || movie.metadata.art));
+            
+            console.log('Selected thumb:', thumb); // Debug-Ausgabe
+            
+            // Wenn es ein Plex-Thumbnail ist (beginnt mit /), füge den API-Proxy hinzu
+            const thumbUrl = thumb ? (thumb.startsWith('/') ? `/api/plex/image${thumb}` : thumb) : '';
+            
+            console.log('Final thumbUrl:', thumbUrl); // Debug-Ausgabe
+            
             sneakPeekContent += `
                 <div class="stat-card__sneak-peek-item">
-                    ${movie.thumb ? `<img src="${movie.thumb}" alt="${movie.title}">` : ''}
+                    ${thumbUrl ? `<img src="${thumbUrl}" alt="${movie.title || 'Film-Cover'}" loading="lazy">` : ''}
                 </div>
             `;
         });
@@ -378,6 +393,27 @@ async function loadNewsletters() {
 
         if (sorted.length) {
             const latest = sorted[0];
+            
+            // Debug-Ausgabe des neuesten Newsletters
+            console.log('Latest newsletter:', latest);
+            
+            // Stelle sicher, dass die Film-Metadaten geladen sind
+            if (latest.movies && latest.movies.length > 0) {
+                latest.movies = await Promise.all(latest.movies.map(async movie => {
+                    if (!movie.thumb && movie.rating_key) {
+                        try {
+                            // Versuche, die Metadaten vom Plex-Server zu laden
+                            const metadata = await fetchAPI(`/api/plex/metadata/${movie.rating_key}`);
+                            return { ...movie, ...metadata };
+                        } catch (error) {
+                            console.error('Error loading movie metadata:', error);
+                            return movie;
+                        }
+                    }
+                    return movie;
+                }));
+            }
+            
             renderNewsletterHighlight(latest);
             updateNewsletterQuickCard(latest);
         } else {
