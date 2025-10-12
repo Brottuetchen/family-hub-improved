@@ -399,12 +399,13 @@ a:hover {
 }
 
 .notification-history {
+    border-top: 1px solid rgba(74, 70, 228, 0.08);
+    background: rgba(30, 30, 46, 0.6);
     display: flex;
     flex-direction: column;
     gap: 12px;
-    border-top: 1px solid rgba(74, 70, 228, 0.08);
-    background: rgba(30, 30, 46, 0.6);
     flex: 1;
+    min-height: 0; /* WICHTIG: Erlaubt dem Container, kleiner als sein Inhalt zu sein */
     overflow-y: auto;
     padding: var(--dropdown-padding-block) var(--dropdown-padding-inline);
 }
