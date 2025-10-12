@@ -77,7 +77,14 @@ function getMockData(endpoint) {
             streams: [
                 { title: 'The Last of Us S01E03', user: 'Papa' },
                 { title: 'Avatar: The Way of Water', user: 'Mama' }
-            ]
+            ],
+            recently_added: [
+                { title: 'Dune: Part Two', type: 'movie', thumb_url: 'assets/icons/plex.png' },
+                { title: 'Fallout S01E01', type: 'episode', thumb_url: 'assets/icons/plex.png' },
+                { title: 'The Bear S02E01', type: 'episode', thumb_url: 'assets/icons/plex.png' },
+                { title: 'Interstellar', type: 'movie', thumb_url: 'assets/icons/plex.png' }
+            ],
+            timestamp: new Date().toISOString()
         },
         '/api/overseerr/stats': {
             pending_requests: 3,
@@ -251,30 +258,119 @@ async function updatePlexStats() {
     try {
         const stats = await fetchAPI('/api/plex/stats');
         const streamsEl = document.getElementById('plexStreams');
-        const recentEl = document.getElementById('plexRecent');
+        const recentStreamEl = document.getElementById('plexRecent');
+        const recentCountEl = document.getElementById('plexRecentCount');
+        const recentGridEl = document.getElementById('plexRecentGrid');
+        const recentDetailEl = document.getElementById('plexRecentDetail');
+        const plexCardEl = document.getElementById('plexStats');
 
-        const streamCount = stats.active_streams || 0;
-        streamsEl.textContent = `${streamCount} aktive Stream${streamCount !== 1 ? 's' : ''}`;
+        const streamCount = stats?.active_streams ?? 0;
 
-        if (stats.streams && stats.streams.length > 0) {
-            const recentStream = stats.streams[0];
-            recentEl.textContent = `Zuletzt: ${recentStream.title}`;
-        } else {
-            recentEl.textContent = 'Keine aktiven Streams';
+        if (streamsEl) {
+            streamsEl.textContent = `${streamCount} aktive Stream${streamCount !== 1 ? 's' : ''}`;
         }
 
-        // Zeige Badge wenn Streams aktiv
-        if (streamCount > 0) {
-            document.getElementById('plexStats').classList.add('stat-card--active');
-        } else {
-            document.getElementById('plexStats').classList.remove('stat-card--active');
+        if (recentStreamEl) {
+            if (stats?.streams && stats.streams.length > 0) {
+                const recentStream = stats.streams[0];
+                recentStreamEl.textContent = `Zuletzt: ${recentStream.title}`;
+            } else {
+                recentStreamEl.textContent = 'Keine aktiven Streams';
+            }
+        }
+
+        if (plexCardEl) {
+            if (streamCount > 0) {
+                plexCardEl.classList.add('stat-card--active');
+            } else {
+                plexCardEl.classList.remove('stat-card--active');
+            }
+        }
+
+        const recentItems = Array.isArray(stats?.recently_added)
+            ? stats.recently_added.slice(0, 4)
+            : [];
+
+        if (recentCountEl) {
+            recentCountEl.textContent = recentItems.length
+                ? `${recentItems.length} neue Titel`
+                : 'Keine neuen Medien';
+        }
+
+        if (recentDetailEl) {
+            if (recentItems.length && stats?.timestamp) {
+                const updatedAt = new Date(stats.timestamp);
+                recentDetailEl.textContent = `Stand: ${updatedAt.toLocaleTimeString('de-DE', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })} Uhr`;
+            } else if (recentItems.length) {
+                recentDetailEl.textContent = 'Letzte Aktualisierung erfolgreich';
+            } else {
+                recentDetailEl.textContent = 'Keine neuen Medien gefunden';
+            }
+        }
+
+        if (recentGridEl) {
+            recentGridEl.innerHTML = '';
+
+            const renderPlaceholder = () => {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'recent-cover recent-cover--placeholder';
+                recentGridEl.appendChild(placeholder);
+            };
+
+            if (recentItems.length) {
+                recentItems.forEach(item => {
+                    const cover = document.createElement('div');
+                    cover.className = 'recent-cover';
+                    cover.dataset.title = item.title || 'Neuer Plex Inhalt';
+                    cover.setAttribute('role', 'img');
+                    cover.setAttribute('aria-label', item.title || 'Neuer Plex Inhalt');
+
+                    if (item.thumb_url) {
+                        cover.style.backgroundImage = `url('${item.thumb_url}')`;
+                    } else {
+                        cover.classList.add('recent-cover--placeholder');
+                    }
+
+                    recentGridEl.appendChild(cover);
+                });
+
+                for (let i = recentItems.length; i < 4; i += 1) {
+                    renderPlaceholder();
+                }
+            } else {
+                for (let i = 0; i < 4; i += 1) {
+                    renderPlaceholder();
+                }
+            }
         }
     } catch (error) {
         console.error('Plex Stats Error:', error);
-        document.getElementById('plexStreams').textContent = 'Nicht verfügbar';
-        document.getElementById('plexRecent').textContent = 'Fehler beim Laden';
+
+        const streamsEl = document.getElementById('plexStreams');
+        const recentStreamEl = document.getElementById('plexRecent');
+        const recentCountEl = document.getElementById('plexRecentCount');
+        const recentGridEl = document.getElementById('plexRecentGrid');
+        const recentDetailEl = document.getElementById('plexRecentDetail');
+
+        if (streamsEl) streamsEl.textContent = 'Nicht verfügbar';
+        if (recentStreamEl) recentStreamEl.textContent = 'Fehler beim Laden';
+        if (recentCountEl) recentCountEl.textContent = 'Keine Daten';
+        if (recentDetailEl) recentDetailEl.textContent = 'Aktualisierung fehlgeschlagen';
+
+        if (recentGridEl) {
+            recentGridEl.innerHTML = '';
+            for (let i = 0; i < 4; i += 1) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'recent-cover recent-cover--placeholder';
+                recentGridEl.appendChild(placeholder);
+            }
+        }
     }
 }
+
 
 async function updateOverseerrStats() {
     try {
@@ -294,21 +390,6 @@ async function updateOverseerrStats() {
     }
 }
 
-async function updateSystemStats() {
-    try {
-        const services = await fetchAPI('/api/services/status');
-        const totalServices = services.length;
-        const onlineServices = services.filter(s => s.status === 'online').length;
-
-        document.getElementById('systemServices').textContent = `${onlineServices}/${totalServices} online`;
-        document.querySelector('#systemStats .stat-card__detail').textContent =
-            onlineServices === totalServices ? 'Alle Services online' : 'Einige Services offline';
-
-        if (onlineServices < totalServices) {
-            document.getElementById('systemStats').classList.add('stat-card--warning');
-        } else {
-            document.getElementById('systemStats').classList.remove('stat-card--warning');
-        }
     } catch (error) {
         console.error('System Stats Error:', error);
         document.getElementById('systemServices').textContent = 'Fehler';
@@ -319,8 +400,7 @@ async function updateSystemStats() {
 async function updateAllStats() {
     await Promise.all([
         updatePlexStats(),
-        updateOverseerrStats(),
-        updateSystemStats()
+        updateOverseerrStats()
     ]);
 }
 
@@ -329,7 +409,11 @@ async function updateAllStats() {
 async function initPushNotifications() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.warn('Push notifications not supported');
-        notificationToggle.style.display = 'none';
+        if (notificationToggle) {
+        if (notificationToggle) {
+            notificationToggle.style.display = 'none';
+        }
+    }
         return;
     }
 
@@ -341,7 +425,7 @@ async function initPushNotifications() {
         const hasSubscription = await pushManager.init();
 
         if (hasSubscription) {
-            notificationToggle.classList.add('active');
+            notificationToggle?.classList.add('active');
             localStorage.removeItem(PUSH_DISMISSED_KEY);
         }
     };
@@ -370,16 +454,19 @@ function registerServiceWorker() {
 window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     deferredPrompt = event;
-    installButton.hidden = false;
+
+    if (installButton) {
+        installButton.hidden = false;
+    }
 });
 
-installButton.addEventListener('click', async () => {
+installButton?.addEventListener('click', async () => {
     if (!deferredPrompt) return;
 
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
 
-    if (outcome === 'accepted') {
+    if (outcome === 'accepted' && installButton) {
         installButton.hidden = true;
         console.log('PWA installed');
     }
@@ -444,7 +531,7 @@ notificationToggle?.addEventListener('click', () => {
 enablePushBtn?.addEventListener('click', async () => {
     try {
         await pushManager.subscribe();
-        notificationToggle.classList.add('active');
+        notificationToggle?.classList.add('active');
         hidePushModal();
         localStorage.removeItem(PUSH_DISMISSED_KEY);
         alert('Benachrichtigungen aktiviert!');

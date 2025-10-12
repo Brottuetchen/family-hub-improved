@@ -410,15 +410,20 @@ async def get_plex_stats():
         recent_data = recent_response.json()
         recent_items = recent_data.get('MediaContainer', {}).get('Metadata', [])[:5]
 
-        recent = [
-            {
+        recent = []
+        for item in recent_items:
+            thumb_path = item.get("thumb")
+            thumb_url = None
+            if thumb_path:
+                thumb_url = f"{PLEX_URL}{thumb_path}?X-Plex-Token={PLEX_TOKEN}"
+
+            recent.append({
                 "title": item.get("title", "Unknown"),
                 "type": item.get("type", "unknown"),
                 "year": item.get("year"),
-                "added": item.get("addedAt")
-            }
-            for item in recent_items
-        ]
+                "added": item.get("addedAt"),
+                "thumb_url": thumb_url
+            })
 
         return {
             "active_streams": len(streams),

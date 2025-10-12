@@ -57,12 +57,18 @@
                 </div>
             </div>
 
-            <div class="stat-card" id="systemStats">
-                <div class="stat-card__icon">💻</div>
+            <div class="stat-card" id="plexRecentCard">
+                <div class="stat-card__icon">??</div>
                 <div class="stat-card__content">
-                    <h3>System Status</h3>
-                    <p class="stat-card__value" id="systemServices">--/-- online</p>
-                    <p class="stat-card__detail">Alle Services prüfen...</p>
+                    <h3>Neu bei Plex</h3>
+                    <p class="stat-card__value" id="plexRecentCount">Lade Inhalte...</p>
+                    <div class="stat-card__recent-grid" id="plexRecentGrid" aria-live="polite">
+                        <div class="recent-cover recent-cover--placeholder"></div>
+                        <div class="recent-cover recent-cover--placeholder"></div>
+                        <div class="recent-cover recent-cover--placeholder"></div>
+                        <div class="recent-cover recent-cover--placeholder"></div>
+                    </div>
+                    <p class="stat-card__detail" id="plexRecentDetail">Aktualisiere...</p>
                 </div>
             </div>
         </section>
@@ -104,29 +110,6 @@
             </div>
         </section>
     </main>
-
-    <!-- Footer mit Actions -->
-    <footer class="footer">
-        <div class="footer__actions">
-            <button id="installButton" class="btn btn--primary" hidden>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                App installieren
-            </button>
-            <a class="btn btn--secondary" href="#newsletter">Neueste Ausgabe ansehen</a>
-        </div>
-        <div class="footer__info">
-            <p>Bereitgestellt von deinem Homelab</p>
-            <p class="footer__links">
-                <a href="https://family.t-acc.com" rel="noopener" target="_blank">family.t-acc.com</a>
-                <span>•</span>
-                <a href="https://192.168.188.2:8006" rel="noopener" target="_blank">Proxmox</a>
-            </p>
-        </div>
-    </footer>
 
     <!-- Push Notification Modal -->
     <div id="pushModal" class="modal is-hidden">
