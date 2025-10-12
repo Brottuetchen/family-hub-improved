@@ -274,6 +274,10 @@ function updateNewsletterQuickCard(entry) {
     const metaEl = document.getElementById('newsletterQuickMeta');
     const linkEl = document.getElementById('newsletterQuickLink');
     const sneakPeekEl = document.getElementById('newsletterSneakPeek');
+    
+    // Get images from Plex recent grid
+    const recentGrid = document.getElementById('plexRecentGrid');
+    const recentCovers = recentGrid ? Array.from(recentGrid.querySelectorAll('.recent-cover')).filter(cover => cover.style.backgroundImage) : [];
 
     if (!card || !titleEl || !metaEl || !linkEl) {
         return;
@@ -325,9 +329,7 @@ function updateNewsletterQuickCard(entry) {
     metaEl.textContent = metaParts.length ? metaParts.join(' · ') : 'Neueste Ausgabe';
 
     // Sneak Peek Sektion
-    if (sneakPeekEl && entry.movies && entry.movies.length > 0) {
-        console.log('Newsletter movies:', entry.movies); // Debug-Ausgabe
-        
+    if (sneakPeekEl && recentCovers.length > 0) {
         let sneakPeekContent = `
             <div class="stat-card__sneak-peek">
                 <div class="stat-card__sneak-peek-header">
@@ -337,24 +339,13 @@ function updateNewsletterQuickCard(entry) {
                 <div class="stat-card__sneak-peek-grid">
         `;
 
-        // Zeige die ersten 4 Filme im Grid
-        entry.movies.slice(0, 4).forEach(movie => {
-            // Überprüfe alle möglichen Thumbnail-Quellen und füge debug logging hinzu
-            console.log('Movie data:', movie); // Debug-Ausgabe
-            
-            const thumb = movie.thumb || movie.art || movie.poster || movie.cover || 
-                         (movie.metadata && (movie.metadata.thumb || movie.metadata.art));
-            
-            console.log('Selected thumb:', thumb); // Debug-Ausgabe
-            
-            // Wenn es ein Plex-Thumbnail ist (beginnt mit /), füge den API-Proxy hinzu
-            const thumbUrl = thumb ? (thumb.startsWith('/') ? `/api/plex/image${thumb}` : thumb) : '';
-            
-            console.log('Final thumbUrl:', thumbUrl); // Debug-Ausgabe
+        // Verwende die ersten 4 Cover aus dem Plex Grid
+        recentCovers.slice(0, 4).forEach(cover => {
+            const style = cover.style.backgroundImage;
+            const imageUrl = style.replace(/^url\(['"](.+)['"]\)$/, '$1');
             
             sneakPeekContent += `
-                <div class="stat-card__sneak-peek-item">
-                    ${thumbUrl ? `<img src="${thumbUrl}" alt="${movie.title || 'Film-Cover'}" loading="lazy">` : ''}
+                <div class="stat-card__sneak-peek-item" style="background-image: url('${imageUrl}');">
                 </div>
             `;
         });
@@ -362,7 +353,7 @@ function updateNewsletterQuickCard(entry) {
         sneakPeekContent += `
                 </div>
                 <div class="stat-card__sneak-peek-footer">
-                    <div class="stat-card__sneak-peek-count">${entry.movies.length} neue Titel</div>
+                    <div class="stat-card__sneak-peek-count">${recentCovers.length} neue Titel</div>
                     <a href="/newsletters/${entry.path}" target="_blank" rel="noopener" class="stat-card__sneak-peek-link">
                         Alle anzeigen
                     </a>
