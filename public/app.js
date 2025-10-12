@@ -28,11 +28,16 @@ const notificationToggle = document.getElementById('notificationToggle');
 const pushModal = document.getElementById('pushModal');
 const enablePushBtn = document.getElementById('enablePush');
 const cancelPushBtn = document.getElementById('cancelPush');
+const notificationHistoryContainer = document.getElementById('notificationHistory');
+const notificationHistoryList = document.getElementById('notificationHistoryList');
 
 // Global State
 let deferredPrompt = null;
 let pushManager = null;
 let statsRefreshInterval = null;
+let swRegistration = null;
+let notificationHistory = [];
+const NOTIFICATION_HISTORY_LIMIT = 20;
 
 // === UTILITY FUNCTIONS ===
 
@@ -46,6 +51,21 @@ function formatDate(dateString) {
         }).format(date);
     } catch {
         return dateString;
+    }
+}
+
+function formatDateTime(value) {
+    try {
+        const date = new Date(value);
+        return new Intl.DateTimeFormat('de-DE', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+    } catch {
+        return typeof value === 'string' ? value : '';
     }
 }
 
@@ -451,6 +471,203 @@ async function initPushNotifications() {
     document.head.appendChild(script);
 }
 
+// === NOTIFICATION HISTORY ===
+
+function normalizeHistoryEntry(entry) {
+    if (!entry || typeof entry !== 'object') {
+        return null;
+    }
+
+    const parsedTimestamp = typeof entry.timestamp === 'number'
+        ? entry.timestamp
+        : Date.parse(entry.timestamp);
+    const timestamp = Number.isFinite(parsedTimestamp) ? parsedTimestamp : Date.now();
+
+    return {
+        id: entry.id ?? `${timestamp}-${entry.tag || 'notification'}`,
+        title: entry.title || 'Family Hub',
+        body: entry.body || '',
+        url: entry.url || '',
+        icon: entry.icon || '',
+        tag: entry.tag || '',
+        timestamp
+    };
+}
+
+function renderNotificationHistory() {
+    if (!notificationHistoryList) {
+        return;
+    }
+
+    notificationHistoryList.innerHTML = '';
+
+    if (!notificationHistory.length) {
+        const emptyItem = document.createElement('li');
+        emptyItem.className = 'notification-history__empty';
+        emptyItem.textContent = 'Noch keine Nachrichten vorhanden.';
+        notificationHistoryList.appendChild(emptyItem);
+
+        if (notificationHistoryContainer) {
+            notificationHistoryContainer.classList.add('is-empty');
+        }
+        return;
+    }
+
+    if (notificationHistoryContainer) {
+        notificationHistoryContainer.classList.remove('is-empty');
+    }
+
+    notificationHistory.forEach((item) => {
+        if (!item) {
+            return;
+        }
+
+        const listItem = document.createElement('li');
+        listItem.className = 'notification-history__item';
+        let hintElement = null;
+
+        if (item.url) {
+            listItem.classList.add('notification-history__item--link');
+            listItem.setAttribute('role', 'button');
+            listItem.tabIndex = 0;
+
+            const openEntry = () => {
+                window.open(item.url, '_blank', 'noopener');
+            };
+
+            listItem.addEventListener('click', openEntry);
+            listItem.addEventListener('keypress', (evt) => {
+                if (evt.key === 'Enter' || evt.key === ' ') {
+                    evt.preventDefault();
+                    openEntry();
+                }
+            });
+
+            hintElement = document.createElement('span');
+            hintElement.className = 'notification-history__hint';
+            hintElement.textContent = 'Zum Ansehen klicken';
+        }
+
+        const header = document.createElement('div');
+        header.className = 'notification-history__meta';
+
+        const titleElement = document.createElement('span');
+        titleElement.className = 'notification-history__title';
+        titleElement.textContent = item.title || 'Family Hub';
+
+        const timeElement = document.createElement('time');
+        timeElement.className = 'notification-history__time';
+        timeElement.dateTime = new Date(item.timestamp).toISOString();
+        timeElement.textContent = formatDateTime(item.timestamp);
+
+        header.appendChild(titleElement);
+        header.appendChild(timeElement);
+        listItem.appendChild(header);
+
+        if (item.body) {
+            const bodyElement = document.createElement('p');
+            bodyElement.className = 'notification-history__body';
+            bodyElement.textContent = item.body;
+            listItem.appendChild(bodyElement);
+        }
+
+        if (hintElement) {
+            listItem.appendChild(hintElement);
+        }
+
+        notificationHistoryList.appendChild(listItem);
+    });
+}
+
+function addHistoryEntry(entry) {
+    const normalized = normalizeHistoryEntry(entry);
+    if (!normalized) {
+        return;
+    }
+
+    notificationHistory = [
+        normalized,
+        ...notificationHistory.filter((item) => item && item.id !== normalized.id)
+    ];
+
+    if (notificationHistory.length > NOTIFICATION_HISTORY_LIMIT) {
+        notificationHistory.length = NOTIFICATION_HISTORY_LIMIT;
+    }
+
+    renderNotificationHistory();
+}
+
+function handleServiceWorkerMessage(event) {
+    if (!event || !event.data || typeof event.data !== 'object') {
+        return;
+    }
+
+    if (event.data.type === 'PUSH_HISTORY_UPDATED') {
+        addHistoryEntry(event.data.payload);
+    }
+}
+
+function sendMessageToServiceWorker(registration, message) {
+    return new Promise((resolve, reject) => {
+        if (!registration || !registration.active) {
+            reject(new Error('Service Worker nicht aktiv'));
+            return;
+        }
+
+        const channel = new MessageChannel();
+        const timeoutId = setTimeout(() => {
+            reject(new Error('Service Worker Antwortzeit ueberschritten'));
+        }, 5000);
+
+        channel.port1.onmessage = (event) => {
+            clearTimeout(timeoutId);
+            resolve(event.data);
+        };
+
+        try {
+            registration.active.postMessage(message, [channel.port2]);
+        } catch (error) {
+            clearTimeout(timeoutId);
+            reject(error);
+        }
+    });
+}
+
+async function loadNotificationHistory() {
+    if (!notificationHistoryList || !swRegistration || !swRegistration.active) {
+        return;
+    }
+
+    try {
+        const response = await sendMessageToServiceWorker(swRegistration, {
+            type: 'GET_NOTIFICATION_HISTORY',
+            limit: NOTIFICATION_HISTORY_LIMIT
+        });
+
+        if (response?.ok && Array.isArray(response.list)) {
+            notificationHistory = response.list
+                .map(normalizeHistoryEntry)
+                .filter(Boolean);
+            renderNotificationHistory();
+            return;
+        }
+
+        if (Array.isArray(response?.list)) {
+            notificationHistory = response.list
+                .map(normalizeHistoryEntry)
+                .filter(Boolean);
+            renderNotificationHistory();
+            return;
+        }
+
+        if (response?.error) {
+            console.error('Notification history request failed:', response.error);
+        }
+    } catch (error) {
+        console.error('Failed to load notification history:', error);
+    }
+}
+
 // === SERVICE WORKER ===
 
 function registerServiceWorker() {
@@ -458,12 +675,23 @@ function registerServiceWorker() {
         return;
     }
 
+    navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+
     window.addEventListener('load', async () => {
         try {
             const registration = await navigator.serviceWorker.register('service-worker.js');
+            swRegistration = registration;
             console.log('Service Worker registered:', registration);
         } catch (error) {
             console.error('Service Worker registration failed:', error);
+        }
+
+        try {
+            const readyRegistration = await navigator.serviceWorker.ready;
+            swRegistration = readyRegistration;
+            await loadNotificationHistory();
+        } catch (error) {
+            console.error('Service Worker readiness failed:', error);
         }
     });
 }
@@ -581,8 +809,10 @@ notificationToggle?.addEventListener('click', (e) => {
         menuDropdown.classList.add('is-hidden');
     }
 
+    const isOpen = !notificationDropdown.classList.contains('is-hidden');
+
     // Show or hide push enable section based on push status
-    if (!notificationDropdown.classList.contains('is-hidden')) {
+    if (isOpen) {
         const isPushEnabled = notificationToggle.classList.contains('active');
 
         if (pushEnableSection) {
@@ -592,6 +822,8 @@ notificationToggle?.addEventListener('click', (e) => {
                 pushEnableSection.classList.add('is-hidden');
             }
         }
+
+        loadNotificationHistory();
     }
 });
 
@@ -763,6 +995,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Core Functions
+    renderNotificationHistory();
     registerServiceWorker();
     loadServices();
     loadNewsletters();

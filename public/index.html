@@ -49,6 +49,12 @@
                     <p class="push-enable-text">Aktiviere Push-Benachrichtigungen, um über neue Newsletter und Updates informiert zu werden.</p>
                     <button id="enablePushInMenu" class="btn btn--primary btn--small">Push aktivieren</button>
                 </div>
+                <div id="notificationHistory" class="notification-history">
+                    <h4 class="notification-history__heading">Letzte Meldungen</h4>
+                    <ul id="notificationHistoryList" class="notification-history__list" role="list">
+                        <li class="notification-history__empty">Noch keine Nachrichten vorhanden.</li>
+                    </ul>
+                </div>
             </div>
 
             <div id="menuDropdown" class="menu-dropdown is-hidden">
@@ -145,7 +151,7 @@
         <div class="modal__overlay"></div>
         <div class="modal__content">
             <h2>Benachrichtigungen aktivieren?</h2>
-            <p>Erhalte Push-Benachrichtigungen fÃ¼r neue Newsletter und System-Updates.</p>
+            <p>Erhalte Push-Benachrichtigungen für neue Newsletter und System-Updates.</p>
             <div class="modal__actions">
                 <button id="enablePush" class="btn btn--primary">Aktivieren</button>
                 <button id="cancelPush" class="btn btn--ghost">SpÃ¤ter</button>

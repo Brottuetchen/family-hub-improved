@@ -28,6 +28,146 @@ const EXCLUDE_CACHE = [
     'gtag'
 ];
 
+// Push Notification History (IndexedDB)
+const HISTORY_DB_NAME = 'family-hub-push-history';
+const HISTORY_DB_VERSION = 1;
+const HISTORY_STORE_NAME = 'notifications';
+const MAX_HISTORY_ITEMS = 50;
+
+async function openHistoryDB() {
+    return new Promise((resolve, reject) => {
+        if (!self.indexedDB) {
+            reject(new Error('IndexedDB not supported in Service Worker'));
+            return;
+        }
+
+        const request = indexedDB.open(HISTORY_DB_NAME, HISTORY_DB_VERSION);
+
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
+                const store = db.createObjectStore(HISTORY_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                store.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Failed to open history database'));
+    });
+}
+
+async function saveNotificationToHistory(record) {
+    let db;
+
+    try {
+        db = await openHistoryDB();
+        const entry = { ...record };
+
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(HISTORY_STORE_NAME, 'readwrite');
+            const store = tx.objectStore(HISTORY_STORE_NAME);
+            const addRequest = store.add(entry);
+
+            addRequest.onsuccess = (event) => {
+                entry.id = event.target.result;
+            };
+
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+
+        await trimNotificationHistory(db);
+
+        return entry;
+    } catch (error) {
+        console.error('[SW] Failed to save notification history:', error);
+        return null;
+    } finally {
+        db?.close();
+    }
+}
+
+async function trimNotificationHistory(db) {
+    return new Promise((resolve, reject) => {
+        try {
+            const tx = db.transaction(HISTORY_STORE_NAME, 'readwrite');
+            const store = tx.objectStore(HISTORY_STORE_NAME);
+            const index = store.index('timestamp');
+            let count = 0;
+
+            index.openCursor().onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (!cursor) {
+                    return;
+                }
+
+                count += 1;
+                if (count > MAX_HISTORY_ITEMS) {
+                    cursor.delete();
+                }
+                cursor.continue();
+            };
+
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+async function getNotificationHistory(limit = MAX_HISTORY_ITEMS) {
+    try {
+        const db = await openHistoryDB();
+        try {
+            const items = await new Promise((resolve, reject) => {
+                const tx = db.transaction(HISTORY_STORE_NAME, 'readonly');
+                const store = tx.objectStore(HISTORY_STORE_NAME);
+                const index = store.index('timestamp');
+                const results = [];
+
+            index.openCursor(null, 'prev').onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (!cursor || results.length >= limit) {
+                    resolve(results);
+                    return;
+                }
+
+                results.push(cursor.value);
+                cursor.continue();
+                };
+
+                tx.onerror = () => reject(tx.error);
+            });
+
+            return items;
+        } finally {
+            db.close();
+        }
+    } catch (error) {
+        console.error('[SW] Failed to read notification history:', error);
+        return [];
+    }
+}
+
+async function broadcastHistoryUpdate(record) {
+    if (!record) {
+        return;
+    }
+
+    try {
+        const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clientList.forEach((client) => {
+            client.postMessage({
+                type: 'PUSH_HISTORY_UPDATED',
+                payload: record
+            });
+        });
+    } catch (error) {
+        console.error('[SW] Failed to broadcast history update:', error);
+    }
+}
+
 // === INSTALL EVENT ===
 
 self.addEventListener('install', (event) => {
@@ -211,9 +351,27 @@ self.addEventListener('push', (event) => {
         ]
     };
 
-    event.waitUntil(
-        self.registration.showNotification(data.title, options)
-    );
+    event.waitUntil((async () => {
+        await self.registration.showNotification(data.title, options);
+
+        const historyRecord = {
+            title: data.title,
+            body: data.body,
+            url: options.data?.url || '/',
+            icon: options.icon || '/assets/icons/app-icon-192.png',
+            tag: options.tag || 'family-hub-notification',
+            timestamp: options.data?.timestamp || Date.now()
+        };
+
+        try {
+            const stored = await saveNotificationToHistory(historyRecord);
+            if (stored) {
+                await broadcastHistoryUpdate(stored);
+            }
+        } catch (error) {
+            console.error('[SW] Failed to persist notification history:', error);
+        }
+    })());
 });
 
 /**
@@ -317,26 +475,40 @@ async function checkNewContent() {
 self.addEventListener('message', (event) => {
     console.log('[SW] Message received:', event.data);
 
-    if (event.data.type === 'SKIP_WAITING') {
+    const message = event.data || {};
+    const replyPort = event.ports && event.ports[0];
+
+    if (message.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
 
-    if (event.data.type === 'CLEAR_CACHE') {
+    if (message.type === 'CLEAR_CACHE') {
         event.waitUntil(
             caches.keys().then((cacheNames) => {
                 return Promise.all(
                     cacheNames.map((name) => caches.delete(name))
                 );
             }).then(() => {
-                event.ports[0].postMessage({ success: true });
+                replyPort?.postMessage({ success: true });
             })
         );
     }
 
-    if (event.data.type === 'GET_CACHE_SIZE') {
+    if (message.type === 'GET_CACHE_SIZE') {
         event.waitUntil(
             getCacheSize().then((size) => {
-                event.ports[0].postMessage({ size });
+                replyPort?.postMessage({ size });
+            })
+        );
+    }
+
+    if (message.type === 'GET_NOTIFICATION_HISTORY') {
+        event.waitUntil(
+            getNotificationHistory(message.limit).then((history) => {
+                replyPort?.postMessage({ ok: true, list: history });
+            }).catch((error) => {
+                console.error('[SW] Failed to send notification history:', error);
+                replyPort?.postMessage({ ok: false, error: error.message });
             })
         );
     }
