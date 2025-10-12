@@ -3,7 +3,7 @@
 
 // API Configuration
 const API_BASE_URL = window.location.origin;
-const USE_MOCK_DATA = true; // Auf false setzen wenn Backend läuft
+const USE_MOCK_DATA = false; // Auf false setzen wenn Backend läuft
 
 // Local Storage Keys
 const PUSH_DISMISSED_KEY = 'pushDismissed';
@@ -72,17 +72,9 @@ async function fetchAPI(endpoint) {
 function getMockData(endpoint) {
     const mockData = {
         '/api/plex/stats': {
-            active_streams: 2,
-            streams: [
-                { title: 'The Last of Us S01E03', user: 'Papa' },
-                { title: 'Avatar: The Way of Water', user: 'Mama' }
-            ],
-            recently_added: [
-                { title: 'Dune: Part Two', type: 'movie', thumb_url: '' },
-                { title: 'Fallout S01E01', type: 'episode', thumb_url: '' },
-                { title: 'The Bear S02E01', type: 'episode', thumb_url: '' },
-                { title: 'Interstellar', type: 'movie', thumb_url: '' }
-            ],
+            active_streams: 0,
+            streams: [],
+            recently_added: [],
             timestamp: new Date().toISOString()
         }
     };
