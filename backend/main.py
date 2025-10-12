@@ -445,7 +445,10 @@ async def get_plex_stats():
                 "type": session.get("type", "unknown"),  # movie, episode, track
                 "user": session.get("User", {}).get("title", "Unknown User"),
                 "progress": session.get("viewOffset", 0),
-                "duration": session.get("duration", 0)
+                "duration": session.get("duration", 0),
+                "thumb": session.get("thumb"),
+                "art": session.get("art"),
+                "grandparentThumb": session.get("grandparentThumb")
             }
 
             # Für TV-Episoden: Show-Name hinzufügen

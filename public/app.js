@@ -406,10 +406,9 @@ async function updatePlexStats() {
                     const coverImg = document.createElement('img');
                     
                     // Verwende den Backend-Proxy für Plex-Bilder
-                    if (stream.type === 'episode' && stream.grandparentThumb) {
-                        coverImg.src = `/api/plex/image${stream.grandparentThumb}`;
-                    } else if (stream.thumb) {
-                        coverImg.src = `/api/plex/image${stream.thumb}`;
+                    const thumb = stream.thumb || stream.art || (stream.type === 'episode' && stream.grandparentThumb);
+                    if (thumb) {
+                        coverImg.src = `/api/plex/image${thumb}`;
                     }
                     
                     // Fallback für den Fall, dass kein Bild verfügbar ist
