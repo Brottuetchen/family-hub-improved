@@ -548,106 +548,6 @@ function initNavigation() {
 
 // === NOTIFICATION SYSTEM ===
 
-// Mock notifications storage (in production, this would come from backend/localStorage)
-let notifications = [
-    {
-        id: 1,
-        title: 'Neuer Newsletter verfügbar',
-        message: 'Weekly Media Newsletter KW 41 ist jetzt verfügbar',
-        time: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 min ago
-        read: false
-    },
-    {
-        id: 2,
-        title: 'Plex Update',
-        message: '3 neue Filme wurden zu deiner Bibliothek hinzugefügt',
-        time: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-        read: false
-    },
-    {
-        id: 3,
-        title: 'System Info',
-        message: 'Backup erfolgreich abgeschlossen',
-        time: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-        read: true
-    }
-];
-
-function formatNotificationTime(isoString) {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Gerade eben';
-    if (diffMins < 60) return `vor ${diffMins} Min.`;
-    if (diffHours < 24) return `vor ${diffHours} Std.`;
-    if (diffDays < 7) return `vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`;
-
-    return new Intl.DateTimeFormat('de-DE', {
-        day: '2-digit',
-        month: 'short'
-    }).format(date);
-}
-
-function renderNotifications() {
-    const notificationList = document.getElementById('notificationList');
-    const notificationBadge = document.getElementById('notificationBadge');
-
-    if (!notificationList) return;
-
-    // Get last 10 notifications
-    const recentNotifications = notifications.slice(0, 10);
-    const unreadCount = notifications.filter(n => !n.read).length;
-
-    // Update badge
-    if (notificationBadge) {
-        if (unreadCount > 0) {
-            notificationBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-            notificationBadge.hidden = false;
-        } else {
-            notificationBadge.hidden = true;
-        }
-    }
-
-    // Render notifications
-    if (recentNotifications.length === 0) {
-        notificationList.innerHTML = '<li class="notification-empty">Keine Benachrichtigungen</li>';
-        return;
-    }
-
-    notificationList.innerHTML = recentNotifications.map(notification => `
-        <li class="notification-item ${!notification.read ? 'unread' : ''}" data-id="${notification.id}">
-            <h4 class="notification-item__title">${notification.title}</h4>
-            <p class="notification-item__message">${notification.message}</p>
-            <span class="notification-item__time">${formatNotificationTime(notification.time)}</span>
-        </li>
-    `).join('');
-
-    // Add click handlers to mark as read
-    notificationList.querySelectorAll('.notification-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const id = parseInt(item.dataset.id);
-            markNotificationAsRead(id);
-        });
-    });
-}
-
-function markNotificationAsRead(id) {
-    const notification = notifications.find(n => n.id === id);
-    if (notification) {
-        notification.read = true;
-        renderNotifications();
-    }
-}
-
-function markAllNotificationsAsRead() {
-    notifications.forEach(n => n.read = true);
-    renderNotifications();
-}
-
 // === NOTIFICATION DROPDOWN ===
 
 notificationToggle?.addEventListener('click', (e) => {
@@ -678,22 +578,11 @@ notificationToggle?.addEventListener('click', (e) => {
                 pushEnableSection.classList.add('is-hidden');
             }
         }
-
-        renderNotifications();
     }
 });
 
-// Mark all as read button and push enable button - needs to be initialized after DOM is ready
+// Push enable button - needs to be initialized after DOM is ready
 function initNotificationButtons() {
-    const markAllReadBtn = document.getElementById('markAllRead');
-    if (markAllReadBtn) {
-        markAllReadBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            markAllNotificationsAsRead();
-        });
-    }
-
     const enablePushInMenuBtn = document.getElementById('enablePushInMenu');
     if (enablePushInMenuBtn) {
         enablePushInMenuBtn.addEventListener('click', async (e) => {
@@ -709,10 +598,14 @@ function initNotificationButtons() {
                 notificationToggle?.classList.add('active');
                 localStorage.removeItem(PUSH_DISMISSED_KEY);
 
-                // Hide push enable section
+                // Hide push enable section and close dropdown
                 const pushEnableSection = document.getElementById('pushEnableSection');
+                const notificationDropdown = document.getElementById('notificationDropdown');
                 if (pushEnableSection) {
                     pushEnableSection.classList.add('is-hidden');
+                }
+                if (notificationDropdown) {
+                    notificationDropdown.classList.add('is-hidden');
                 }
 
                 alert('Push-Benachrichtigungen aktiviert!');
@@ -801,8 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Enhanced Features
     startStatsRefresh();
     initPushNotifications();
-    renderNotifications(); // Initialize notification badge
-    initNotificationButtons(); // Initialize notification buttons
+    initNotificationButtons(); // Initialize push button
 
     // Show welcome message on first visit
     if (!localStorage.getItem('hasVisited')) {

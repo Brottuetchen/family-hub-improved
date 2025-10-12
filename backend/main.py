@@ -415,7 +415,8 @@ async def get_plex_stats():
             thumb_path = item.get("thumb")
             thumb_url = None
             if thumb_path:
-                thumb_url = f"{PLEX_URL}{thumb_path}?X-Plex-Token={PLEX_TOKEN}"
+                # Return relative path - frontend will proxy through backend
+                thumb_url = f"/api/plex/image{thumb_path}"
 
             recent.append({
                 "title": item.get("title", "Unknown"),
@@ -443,6 +444,28 @@ async def get_plex_stats():
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# === PLEX IMAGE PROXY ===
+
+@app.get("/api/plex/image/{path:path}")
+async def proxy_plex_image(path: str):
+    """Proxy Plex images through HTTPS backend to avoid mixed content"""
+    try:
+        image_url = f"{PLEX_URL}/{path}?X-Plex-Token={PLEX_TOKEN}"
+        response = requests.get(image_url, timeout=10, stream=True)
+        response.raise_for_status()
+
+        return Response(
+            content=response.content,
+            media_type=response.headers.get('Content-Type', 'image/jpeg'),
+            headers={
+                'Cache-Control': 'public, max-age=86400',
+                'Access-Control-Allow-Origin': '*'
+            }
+        )
+    except Exception as e:
+        logger.error(f"Plex image proxy error: {e}")
+        raise HTTPException(status_code=404, detail="Image not found")
 
 # === OVERSEERR STATS ===
 

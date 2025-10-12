@@ -27,7 +27,6 @@
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                     </svg>
-                    <span class="notification-badge" id="notificationBadge" hidden></span>
                 </button>
                 <button id="menuToggle" class="menu-toggle" aria-label="Menü öffnen">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -48,16 +47,12 @@
             <!-- Notification Dropdown -->
             <div id="notificationDropdown" class="notification-dropdown is-hidden">
                 <div class="notification-header">
-                    <h3>Benachrichtigungen</h3>
-                    <button id="markAllRead" class="btn-text">Alle als gelesen</button>
+                    <h3>Push-Benachrichtigungen</h3>
                 </div>
-                <div id="pushEnableSection" class="push-enable-section is-hidden">
-                    <p class="push-enable-text">Aktiviere Push-Benachrichtigungen, um keine Updates zu verpassen!</p>
+                <div id="pushEnableSection" class="push-enable-section">
+                    <p class="push-enable-text">Aktiviere Push-Benachrichtigungen, um über neue Newsletter und Updates informiert zu werden.</p>
                     <button id="enablePushInMenu" class="btn btn--primary btn--small">Push aktivieren</button>
                 </div>
-                <ul id="notificationList" class="notification-list">
-                    <li class="notification-empty">Keine neuen Benachrichtigungen</li>
-                </ul>
             </div>
         </div>
     </header>
