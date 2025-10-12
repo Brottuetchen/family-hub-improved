@@ -329,39 +329,54 @@ function updateNewsletterQuickCard(entry) {
     metaEl.textContent = metaParts.length ? metaParts.join(' · ') : 'Neueste Ausgabe';
 
     // Sneak Peek Sektion
-    if (sneakPeekEl && recentCovers.length > 0) {
-        let sneakPeekContent = `
-            <div class="stat-card__sneak-peek">
-                <div class="stat-card__sneak-peek-header">
-                    <div class="stat-card__sneak-peek-title">Diese Woche neu</div>
-                    <div class="stat-card__sneak-peek-date">${weekMatch ? `KW ${weekMatch[1]}` : ''}</div>
-                </div>
-                <div class="stat-card__sneak-peek-grid">
-        `;
+    if (sneakPeekEl && entry.path) {
+        // Hole den HTML-Inhalt des Newsletters
+        fetch(`/newsletters/${entry.path}`)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Suche nach allen img-Tags und filtere die Film-Cover heraus
+                const images = Array.from(doc.querySelectorAll('img'))
+                    .filter(img => img.src.toLowerCase().includes('tmdb'))
+                    .slice(0, 4);
 
-        // Verwende die ersten 4 Cover aus dem Plex Grid
-        recentCovers.slice(0, 4).forEach(cover => {
-            const style = cover.style.backgroundImage;
-            const imageUrl = style.replace(/^url\(['"](.+)['"]\)$/, '$1');
-            
-            sneakPeekContent += `
-                <div class="stat-card__sneak-peek-item" style="background-image: url('${imageUrl}');">
-                </div>
-            `;
-        });
+                if (images.length > 0) {
+                    let sneakPeekContent = `
+                        <div class="stat-card__sneak-peek">
+                            <div class="stat-card__sneak-peek-header">
+                                <div class="stat-card__sneak-peek-title">Diese Woche neu</div>
+                                <div class="stat-card__sneak-peek-date">${weekMatch ? `KW ${weekMatch[1]}` : ''}</div>
+                            </div>
+                            <div class="stat-card__sneak-peek-grid">
+                    `;
 
-        sneakPeekContent += `
-                </div>
-                <div class="stat-card__sneak-peek-footer">
-                    <div class="stat-card__sneak-peek-count">${recentCovers.length} neue Titel</div>
-                    <a href="/newsletters/${entry.path}" target="_blank" rel="noopener" class="stat-card__sneak-peek-link">
-                        Alle anzeigen
-                    </a>
-                </div>
-            </div>
-        `;
+                    // Füge die gefundenen Film-Cover hinzu
+                    images.forEach(img => {
+                        sneakPeekContent += `
+                            <div class="stat-card__sneak-peek-item" style="background-image: url('${img.src}');">
+                            </div>
+                        `;
+                    });
 
-        sneakPeekEl.innerHTML = sneakPeekContent;
+                    sneakPeekContent += `
+                            </div>
+                            <div class="stat-card__sneak-peek-footer">
+                                <div class="stat-card__sneak-peek-count">${images.length} neue Titel</div>
+                                <a href="/newsletters/${entry.path}" target="_blank" rel="noopener" class="stat-card__sneak-peek-link">
+                                    Alle anzeigen
+                                </a>
+                            </div>
+                        </div>
+                    `;
+
+                    sneakPeekEl.innerHTML = sneakPeekContent;
+                }
+            })
+            .catch(error => {
+                console.error('Fehler beim Laden des Newsletters:', error);
+            });
     } else if (sneakPeekEl) {
         sneakPeekEl.innerHTML = '';
     }
