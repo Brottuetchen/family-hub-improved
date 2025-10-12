@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Family Hub</title>
-    <meta name="description" content="Zentrale Familien-App für Media Services, Newsletter und Homelab-Verwaltung.">
+    <meta name="description" content="Zentrale Familien-App fÃ¼r Media Services, Newsletter und Homelab-Verwaltung.">
     <meta name="theme-color" content="#4A46E4">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -29,31 +29,33 @@
                             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                         </svg>
                     </button>
-                    <div id="notificationDropdown" class="notification-dropdown is-hidden">
-                        <div class="notification-header">
-                            <h3>Push-Benachrichtigungen</h3>
-                        </div>
-                        <div id="pushEnableSection" class="push-enable-section">
-                            <p class="push-enable-text">Aktiviere Push-Benachrichtigungen, um über neue Newsletter und Updates informiert zu werden.</p>
-                            <button id="enablePushInMenu" class="btn btn--primary btn--small">Push aktivieren</button>
-                        </div>
-                    </div>
                 </div>
                 <div class="app-header__action app-header__action--menu">
-                    <button id="menuToggle" class="menu-toggle" aria-label="Menü öffnen">
+                    <button id="menuToggle" class="menu-toggle" aria-label="MenÃ¼ Ã¶ffnen">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="3" y1="12" x2="21" y2="12"></line>
                             <line x1="3" y1="6" x2="21" y2="6"></line>
                             <line x1="3" y1="18" x2="21" y2="18"></line>
                         </svg>
                     </button>
-                    <div id="menuDropdown" class="menu-dropdown is-hidden">
-                        <a href="#home" class="menu-item active">Home</a>
-                        <a href="#services" class="menu-item">Services</a>
-                        <a href="#newsletter" class="menu-item">Newsletter</a>
-                    </div>
                 </div>
             </nav>
+
+            <div id="notificationDropdown" class="notification-dropdown is-hidden">
+                <div class="notification-header">
+                    <h3>Push-Benachrichtigungen</h3>
+                </div>
+                <div id="pushEnableSection" class="push-enable-section">
+                    <p class="push-enable-text">Aktiviere Push-Benachrichtigungen, um Ã¼ber neue Newsletter und Updates informiert zu werden.</p>
+                    <button id="enablePushInMenu" class="btn btn--primary btn--small">Push aktivieren</button>
+                </div>
+            </div>
+
+            <div id="menuDropdown" class="menu-dropdown is-hidden">
+                <a href="#home" class="menu-item active">Home</a>
+                <a href="#services" class="menu-item">Services</a>
+                <a href="#newsletter" class="menu-item">Newsletter</a>
+            </div>
 
         </div>
     </header>
@@ -62,7 +64,7 @@
         <!-- Quick Stats Widget -->
         <section class="quick-stats">
             <div class="stat-card" id="plexStats">
-                <div class="stat-card__icon">🎬</div>
+                <div class="stat-card__icon">ðŸŽ¬</div>
                 <div class="stat-card__content">
                     <h3>Plex Media</h3>
                     <p class="stat-card__value" id="plexStreams">0 aktive Streams</p>
@@ -70,7 +72,7 @@
                 </div>
             </div>
             <div class="stat-card" id="newsletterQuickCard">
-                <div class="stat-card__icon">📬</div>
+                <div class="stat-card__icon">ðŸ“¬</div>
                 <div class="stat-card__content">
                     <h3>Weekly Newsletter</h3>
                     <p class="stat-card__value" id="newsletterQuickTitle">Lade Newsletter...</p>
@@ -143,10 +145,10 @@
         <div class="modal__overlay"></div>
         <div class="modal__content">
             <h2>Benachrichtigungen aktivieren?</h2>
-            <p>Erhalte Push-Benachrichtigungen für neue Newsletter und System-Updates.</p>
+            <p>Erhalte Push-Benachrichtigungen fÃ¼r neue Newsletter und System-Updates.</p>
             <div class="modal__actions">
                 <button id="enablePush" class="btn btn--primary">Aktivieren</button>
-                <button id="cancelPush" class="btn btn--ghost">Später</button>
+                <button id="cancelPush" class="btn btn--ghost">SpÃ¤ter</button>
             </div>
         </div>
     </div>
