@@ -578,6 +578,10 @@ main {
     border: 2px solid transparent;
 }
 
+.stat-card.stat-card--active:hover {
+    border-color: var(--color-success);
+}
+
 .stat-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-md);

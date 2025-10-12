@@ -280,116 +280,69 @@ function renderNewsletterArchive(entries) {
 
 function updateNewsletterQuickCard(entry) {
     const card = document.getElementById('newsletterQuickCard');
-    const titleEl = document.getElementById('newsletterQuickTitle');
-    const metaEl = document.getElementById('newsletterQuickMeta');
-    const linkEl = document.getElementById('newsletterQuickLink');
-    const sneakPeekEl = document.getElementById('newsletterSneakPeek');
-    
-    // Get images from Plex recent grid
-    const recentGrid = document.getElementById('plexRecentGrid');
-    const recentCovers = recentGrid ? Array.from(recentGrid.querySelectorAll('.recent-cover')).filter(cover => cover.style.backgroundImage) : [];
-
-    if (!card || !titleEl || !metaEl || !linkEl) {
+    if (!card) {
         return;
     }
 
-    const resetLink = () => {
-        linkEl.href = '#newsletter';
-        linkEl.removeAttribute('target');
-        linkEl.removeAttribute('rel');
-        linkEl.textContent = 'Zum Archiv';
-        linkEl.classList.add('is-disabled');
-        linkEl.onclick = null;
-    };
+    const titleEl = document.getElementById('newsletterQuickTitle');
+    const imageGridEl = document.getElementById('newsletterImageGrid');
 
     if (!entry || !entry.path) {
         card.classList.remove('stat-card--active');
-        titleEl.textContent = 'Noch kein Newsletter verfügbar';
-        metaEl.textContent = 'Schau später wieder rein.';
+        if (titleEl) titleEl.textContent = 'Kein Newsletter verfügbar';
+        if (imageGridEl) imageGridEl.innerHTML = '';
+        card.href = '#newsletter';
+        card.removeAttribute('target');
         localStorage.removeItem(NEWSLETTER_LAST_READ_KEY);
-        resetLink();
-        
-        if (sneakPeekEl) {
-            sneakPeekEl.innerHTML = '';
-        }
         return;
     }
 
     const lastReadPath = localStorage.getItem(NEWSLETTER_LAST_READ_KEY);
     const isLatestRead = lastReadPath === entry.path;
 
-    if (isLatestRead) {
-        card.classList.remove('stat-card--active');
-    } else {
-        card.classList.add('stat-card--active');
+    card.classList.toggle('stat-card--active', !isLatestRead);
+    if (titleEl) {
+        titleEl.textContent = sanitizeNewsletterTitle(entry.title) || 'Weekly Newsletter';
     }
-    titleEl.textContent = sanitizeNewsletterTitle(entry.title) || 'Weekly Newsletter';
 
-    const formattedDate = entry.date ? formatDate(entry.date) : '';
-    metaEl.textContent = '';
+    // Set card link properties
+    card.href = `/newsletters/${entry.path}`;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+    card.onclick = () => {
+        localStorage.setItem(NEWSLETTER_LAST_READ_KEY, entry.path);
+        card.classList.remove('stat-card--active');
+    };
 
-    // Sneak Peek Sektion
-    if (sneakPeekEl && entry.path) {
-        // Hole den HTML-Inhalt des Newsletters
+    // Fill the 2x2 image grid
+    if (imageGridEl) {
         fetch(`/newsletters/${entry.path}`)
             .then(response => response.text())
             .then(html => {
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
-                
-                // Suche nach allen img-Tags und filtere die Film-Cover heraus
+
                 const images = Array.from(doc.querySelectorAll('img'))
                     .filter(img => img.src.toLowerCase().includes('tmdb'))
                     .slice(0, 4);
 
-                if (images.length > 0) {
-                    let sneakPeekContent = `
-                        <div class="stat-card__sneak-peek">
-                            <div class="stat-card__sneak-peek-header">
-                                <div class="stat-card__sneak-peek-title">Diese Woche neu</div>
-                                <div class="stat-card__sneak-peek-date">${weekMatch ? `KW ${weekMatch[1]}` : ''}</div>
-                            </div>
-                            <div class="stat-card__sneak-peek-grid">
-                    `;
-
-                    // Füge die gefundenen Film-Cover hinzu
-                    images.forEach(img => {
-                        sneakPeekContent += `
-                            <div class="stat-card__sneak-peek-item" style="background-image: url('${img.src}');">
-                            </div>
-                        `;
-                    });
-
-                    sneakPeekContent += `
-                            </div>
-                            <div class="stat-card__sneak-peek-footer">
-                                <div class="stat-card__sneak-peek-count">${images.length} neue Titel</div>
-                                <a href="/newsletters/${entry.path}" target="_blank" rel="noopener" class="stat-card__sneak-peek-link">
-                                    Alle anzeigen
-                                </a>
-                            </div>
-                        </div>
-                    `;
-
-                    sneakPeekEl.innerHTML = sneakPeekContent;
+                imageGridEl.innerHTML = ''; // Clear previous content
+                for (let i = 0; i < 4; i++) {
+                    const cover = document.createElement('div');
+                    cover.className = 'recent-cover';
+                    if (images[i]) {
+                        cover.style.backgroundImage = `url('${images[i].src}')`;
+                    } else {
+                        cover.classList.add('recent-cover--placeholder');
+                    }
+                    imageGridEl.appendChild(cover);
                 }
             })
             .catch(error => {
-                console.error('Fehler beim Laden des Newsletters:', error);
+                console.error('Error fetching newsletter for image grid:', error);
+                imageGridEl.innerHTML = ''; // Clear on error
             });
-    } else if (sneakPeekEl) {
-        sneakPeekEl.innerHTML = '';
     }
-
-    linkEl.href = `/newsletters/${entry.path}`;
-    linkEl.target = '_blank';
-    linkEl.rel = 'noopener';
-    linkEl.textContent = 'Im Browser öffnen →';
-    linkEl.classList.remove('is-disabled');
-    linkEl.onclick = () => {
-        localStorage.setItem(NEWSLETTER_LAST_READ_KEY, entry.path);
-        card.classList.remove('stat-card--active');
-    };
 }
 
 async function loadNewsletters() {
