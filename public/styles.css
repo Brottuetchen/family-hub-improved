@@ -61,7 +61,7 @@
 
 html {
     scroll-behavior: smooth;
-    scroll-padding-top: 80px;
+    scroll-padding-top: calc(72px + var(--safe-area-top));
     height: 100%;
 }
 
@@ -69,7 +69,7 @@ body {
     background: var(--color-background);
     color: var(--color-text);
     min-height: 100vh;
-    padding-top: 80px; /* Höhe des Headers */
+    padding-top: calc(72px + var(--safe-area-top)); /* Höhe des Headers */
     position: relative;
     width: 100%;
     overflow-x: hidden;
@@ -103,12 +103,12 @@ a:hover {
     top: 0;
     left: 0;
     right: 0;
-    height: 80px; /* Feste Höhe für den Header */
+    height: calc(72px + var(--safe-area-top)); /* Höhe an Safe Area anpassen */
     width: 100%;
     z-index: 9999;
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     box-shadow: var(--shadow-md);
-    padding: 0;
+    padding-top: var(--safe-area-top); /* Abstand von oben für Systemanzeigen */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -125,7 +125,8 @@ a:hover {
     justify-content: space-between;
     gap: 24px;
     height: 100%;
-    padding: 0 20px;
+    padding-left: max(20px, var(--safe-area-left)); /* Abstand links */
+    padding-right: max(20px, var(--safe-area-right)); /* Abstand rechts */
 }
 
 .app-header__logo {
@@ -335,9 +336,9 @@ a:hover {
     background: var(--color-surface);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
-    width: min(400px, 100%);
+    min-width: 320px;
+    max-width: min(90vw, 400px);
     max-height: min(70vh, 500px);
-    overflow: hidden;
     z-index: 1001;
     animation: dropdownEnter 0.2s ease;
     display: flex;
@@ -399,15 +400,11 @@ a:hover {
 }
 
 .notification-history {
-    border-top: 1px solid rgba(74, 70, 228, 0.08);
-    background: rgba(30, 30, 46, 0.6);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
     flex: 1;
-    min-height: 0; /* WICHTIG: Erlaubt dem Container, kleiner als sein Inhalt zu sein */
     overflow-y: auto;
     padding: var(--dropdown-padding-block) var(--dropdown-padding-inline);
+    border-top: 1px solid rgba(74, 70, 228, 0.08);
+    min-height: 0; /* Wichtig: Erlaubt dem Container zu schrumpfen */
 }
 
 .notification-history__heading {
@@ -415,6 +412,7 @@ a:hover {
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--color-text);
+    margin-bottom: 12px; /* Abstand zur Liste */
 }
 
 .notification-history__list {
