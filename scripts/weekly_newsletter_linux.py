@@ -945,13 +945,20 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
         .poster {{
             flex-shrink: 0;
             width: 150px;
-            height: 225px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }}
+
+        .poster-image {{
+            width: 100%;
+            aspect-ratio: 2 / 3;
             border-radius: 5px;
             overflow: hidden;
             background-color: #ddd;
         }}
 
-        .poster img {{
+        .poster-image img {{
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -966,6 +973,12 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
             background: linear-gradient(135deg, #4a46e4 0%, #6b67ff 100%);
             color: white;
             font-size: 3em;
+        }}
+
+        .poster-actions {{
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }}
 
         .details {{
@@ -1034,7 +1047,8 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
         }}
 
         .trailer-btn {{
-            display: inline-block;
+            display: block;
+            width: 100%;
             background-color: #ff0000;
             color: white;
             padding: 10px 20px;
@@ -1042,7 +1056,8 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
             border-radius: 5px;
             font-weight: bold;
             transition: background-color 0.2s;
-            margin-right: 10px;
+            text-align: center;
+            box-sizing: border-box;
         }}
 
         .trailer-btn:hover {{
@@ -1050,13 +1065,16 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
         }}
 
         .request-btn {{
-            display: inline-block;
+            display: block;
+            width: 100%;
             color: white;
             padding: 10px 20px;
             text-decoration: none;
             border-radius: 5px;
             font-weight: bold;
             transition: background-color 0.2s;
+            text-align: center;
+            box-sizing: border-box;
         }}
 
         .request-btn.available {{
@@ -1188,11 +1206,11 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
             if not movie:
                 continue
 
-            poster_html = f'<img src="{movie.poster_url}" alt="{movie.title}">' if movie.poster_url else '<div class="poster-placeholder">🎬</div>'
+            poster_image_html = f'<img src="{movie.poster_url}" alt="{movie.title}">' if movie.poster_url else '<div class="poster-placeholder">🎬</div>'
 
             genres_html = ''.join([f'<span class="genre">{g}</span>' for g in movie.genres])
 
-            trailer_html = f'<a href="{movie.trailer_url}" class="trailer-btn" target="_blank">▶ Trailer ansehen</a>' if movie.trailer_url else ''
+            trailer_html = f'<a href="{movie.trailer_url}" class="trailer-btn" target="_blank">🎞 Trailer ansehen</a>' if movie.trailer_url else ''
 
             # Generate Overseerr button based on status
             if movie.overseerr_status == "available":
@@ -1202,6 +1220,20 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
             else:  # not_available
                 overseerr_html = f'<a href="{movie.overseerr_url}" class="request-btn not-available" target="_blank">➕ In Overseerr anfordern</a>'
 
+            action_buttons = []
+            if trailer_html:
+                action_buttons.append(trailer_html)
+            if overseerr_html:
+                action_buttons.append(overseerr_html)
+
+            poster_html = f"""
+                        <div class="poster-image">
+                            {poster_image_html}
+                        </div>
+                        <div class="poster-actions">
+                            {''.join(action_buttons)}
+                        </div>
+            """
             html += f"""
                 <div class="media-item">
                     <div class="poster">
@@ -1221,8 +1253,6 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
                             <strong>💡 Empfehlung:</strong> {item.get('reason', 'Hochbewertet')}
                         </div>
                         <p class="overview">{movie.overview}</p>
-                        {trailer_html}
-                        {overseerr_html}
                     </div>
                 </div>
 """
@@ -1241,11 +1271,11 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
             if not show:
                 continue
 
-            poster_html = f'<img src="{show.poster_url}" alt="{show.title}">' if show.poster_url else '<div class="poster-placeholder">📺</div>'
+            poster_image_html = f'<img src="{show.poster_url}" alt="{show.title}">' if show.poster_url else '<div class="poster-placeholder">📺</div>'
 
             genres_html = ''.join([f'<span class="genre">{g}</span>' for g in show.genres])
 
-            trailer_html = f'<a href="{show.trailer_url}" class="trailer-btn" target="_blank">▶ Trailer ansehen</a>' if show.trailer_url else ''
+            trailer_html = f'<a href="{show.trailer_url}" class="trailer-btn" target="_blank">🎞 Trailer ansehen</a>' if show.trailer_url else ''
 
             # Generate Overseerr button based on status
             if show.overseerr_status == "available":
@@ -1255,6 +1285,20 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
             else:  # not_available
                 overseerr_html = f'<a href="{show.overseerr_url}" class="request-btn not-available" target="_blank">➕ In Overseerr anfordern</a>'
 
+            action_buttons = []
+            if trailer_html:
+                action_buttons.append(trailer_html)
+            if overseerr_html:
+                action_buttons.append(overseerr_html)
+
+            poster_html = f"""
+                        <div class="poster-image">
+                            {poster_image_html}
+                        </div>
+                        <div class="poster-actions">
+                            {''.join(action_buttons)}
+                        </div>
+            """
             html += f"""
                 <div class="media-item">
                     <div class="poster">
@@ -1274,8 +1318,6 @@ def generate_html_email(selected_movies: List[Dict], selected_shows: List[Dict],
                             <strong>💡 Empfehlung:</strong> {item.get('reason', 'Hochbewertet')}
                         </div>
                         <p class="overview">{show.overview}</p>
-                        {trailer_html}
-                        {overseerr_html}
                     </div>
                 </div>
 """
