@@ -404,13 +404,26 @@ async function updatePlexStats() {
                     
                     // Erstelle ein img Element für das Cover
                     const coverImg = document.createElement('img');
-                    if (stream.thumb_url) {
-                        coverImg.src = stream.thumb_url;
+                    // Prüfe verschiedene mögliche Bild-URL-Quellen
+                    const imageUrl = stream.thumb_url || stream.thumbUrl || stream.cover || 
+                                   (stream.metadata && stream.metadata.thumb) || 
+                                   (stream.metadata && stream.metadata.cover);
+                                   
+                    if (imageUrl) {
+                        // Stelle sicher, dass die URL vollständig ist
+                        const fullImageUrl = imageUrl.startsWith('http') ? 
+                            imageUrl : 
+                            `http://192.168.188.7:32400${imageUrl}`;
+                            
+                        coverImg.src = fullImageUrl;
                         coverImg.alt = stream.title || 'Stream Cover';
                         coverImg.onerror = () => {
                             coverImg.style.display = 'none';
                             streamCover.style.background = 'linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16))';
                         };
+                        
+                        // Debug-Ausgabe
+                        console.log('Stream cover URL:', fullImageUrl);
                     }
                     streamCover.appendChild(coverImg);
                     
