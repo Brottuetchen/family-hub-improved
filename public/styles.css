@@ -676,24 +676,36 @@ main {
 
 .stat-card__sneak-peek-item {
     position: relative;
-    padding-top: 140%;
+    padding-top: 150%;  /* Höheres Seitenverhältnis für Filmplakate */
     border-radius: var(--radius-sm);
     overflow: hidden;
     background: rgba(74, 70, 228, 0.05);
-    transition: transform var(--transition-base);
+    transition: all var(--transition-base);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: var(--shadow-sm);
 }
 
 .stat-card__sneak-peek-item:hover {
     transform: scale(1.05);
+    box-shadow: var(--shadow-md);
 }
 
-.stat-card__sneak-peek-item img {
+.stat-card__sneak-peek-item::after {
+    content: "";
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+    opacity: 0;
+    transition: opacity var(--transition-base);
+}
+
+.stat-card__sneak-peek-item:hover::after {
+    opacity: 1;
 }
 
 .stat-card__sneak-peek-summary {
