@@ -436,7 +436,7 @@ async function updatePlexStats() {
                     
                     // Verwende den Backend-Proxy für Plex-Bilder
                     // Bevorzuge das Serien-Cover (grandparentThumb) für Episoden
-                    const thumb = (stream.type === 'episode' && stream.grandparentThumb) || stream.thumb || stream.art;
+                    const thumb = (stream.type === 'episode' && stream.grandparentThumb) ? stream.grandparentThumb : (stream.thumb || stream.art);
                     if (thumb) {
                         streamCover.style.backgroundImage = `url('/api/plex/image${thumb}')`;
                     }

@@ -6,15 +6,12 @@ Eine moderne Progressive Web App (PWA) mit FastAPI-Backend, Push Notifications u
 
 ---
 
-## Aktueller Projektstatus (2025-10-11)
+## Aktueller Projektstatus
 
-- ✅ Weekly-Newsletter-Flow generiert HTML & `newsletters/index.json`, aktualisiert Trilium und Plex-Stats
-- ✅ Frontend- & Backend-Code liegen vollständig in `family-hub-improved/`
-- ✅ n8n-Workflow (`n8n/weekly_newsletter_workflow.json`) triggert das Skript und stößt optional den Push an
-- ⏳ Backend noch nicht im LXC deployt (`192.168.188.150:8000`) – Push Requests laufen aktuell in ein Timeout
-- ⏳ VAPID Keys müssen noch generiert und in `backend/main.py` hinterlegt werden
-- ⏳ PNG-App-Icons (192 px, 512 px) aus den vorhandenen SVGs exportieren
-- ℹ️ Details & offene Aufgaben siehe `PROJECT_STATUS.md`
+- ✅ **Live-Betrieb:** Die Anwendung ist im LXC-Container (`192.168.188.150:8000`) deployt und aktiv.
+- ✅ **Push Notifications:** VAPID Keys sind konfiguriert, Push-Benachrichtigungen sind voll funktionsfähig.
+- ✅ **Newsletter-Automatisierung:** Der n8n-Workflow triggert wöchentlich das Newsletter-Skript und sendet Benachrichtigungen.
+- ✅ **PWA-Ready:** Alle notwendigen Assets, inklusive PNG-Icons, sind vorhanden und die App ist installierbar.
 
 Dieser Stand entspricht dem aktuellen Handoff für Codex: Funktionalität ist vorhanden, Deployment (LXC + VAPID + Icons) steht noch aus.
 
