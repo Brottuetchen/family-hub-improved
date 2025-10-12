@@ -89,9 +89,54 @@ OVERSEERR_URL = "http://192.168.188.79:5055"
 OVERSEERR_API_KEY = "MTc1ODU1NDgxMzY0NGE3MWZjZDY4LWJhMzItNGI5NC1hNDNiLWEyZWViODE4MmE2OQ=="
 
 NEWSLETTER_DIR = Path('/opt/newsletter-output')
+SUBSCRIPTIONS_FILE = Path(os.getenv("PUSH_SUBSCRIPTIONS_FILE", "/opt/newsletter-output/push_subscriptions.json"))
 
 # In-Memory Storage (später: SQLite oder Redis für Persistence)
 push_subscriptions: List[Dict] = []
+
+
+def load_subscriptions_from_file() -> List[Dict]:
+    """Load stored push subscriptions from JSON file."""
+    if not SUBSCRIPTIONS_FILE.exists():
+        logger.info("No persisted push subscriptions found (file missing).")
+        return []
+
+    try:
+        with open(SUBSCRIPTIONS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        if not isinstance(data, list):
+            logger.warning("Persisted push subscriptions file malformed (expected list).")
+            return []
+
+        valid_subs = []
+        for entry in data:
+            if isinstance(entry, dict) and "endpoint" in entry and "keys" in entry:
+                valid_subs.append(entry)
+            else:
+                logger.warning("Skipping invalid subscription entry in persisted file.")
+
+        logger.info(f"Loaded {len(valid_subs)} push subscriptions from disk.")
+        return valid_subs
+
+    except Exception as exc:
+        logger.error(f"Failed to load push subscriptions: {exc}")
+        return []
+
+
+def persist_subscriptions() -> None:
+    """Persist current push subscriptions to JSON file."""
+    try:
+        SUBSCRIPTIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(SUBSCRIPTIONS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(push_subscriptions, f, ensure_ascii=False, indent=2)
+        logger.info(f"Persisted {len(push_subscriptions)} push subscriptions.")
+    except Exception as exc:
+        logger.error(f"Failed to persist push subscriptions: {exc}")
+
+
+# Load subscriptions at startup
+push_subscriptions.extend(load_subscriptions_from_file())
 
 # === PYDANTIC MODELS ===
 
@@ -152,7 +197,7 @@ async def subscribe_push(subscription: PushSubscription):
     push_subscriptions.append(sub_dict)
     logger.info(f"New push subscription added. Total: {len(push_subscriptions)}")
 
-    # TODO: Speichere in Datenbank
+    persist_subscriptions()
 
     return {
         "success": True,
@@ -180,6 +225,7 @@ async def send_push_notification(data: Dict):
 
     success_count = 0
     failed_count = 0
+    subscriptions_changed = False
 
     for subscription in push_subscriptions[:]:  # Copy list für safe removal
         try:
@@ -200,7 +246,11 @@ async def send_push_notification(data: Dict):
             # Entferne ungültige Subscriptions (410 Gone, 404 Not Found)
             if e.response and e.response.status_code in [410, 404]:
                 push_subscriptions.remove(subscription)
-                logger.info(f"Removed invalid subscription")
+                subscriptions_changed = True
+                logger.info(f"Removed invalid subscription: {subscription['endpoint'][:50]}...")
+
+    if subscriptions_changed:
+        persist_subscriptions()
 
     return {
         "success": success_count,
@@ -244,6 +294,7 @@ async def reload_newsletter():
         # Push senden
         failed = 0
         success = 0
+        subscriptions_changed = False
 
         for subscription in push_subscriptions[:]:
             try:
@@ -261,6 +312,11 @@ async def reload_newsletter():
                 # Entferne ungültige Subscriptions
                 if e.response and e.response.status_code in [410, 404]:
                     push_subscriptions.remove(subscription)
+                    subscriptions_changed = True
+                    logger.info(f"Removed invalid subscription: {subscription['endpoint'][:50]}...")
+
+        if subscriptions_changed:
+            persist_subscriptions()
 
         return {
             "success": True,
