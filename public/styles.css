@@ -399,12 +399,14 @@ a:hover {
 }
 
 .notification-history {
-    padding: var(--dropdown-padding-block) var(--dropdown-padding-inline);
     display: flex;
     flex-direction: column;
     gap: 12px;
     border-top: 1px solid rgba(74, 70, 228, 0.08);
     background: rgba(30, 30, 46, 0.6);
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--dropdown-padding-block) var(--dropdown-padding-inline);
 }
 
 .notification-history__heading {
@@ -421,8 +423,6 @@ a:hover {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 240px;
-    overflow-y: auto;
 }
 
 .notification-history__item {
