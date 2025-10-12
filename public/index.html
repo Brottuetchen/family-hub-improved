@@ -22,9 +22,6 @@
                 <h1>Family Hub</h1>
             </div>
             <nav class="app-header__nav">
-                <a href="#home" class="nav-link active">Home</a>
-                <a href="#services" class="nav-link">Services</a>
-                <a href="#newsletter" class="nav-link">Newsletter</a>
                 <button id="notificationToggle" class="notification-toggle" aria-label="Benachrichtigungen verwalten">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -32,7 +29,32 @@
                     </svg>
                     <span class="notification-badge" id="notificationBadge" hidden></span>
                 </button>
+                <button id="menuToggle" class="menu-toggle" aria-label="Menü öffnen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
             </nav>
+
+            <!-- Hamburger Menu Dropdown -->
+            <div id="menuDropdown" class="menu-dropdown is-hidden">
+                <a href="#home" class="menu-item active">Home</a>
+                <a href="#services" class="menu-item">Services</a>
+                <a href="#newsletter" class="menu-item">Newsletter</a>
+            </div>
+
+            <!-- Notification Dropdown -->
+            <div id="notificationDropdown" class="notification-dropdown is-hidden">
+                <div class="notification-header">
+                    <h3>Benachrichtigungen</h3>
+                    <button id="markAllRead" class="btn-text">Alle als gelesen</button>
+                </div>
+                <ul id="notificationList" class="notification-list">
+                    <li class="notification-empty">Keine neuen Benachrichtigungen</li>
+                </ul>
+            </div>
         </div>
     </header>
 
