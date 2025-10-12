@@ -656,17 +656,9 @@ notificationToggle?.addEventListener('click', (e) => {
 
     const notificationDropdown = document.getElementById('notificationDropdown');
     const menuDropdown = document.getElementById('menuDropdown');
+    const pushEnableSection = document.getElementById('pushEnableSection');
 
     if (!notificationDropdown) return;
-
-    // Check if push notifications are enabled
-    const isPushEnabled = notificationToggle.classList.contains('active');
-
-    if (!isPushEnabled && !pushManager) {
-        // First click - show push modal to enable notifications
-        showPushModal();
-        return;
-    }
 
     // Toggle notification dropdown
     notificationDropdown.classList.toggle('is-hidden');
@@ -676,20 +668,59 @@ notificationToggle?.addEventListener('click', (e) => {
         menuDropdown.classList.add('is-hidden');
     }
 
-    // Render notifications when opening
+    // Show or hide push enable section based on push status
     if (!notificationDropdown.classList.contains('is-hidden')) {
+        const isPushEnabled = notificationToggle.classList.contains('active');
+
+        if (pushEnableSection) {
+            if (!isPushEnabled) {
+                pushEnableSection.classList.remove('is-hidden');
+            } else {
+                pushEnableSection.classList.add('is-hidden');
+            }
+        }
+
         renderNotifications();
     }
 });
 
-// Mark all as read button - needs to be initialized after DOM is ready
-function initMarkAllReadButton() {
+// Mark all as read button and push enable button - needs to be initialized after DOM is ready
+function initNotificationButtons() {
     const markAllReadBtn = document.getElementById('markAllRead');
     if (markAllReadBtn) {
         markAllReadBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             markAllNotificationsAsRead();
+        });
+    }
+
+    const enablePushInMenuBtn = document.getElementById('enablePushInMenu');
+    if (enablePushInMenuBtn) {
+        enablePushInMenuBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                if (!pushManager) {
+                    console.error('Push manager not initialized');
+                    alert('Push-Benachrichtigungen sind noch nicht bereit. Bitte versuche es in wenigen Sekunden erneut.');
+                    return;
+                }
+                await pushManager.subscribe();
+                notificationToggle?.classList.add('active');
+                localStorage.removeItem(PUSH_DISMISSED_KEY);
+
+                // Hide push enable section
+                const pushEnableSection = document.getElementById('pushEnableSection');
+                if (pushEnableSection) {
+                    pushEnableSection.classList.add('is-hidden');
+                }
+
+                alert('Push-Benachrichtigungen aktiviert!');
+            } catch (error) {
+                console.error('Push subscription failed:', error);
+                alert('Fehler beim Aktivieren der Push-Benachrichtigungen.');
+            }
         });
     }
 }
@@ -772,7 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startStatsRefresh();
     initPushNotifications();
     renderNotifications(); // Initialize notification badge
-    initMarkAllReadButton(); // Initialize mark all read button
+    initNotificationButtons(); // Initialize notification buttons
 
     // Show welcome message on first visit
     if (!localStorage.getItem('hasVisited')) {
