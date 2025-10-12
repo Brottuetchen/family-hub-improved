@@ -59,16 +59,17 @@
 
 html {
     scroll-behavior: smooth;
+    scroll-padding-top: 80px;
 }
 
 body {
     margin: 0;
     padding: 0;
+    padding-top: 60px;
     background: var(--color-background);
     color: var(--color-text);
     overflow-x: hidden;
     min-height: 100vh;
-    position: relative;
 }
 
 /* Gradient Background Overlay */
@@ -99,7 +100,8 @@ a:hover {
     top: 0;
     left: 0;
     right: 0;
-    z-index: 1000;
+    width: 100%;
+    z-index: 9999;
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     box-shadow: var(--shadow-md);
     padding: 12px 0;
@@ -107,9 +109,6 @@ a:hover {
     padding-left: var(--safe-area-left);
     padding-right: var(--safe-area-right);
     backdrop-filter: blur(20px);
-    position: -webkit-sticky;
-    position: sticky;
-    width: 100%;
 }
 
 .app-header__container {
@@ -741,19 +740,7 @@ main {
 }
 
 .stream-cover__title {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 12px 8px;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.6) 80%, transparent);
-    color: white;
-    font-size: 13px;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.2;
+    display: none;
 }
 
 .recent-cover::after {
