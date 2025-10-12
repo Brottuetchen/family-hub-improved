@@ -686,18 +686,26 @@ main {
     transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
 .stream-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 12px;
-    margin-top: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+    width: 100%;
 }
 
 .stream-cover {
     position: relative;
     display: block;
     width: 100%;
-    padding-top: 150%; /* Höheres Verhältnis für Poster */
+    padding-top: 150%;
     border-radius: var(--radius-md);
     overflow: hidden;
     background: linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16));
@@ -706,6 +714,15 @@ main {
     background-repeat: no-repeat;
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
+}
+
+.stream-cover img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .stream-cover:hover {
@@ -718,14 +735,15 @@ main {
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 8px;
-    background: rgba(0, 0, 0, 0.75);
+    padding: 12px 8px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.6) 80%, transparent);
     color: white;
-    font-size: 12px;
+    font-size: 13px;
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.2;
 }
 
 .recent-cover::after {

@@ -402,10 +402,17 @@ async function updatePlexStats() {
                         streamCover.rel = 'noopener noreferrer';
                     }
                     
-                    // Wenn thumb_url vorhanden ist, nutze es als Hintergrundbild
+                    // Erstelle ein img Element für das Cover
+                    const coverImg = document.createElement('img');
                     if (stream.thumb_url) {
-                        streamCover.style.backgroundImage = `url('${stream.thumb_url}')`;
+                        coverImg.src = stream.thumb_url;
+                        coverImg.alt = stream.title || 'Stream Cover';
+                        coverImg.onerror = () => {
+                            coverImg.style.display = 'none';
+                            streamCover.style.background = 'linear-gradient(135deg, rgba(74, 70, 228, 0.2), rgba(73, 157, 255, 0.16))';
+                        };
                     }
+                    streamCover.appendChild(coverImg);
                     
                     // Füge Titel-Overlay hinzu
                     const titleOverlay = document.createElement('div');
