@@ -82,5 +82,19 @@
     "url": "http://192.168.188.142:3000",
     "icon": "assets/icons/overseerr.svg",
     "category": "monitoring"
+  },
+  {
+    "name": "Home Assistant",
+    "description": "Smart Home Steuerung und Automatisierung",
+    "url": "http://192.168.188.100:8123",
+    "icon": "assets/icons/homeassistant.svg",
+    "category": "smart-home"
+  },
+  {
+    "name": "Gitea",
+    "description": "Selbst-gehosteter Git-Service",
+    "url": "http://192.168.188.100:3000",
+    "icon": "assets/icons/gitea.svg",
+    "category": "development"
   }
 ]
