@@ -668,6 +668,7 @@ main {
 
 .recent-cover {
     position: relative;
+    display: block;
     width: 100%;
     padding-top: 140%;
     border-radius: var(--radius-md);
@@ -700,6 +701,15 @@ main {
 
 .recent-cover:hover::after {
     opacity: 1;
+}
+
+.recent-cover--link {
+    cursor: pointer;
+}
+
+.recent-cover--link:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
 }
 
 .recent-cover img {

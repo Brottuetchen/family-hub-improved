@@ -3,6 +3,7 @@
 
 // API Configuration
 const API_BASE_URL = window.location.origin;
+const DEFAULT_PLEX_WEB_URL = 'http://192.168.188.7:32400/web';
 const USE_MOCK_DATA = false; // Auf false setzen wenn Backend läuft
 
 // Local Storage Keys
@@ -67,6 +68,49 @@ function formatDateTime(value) {
     } catch {
         return typeof value === 'string' ? value : '';
     }
+}
+
+function resolvePlexItemUrl(item) {
+    if (!item || typeof item !== 'object') {
+        return null;
+    }
+
+    const candidateKeys = ['plex_url', 'web_url', 'url', 'link', 'href'];
+    for (const key of candidateKeys) {
+        const value = item[key];
+        if (typeof value === 'string' && value.startsWith('http')) {
+            return value;
+        }
+    }
+
+    let metadataKey = item.key || item.rating_key || item.ratingKey || item.metadata?.key;
+    if (typeof metadataKey === 'number') {
+        metadataKey = `/library/metadata/${metadataKey}`;
+    } else if (typeof metadataKey === 'string' && metadataKey && !metadataKey.startsWith('/')) {
+        metadataKey = `/library/metadata/${metadataKey}`;
+    }
+
+    const serverId = item.server_id
+        || item.serverId
+        || item.machine_identifier
+        || item.machineIdentifier
+        || item.server?.machineIdentifier;
+
+    const baseUrl = (DEFAULT_PLEX_WEB_URL || '').replace(/\/$/, '');
+
+    if (metadataKey && serverId) {
+        return `${baseUrl}/index.html#!/server/${encodeURIComponent(serverId)}/details?key=${encodeURIComponent(metadataKey)}`;
+    }
+
+    if (metadataKey) {
+        return `${baseUrl}/index.html#!/details?key=${encodeURIComponent(metadataKey)}`;
+    }
+
+    if (item.title) {
+        return `${baseUrl}/index.html#!/search?query=${encodeURIComponent(item.title)}`;
+    }
+
+    return null;
 }
 
 async function fetchJson(url) {
@@ -388,18 +432,34 @@ async function updatePlexStats() {
             if (recentItems.length) {
                 let addedCount = 0;
 
-                recentItems.forEach((item, index) => {
+                recentItems.forEach((item) => {
                     if (item.thumb_url && item.thumb_url.trim()) {
-                        const cover = document.createElement('div');
-                        cover.className = 'recent-cover';
+                        const plexItemUrl = resolvePlexItemUrl(item);
+                        const cover = document.createElement(plexItemUrl ? 'a' : 'div');
+                        cover.className = plexItemUrl
+                            ? 'recent-cover recent-cover--link'
+                            : 'recent-cover';
                         cover.dataset.title = item.title || 'Neuer Plex Inhalt';
-                        cover.setAttribute('role', 'img');
-                        cover.setAttribute('aria-label', item.title || 'Neuer Plex Inhalt');
+                        cover.title = item.title || 'Neuer Plex Inhalt';
+
+                        if (plexItemUrl) {
+                            cover.href = plexItemUrl;
+                            cover.target = '_blank';
+                            cover.rel = 'noopener noreferrer';
+                            const ariaLabel = item.title
+                                ? `Plex Titel ${item.title} oeffnen`
+                                : 'Plex Details oeffnen';
+                            cover.setAttribute('aria-label', ariaLabel);
+                        } else {
+                            cover.setAttribute('role', 'img');
+                            cover.setAttribute('aria-label', item.title || 'Neuer Plex Inhalt');
+                        }
+
                         cover.style.backgroundImage = `url('${item.thumb_url}')`;
                         cover.style.backgroundSize = 'cover';
                         cover.style.backgroundPosition = 'center';
                         recentGridEl.appendChild(cover);
-                        addedCount++;
+                        addedCount += 1;
                     }
                 });
 
