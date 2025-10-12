@@ -310,8 +310,9 @@ async function updatePlexStats() {
 
         if (recentStreamEl) {
             if (stats?.streams && stats.streams.length > 0) {
-                const recentStream = stats.streams[0];
-                recentStreamEl.textContent = `Zuletzt: ${recentStream.title}`;
+                // Show up to 2 current streams
+                const streamTitles = stats.streams.slice(0, 2).map(s => s.title).join(', ');
+                recentStreamEl.textContent = `Läuft: ${streamTitles}`;
             } else {
                 recentStreamEl.textContent = 'Keine aktiven Streams';
             }
@@ -359,14 +360,6 @@ async function updatePlexStats() {
             };
 
             if (recentItems.length) {
-                // Color gradients for placeholders
-                const gradients = [
-                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-                ];
-
                 recentItems.forEach((item, index) => {
                     const cover = document.createElement('div');
                     cover.className = 'recent-cover';
@@ -376,9 +369,11 @@ async function updatePlexStats() {
 
                     if (item.thumb_url && item.thumb_url.trim()) {
                         cover.style.backgroundImage = `url('${item.thumb_url}')`;
+                        cover.style.backgroundSize = 'cover';
+                        cover.style.backgroundPosition = 'center';
                     } else {
-                        // Use colorful gradient instead of placeholder
-                        cover.style.backgroundImage = gradients[index % gradients.length];
+                        renderPlaceholder();
+                        return;
                     }
 
                     recentGridEl.appendChild(cover);
