@@ -384,7 +384,7 @@ async function loadNewsletters() {
             updateNewsletterQuickCard(null);
         }
 
-        renderNewsletterArchive(sorted.slice(0, 50));
+        renderNewsletterArchive(sorted.slice(1, 4));
     } catch (error) {
         console.error('Newsletter konnten nicht geladen werden:', error);
         latestNewsletter.innerHTML = `
