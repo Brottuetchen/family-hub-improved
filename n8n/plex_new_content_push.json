@@ -1,0 +1,191 @@
+{
+  "name": "Plex - New Content Push",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 15
+            }
+          ]
+        }
+      },
+      "name": "Schedule (15 Min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://192.168.188.7:32400/library/sections",
+        "options": {},
+        "headers": {
+          "X-Plex-Token": "oe1a9iRoLZktgJEAXFvo"
+        }
+      },
+      "name": "Get Plex Sections",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        200,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sections = $json.MediaContainer.Directory;\nconst movieSection = sections.find(s => s.title === 'Filme');\nconst tvSection = sections.find(s => s.title === 'Serien');\n\nif (!movieSection || !tvSection) {\n  throw new Error('Could not find Movie and/or TV Show sections. Please check library names.');\n}\n\nreturn [\n  { json: { sectionId: movieSection.key, type: 'movie' } },\n  { json: { sectionId: tvSection.key, type: 'tv' } }\n];"
+      },
+      "name": "Get Section IDs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        420,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://192.168.188.7:32400/library/sections/' + $json.sectionId + '/recentlyAdded' }}",
+        "options": {},
+        "headers": {
+          "X-Plex-Token": "oe1a9iRoLZktgJEAXFvo"
+        }
+      },
+      "name": "Get Recently Added",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        660,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const newItems = $json.MediaContainer.Metadata;\nif (!newItems) {\n  return [];\n}\n\n// Statische Daten verwenden, um bereits benachrichtigte Elemente zu speichern\nconst staticData = this.getWorkflowStaticData('global');\n\nif (!staticData.notifiedItems) {\n  staticData.notifiedItems = [];\n}\n\nconst itemsToNotify = [];\nfor (const item of newItems) {\n  // Nur Elemente berücksichtigen, die in den letzten 24h hinzugefügt wurden\n  const addedAt = item.addedAt * 1000;\n  if (Date.now() - addedAt > 24 * 60 * 60 * 1000) {\n    continue;\n  }\n\n  if (!staticData.notifiedItems.includes(item.ratingKey)) {\n    itemsToNotify.push(item);\n    staticData.notifiedItems.push(item.ratingKey);\n  }\n}\n\n// Nur die letzten 1000 IDs behalten, um die Daten nicht zu groß werden zu lassen\nstaticData.notifiedItems = staticData.notifiedItems.slice(-1000);\n\nreturn itemsToNotify.map(item => ({ json: item }));"
+      },
+      "name": "Filter New Items",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        880,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://192.168.188.150:8000/api/push/notify",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ {\n  \"title\": $json.type === 'movie' ? '🎬 Neuer Film: ' + $json.title : '📺 Neue Serie: ' + $json.title,\n  \"body\": $json.summary || 'Keine Beschreibung verfügbar.',\n  \"url\": \"/\" 
+} }}"
+      },
+      "name": "Send Push Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        1320,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "name": "SplitInBatches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        240
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule (15 Min)": {
+      "main": [
+        [
+          {
+            "node": "Get Plex Sections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Plex Sections": {
+      "main": [
+        [
+          {
+            "node": "Get Section IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Section IDs": {
+      "main": [
+        [
+          {
+            "node": "Get Recently Added",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recently Added": {
+      "main": [
+        [
+          {
+            "node": "Filter New Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter New Items": {
+      "main": [
+        [
+          {
+            "node": "SplitInBatches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SplitInBatches": {
+      "main": [
+        [
+          {
+            "node": "Send Push Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "global": {
+      "notifiedItems": []
+    }
+  },
+  "tags": [
+    "plex",
+    "push",
+    "media"
+  ],
+  "versionId": "d8f7f6e3-5f1a-4b9c-8a3e-1e2c6a7b8c9d"
+}
