@@ -112,7 +112,7 @@ a:hover {
 /* === STICKY HEADER === */
 
 .app-header {
-    position: fixed !important;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
@@ -128,42 +128,6 @@ a:hover {
     transform: translateZ(0);
     will-change: transform;
     backface-visibility: hidden;
-}
-
-.app-header__container {
-    width: min(1200px, 95vw);
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    height: 100%;
-    padding-left: max(20px, var(--safe-area-left)); /* Abstand links */
-    padding-right: max(20px, var(--safe-area-right)); /* Abstand rechts */
-}
-
-.app-header__logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: white;
-}
-
-.app-header__logo img {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-}
-
-.app-header__logo h1 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-}
-
-.app-header {
-    position: relative;
 }
 
 .app-header__nav {
