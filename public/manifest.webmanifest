@@ -36,22 +36,6 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "assets/screenshots/home-light.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Family Hub Homepage"
-    },
-    {
-      "src": "assets/screenshots/home-mobile.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Family Hub Mobile"
-    }
-  ],
   "shortcuts": [
     {
       "name": "Plex öffnen",

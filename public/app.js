@@ -1074,9 +1074,6 @@ function initPushForm() {
 // === STATS AUTO-REFRESH ===
 
 function startStatsRefresh() {
-
-
-function startStatsRefresh() {
     // Initial load
     updateAllStats();
 
