@@ -14,6 +14,7 @@ from typing import List, Dict, Optional
 import json
 import os
 import logging
+import hashlib
 import requests
 from pathlib import Path
 from datetime import datetime

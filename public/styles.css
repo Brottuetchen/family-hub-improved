@@ -116,18 +116,43 @@ a:hover {
     top: 0;
     left: 0;
     right: 0;
-    height: calc(72px + var(--header-offset)); /* Höhe an Safe Area anpassen */
+    height: calc(72px + var(--header-offset));
     width: 100%;
     z-index: 9999;
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     box-shadow: var(--shadow-md);
-    padding-top: var(--header-offset); /* Abstand von oben für Systemanzeigen */
+    padding-top: var(--header-offset);
     display: flex;
     align-items: center;
     justify-content: center;
     transform: translateZ(0);
     will-change: transform;
     backface-visibility: hidden;
+}
+
+.app-header__container {
+    width: min(1200px, 95vw);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-header__logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    text-decoration: none;
+}
+
+.app-header__logo img {
+    height: 36px;
+}
+
+.app-header__logo h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .app-header__nav {
