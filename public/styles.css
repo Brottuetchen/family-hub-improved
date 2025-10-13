@@ -1384,10 +1384,6 @@ main {
 /* === RESPONSIVE === */
 
 @media (max-width: 768px) {
-    .app-header__logo h1 {
-        display: none;
-    }
-
     .nav-link {
         font-size: 13px;
         padding: 6px 12px;
