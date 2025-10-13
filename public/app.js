@@ -1130,6 +1130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startStatsRefresh();
     initPushNotifications();
     initNotificationButtons(); // Initialize push button
+    initPushForm(); // Initialize admin push form
 
     // Show welcome message on first visit
     if (!localStorage.getItem('hasVisited')) {
