@@ -66,9 +66,10 @@
       "parameters": {
         "url": "http://192.168.188.150:8000/api/push/notify",
         "method": "POST",
-        "jsonParameters": true,
-        "options": {},
-        "bodyParametersJson": "={{ { \"title\": $json.type === 'movie' ? '🎬 Neuer Film: ' + $json.title : '📺 Neue Serie: ' + $json.title, \"body\": $json.summary || 'Keine Beschreibung verfügbar.', \"url\": '/' } }}"
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ \"title\": \"Neuer Inhalt in Plex! 🍿\", \"body\": $json.title + \" ist jetzt zum Streamen verfügbar!\", \"url\": \"/\" }) }}",
+        "options": {}
       },
       "id": "e5f6a7b8-c9d8-4e9f-c0b1-ac9d8e7f6a5b",
       "name": "Send Push Notification",
