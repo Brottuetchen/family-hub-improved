@@ -929,9 +929,6 @@ main {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    background: var(--color-surface);
-    padding: 28px;
-    border-radius: var(--radius-md);
 }
 
 .form-group {
