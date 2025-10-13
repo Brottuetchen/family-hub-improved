@@ -1,5 +1,5 @@
 {
-  "name": "Plex - New Content Push",
+  "name": "Plex - New Content Push (via Backend)",
   "nodes": [
     {
       "parameters": {
@@ -12,68 +12,54 @@
           ]
         }
       },
+      "id": "5f6f2f3f-8f2c-4b9c-8a3e-1e2c6a7b8c9d",
       "name": "Schedule (15 Min)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
       "position": [
-        -20,
-        240
+        250,
+        300
       ]
     },
     {
       "parameters": {
-        "url": "http://192.168.188.7:32400/library/sections",
-        "options": {},
-        "headers": {
-          "X-Plex-Token": "oe1a9iRoLZktgJEAXFvo"
-        }
+        "url": "http://192.168.188.150:8000/api/plex/stats",
+        "options": {}
       },
-      "name": "Get Plex Sections",
+      "id": "a1b2c3d4-e5f6-4a9b-8c7d-6e5f4a3b2c1d",
+      "name": "Get Plex Stats via Backend",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
-        200,
-        240
-      ]
+        500,
+        300
+      ],
+      "credentials": {}
     },
     {
       "parameters": {
-        "functionCode": "const sections = $json.MediaContainer.Directory;\nconst movieSection = sections.find(s => s.title === 'Filme');\nconst tvSection = sections.find(s => s.title === 'Serien');\n\nif (!movieSection || !tvSection) {\n  throw new Error('Could not find Movie and/or TV Show sections. Please check library names.');\n}\n\nreturn [\n  { json: { sectionId: movieSection.key, type: 'movie' } },\n  { json: { sectionId: tvSection.key, type: 'tv' } }\n];"
+        "functionCode": "const newItems = $json.recently_added;\nif (!newItems || !Array.isArray(newItems)) {\n  return [];\n}\n\nconst staticData = this.getWorkflowStaticData('global');\n\nif (!staticData.notifiedItems) {\n  staticData.notifiedItems = [];\n}\n\nconst itemsToNotify = [];\nfor (const item of newItems) {\n  if (item.ratingKey && !staticData.notifiedItems.includes(item.ratingKey)) {\n    itemsToNotify.push(item);\n    staticData.notifiedItems.push(item.ratingKey);\n  }\n}\n\nstaticData.notifiedItems = staticData.notifiedItems.slice(-1000);\n\nreturn itemsToNotify.map(item => ({ json: item }));"
       },
-      "name": "Get Section IDs",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [
-        420,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "url": "={{ 'http://192.168.188.7:32400/library/sections/' + $json.sectionId + '/recentlyAdded' }}",
-        "options": {},
-        "headers": {
-          "X-Plex-Token": "oe1a9iRoLZktgJEAXFvo"
-        }
-      },
-      "name": "Get Recently Added",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [
-        660,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "functionCode": "const newItems = $json.MediaContainer.Metadata;\nif (!newItems) {\n  return [];\n}\n\n// Statische Daten verwenden, um bereits benachrichtigte Elemente zu speichern\nconst staticData = this.getWorkflowStaticData('global');\n\nif (!staticData.notifiedItems) {\n  staticData.notifiedItems = [];\n}\n\nconst itemsToNotify = [];\nfor (const item of newItems) {\n  // Nur Elemente berücksichtigen, die in den letzten 24h hinzugefügt wurden\n  const addedAt = item.addedAt * 1000;\n  if (Date.now() - addedAt > 24 * 60 * 60 * 1000) {\n    continue;\n  }\n\n  if (!staticData.notifiedItems.includes(item.ratingKey)) {\n    itemsToNotify.push(item);\n    staticData.notifiedItems.push(item.ratingKey);\n  }\n}\n\n// Nur die letzten 1000 IDs behalten, um die Daten nicht zu groß werden zu lassen\nstaticData.notifiedItems = staticData.notifiedItems.slice(-1000);\n\nreturn itemsToNotify.map(item => ({ json: item }));"
-      },
+      "id": "d4e5f6a7-b8c9-4d8e-bf0a-9b8c7d6e5f4a",
       "name": "Filter New Items",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [
-        880,
-        240
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "id": "f6a7b8c9-d8e7-4f0a-d1c2-bd0e9f7a6b5c",
+      "name": "SplitInBatches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
       ]
     },
     {
@@ -82,28 +68,17 @@
         "method": "POST",
         "jsonParameters": true,
         "options": {},
-        "bodyParametersJson": "={{ {\n  \"title\": $json.type === 'movie' ? '🎬 Neuer Film: ' + $json.title : '📺 Neue Serie: ' + $json.title,\n  \"body\": $json.summary || 'Keine Beschreibung verfügbar.',\n  \"url\": \"/\" 
-} }}"
+        "bodyParametersJson": "={{ { \"title\": $json.type === 'movie' ? '🎬 Neuer Film: ' + $json.title : '📺 Neue Serie: ' + $json.title, \"body\": $json.summary || 'Keine Beschreibung verfügbar.', \"url\": '/' } }}"
       },
+      "id": "e5f6a7b8-c9d8-4e9f-c0b1-ac9d8e7f6a5b",
       "name": "Send Push Notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
-        1320,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "batchSize": 1
-      },
-      "name": "SplitInBatches",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 2,
-      "position": [
-        1100,
-        240
-      ]
+        1250,
+        300
+      ],
+      "credentials": {}
     }
   ],
   "connections": {
@@ -111,36 +86,14 @@
       "main": [
         [
           {
-            "node": "Get Plex Sections",
+            "node": "Get Plex Stats via Backend",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Plex Sections": {
-      "main": [
-        [
-          {
-            "node": "Get Section IDs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Section IDs": {
-      "main": [
-        [
-          {
-            "node": "Get Recently Added",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Recently Added": {
+    "Get Plex Stats via Backend": {
       "main": [
         [
           {
@@ -185,7 +138,8 @@
   "tags": [
     "plex",
     "push",
-    "media"
+    "media",
+    "backend"
   ],
-  "versionId": "d8f7f6e3-5f1a-4b9c-8a3e-1e2c6a7b8c9d"
+  "versionId": "0c1b2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e"
 }

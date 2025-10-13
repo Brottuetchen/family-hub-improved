@@ -477,6 +477,8 @@ async def get_plex_stats():
                 "type": item.get("type", "unknown"),
                 "year": item.get("year"),
                 "added": item.get("addedAt"),
+                "summary": item.get("summary", ""),
+                "ratingKey": item.get("ratingKey"),
                 "thumb_url": thumb_url
             })
 
