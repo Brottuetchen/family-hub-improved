@@ -1479,3 +1479,43 @@ main {
         display: none;
     }
 }
+/* === SUBSCRIPTION MANAGEMENT (ADMIN) === */
+
+.subscriptions-toolbar {
+    margin-bottom: 20px;
+}
+
+.subscription-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.subscription-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: rgba(74, 70, 228, 0.08);
+    border-radius: var(--radius-md);
+    gap: 16px;
+}
+
+.subscription-item__endpoint {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    word-break: break-all;
+    flex: 1;
+}
+
+.subscription-item .btn--danger {
+    background: var(--color-error);
+    color: white;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+
+.subscription-item .btn--danger:hover {
+    background: #c53030; /* Darker red */
+}

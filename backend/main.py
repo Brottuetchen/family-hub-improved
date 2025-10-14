@@ -310,6 +310,44 @@ async def admin_send_push(notification: PushNotification):
         "message": f"Push notification '{notification.title}' sent successfully"
     }
 
+def get_subscription_id(subscription: Dict) -> str:
+    """Creates a unique ID for a subscription based on its endpoint."""
+    return hashlib.sha256(subscription.get("endpoint", "").encode("utf-8")).hexdigest()
+
+@app.get("/api/push/subscriptions")
+async def get_subscriptions():
+    """Gibt eine Liste aller Push-Subscriptions zurück (anonymisiert)."""
+    return [
+        {
+            "id": get_subscription_id(sub),
+            "endpoint": sub.get("endpoint"),
+            # Optional: User-Agent oder andere Infos, falls gespeichert
+        }
+        for sub in push_subscriptions
+    ]
+
+@app.delete("/api/push/subscriptions/{subscription_id}")
+async def delete_subscription(subscription_id: str):
+    """Löscht eine Push-Subscription anhand ihrer ID."""
+    global push_subscriptions
+    initial_count = len(push_subscriptions)
+    
+    original_subscriptions = list(push_subscriptions)
+    push_subscriptions = [
+        sub for sub in push_subscriptions
+        if get_subscription_id(sub) != subscription_id
+    ]
+
+    if len(push_subscriptions) < initial_count:
+        persist_subscriptions()
+        logger.info(f"Subscription {subscription_id} deleted. New count: {len(push_subscriptions)}")
+        return {"success": True, "message": "Subscription deleted"}
+    else:
+        logger.warning(f"Subscription with ID {subscription_id} not found for deletion.")
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+
+
 @app.post("/api/newsletter/reload")
 async def reload_newsletter():
     """

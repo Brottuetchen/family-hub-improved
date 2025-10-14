@@ -49,6 +49,87 @@ function initPushForm() {
     });
 }
 
+function initSubscriptionManagement() {
+    const loadButton = document.getElementById('loadSubscriptions');
+    const subList = document.getElementById('subscriptionList');
+    const subStatus = document.getElementById('subscriptionStatus');
+
+    if (!loadButton || !subList || !subStatus) return;
+
+    const showStatus = (message, isError = false) => {
+        subStatus.textContent = message;
+        subStatus.style.display = 'block';
+        subStatus.style.background = isError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)';
+        subStatus.style.color = isError ? 'var(--color-error)' : 'var(--color-success)';
+    };
+
+    const renderSubscriptions = (subscriptions) => {
+        subList.innerHTML = '';
+        if (subscriptions.length === 0) {
+            subList.innerHTML = '<p>Keine Abonnements gefunden.</p>';
+            return;
+        }
+
+        subscriptions.forEach(sub => {
+            const item = document.createElement('div');
+            item.className = 'subscription-item';
+            item.dataset.id = sub.id;
+
+            const endpoint = document.createElement('div');
+            endpoint.className = 'subscription-item__endpoint';
+            endpoint.textContent = sub.endpoint;
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn btn--danger';
+            deleteButton.textContent = 'Löschen';
+
+            deleteButton.addEventListener('click', () => {
+                if (!confirm('Möchten Sie dieses Abonnement wirklich löschen?')) return;
+
+                showStatus('Lösche Abonnement...');
+                fetch(`${API_BASE_URL}/api/push/subscriptions/${sub.id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Fehler beim Löschen des Abonnements.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    showStatus('✅ Abonnement gelöscht.', false);
+                    item.remove();
+                })
+                .catch(error => {
+                    showStatus(`❌ ${error.message}`, true);
+                });
+            });
+
+            item.appendChild(endpoint);
+            item.appendChild(deleteButton);
+            subList.appendChild(item);
+        });
+    };
+
+    const loadSubscriptions = async () => {
+        showStatus('Lade Abonnements...');
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/push/subscriptions`);
+            if (!response.ok) {
+                throw new Error('Fehler beim Laden der Abonnements.');
+            }
+            const subscriptions = await response.json();
+            renderSubscriptions(subscriptions);
+            showStatus(`✅ ${subscriptions.length} Abonnements geladen.`, false);
+        } catch (error) {
+            showStatus(`❌ ${error.message}`, true);
+        }
+    };
+
+    loadButton.addEventListener('click', loadSubscriptions);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initPushForm();
+    initSubscriptionManagement();
 });
