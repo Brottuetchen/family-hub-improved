@@ -59,7 +59,7 @@
                         <a href="#home" class="menu-item active">Home</a>
                         <a href="#services" class="menu-item">Services</a>
                         <a href="#newsletter" class="menu-item">Newsletter</a>
-                        <a href="#admin" class="menu-item">Admin</a>
+                        <a href="admin.html" class="menu-item">Admin</a>
                     </div>
                 </div>
             </nav>
@@ -144,34 +144,7 @@
             </div>
         </section>
 
-        <!-- Admin Push Section -->
-        <section id="admin" class="section" aria-labelledby="admin-heading">
-            <div class="section__header">
-                <h2 id="admin-heading">Admin-Bereich</h2>
-                <p>Sende manuelle Push-Benachrichtigungen an alle abonnierten Geräte.</p>
-            </div>
-            <form id="pushForm" class="push-form">
-                <div class="form-group">
-                    <label for="pushTitle">Titel</label>
-                    <input type="text" id="pushTitle" name="title" placeholder="z.B. 🎬 Neuer Film" required>
-                </div>
-                <div class="form-group">
-                    <label for="pushBody">Nachricht</label>
-                    <textarea id="pushBody" name="body" placeholder="z.B. 'Dune: Part Two' ist jetzt verfügbar!" required rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="pushUrl">URL (Optional)</label>
-                    <input type="text" id="pushUrl" name="url" placeholder="Standard: / (Startseite)">
-                </div>
-                <button type="submit" class="btn btn--primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
-                        <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
-                    Nachricht senden
-                </button>
-                <div id="pushStatus" class="push-status"></div>
-            </form>
-        </section>
+
     </main>
 
     <!-- Push Notification Modal -->

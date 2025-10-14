@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Admin - Family Hub</title>
+    <meta name="description" content="Admin-Bereich für den Family Hub.">
+    <meta name="theme-color" content="#4A46E4">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Sticky Header mit Navigation -->
+    <header class="app-header">
+        <div class="app-header__container">
+            <div class="app-header__logo">
+                <a href="index.html" style="display: flex; align-items: center; text-decoration: none; color: inherit;">
+                    <img src="assets/icons/app-icon.svg" alt="Family Hub Logo">
+                    <h1>Family Hub</h1>
+                </a>
+            </div>
+            <nav class="app-header__nav">
+                <a href="index.html" class="menu-item">Zurück zum Hub</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Admin Push Section -->
+        <section id="admin" class="section" aria-labelledby="admin-heading">
+            <div class="section__header">
+                <h2 id="admin-heading">Admin-Bereich</h2>
+                <p>Sende manuelle Push-Benachrichtigungen an alle abonnierten Geräte.</p>
+            </div>
+            <form id="pushForm" class="push-form">
+                <div class="form-group">
+                    <label for="pushTitle">Titel</label>
+                    <input type="text" id="pushTitle" name="title" placeholder="z.B. 🎬 Neuer Film" required>
+                </div>
+                <div class="form-group">
+                    <label for="pushBody">Nachricht</label>
+                    <textarea id="pushBody" name="body" placeholder="z.B. 'Dune: Part Two' ist jetzt verfügbar!" required rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="pushUrl">URL (Optional)</label>
+                    <input type="text" id="pushUrl" name="url" placeholder="Standard: / (Startseite)">
+                </div>
+                <button type="submit" class="btn btn--primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                        <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                    Nachricht senden
+                </button>
+                <div id="pushStatus" class="push-status"></div>
+            </form>
+        </section>
+    </main>
+
+    <script type="module" src="admin.js"></script>
+</body>
+</html>

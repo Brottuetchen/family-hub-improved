@@ -1022,54 +1022,7 @@ pushModal?.querySelector('.modal__overlay')?.addEventListener('click', () => {
 });
     
 
-// === ADMIN PUSH FORM ===
 
-function initPushForm() {
-    const pushForm = document.getElementById('pushForm');
-    const pushStatus = document.getElementById('pushStatus');
-
-    if (!pushForm || !pushStatus) return;
-
-    pushForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(pushForm);
-        const title = formData.get('title');
-        const body = formData.get('body');
-        const url = formData.get('url') || '/';
-
-        const payload = { title, body, url };
-
-        // Visuelles Feedback
-        pushStatus.style.display = 'block';
-        pushStatus.textContent = 'Sende Nachricht...';
-        pushStatus.style.background = 'rgba(245, 158, 11, 0.1)'; // Warning color
-        pushStatus.style.color = 'var(--color-warning)';
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/push/admin/send`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.detail || 'Fehler beim Senden');
-            }
-
-            pushStatus.textContent = `✅ Nachricht erfolgreich an ${result.success} von ${result.total_subscriptions} Geräten gesendet.`;
-            pushStatus.style.background = 'rgba(16, 185, 129, 0.1)'; // Success color
-            pushStatus.style.color = 'var(--color-success)';
-            pushForm.reset();
-
-        } catch (error) {
-            pushStatus.textContent = `❌ Fehler: ${error.message}`;
-            pushStatus.style.background = 'rgba(239, 68, 68, 0.1)'; // Error color
-            pushStatus.style.color = 'var(--color-error)';
-        }
-    });
-}
 
 // === STATS AUTO-REFRESH ===
 
@@ -1097,68 +1050,7 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// === ADMIN PUSH NOTIFICATION HELPER ===
 
-/**
- * Admin Function: Sende benutzerdefinierte Push-Benachrichtigung an alle Subscribers
- *
- * Beispiel-Aufruf in der Browser-Konsole:
- *
- * sendAdminPush({
- *     title: "Neue Filme verfügbar!",
- *     body: "Schau dir die neuesten Blockbuster auf Plex an.",
- *     url: "/index.html#services",
- *     icon: "/assets/icons/app-icon-192.png"
- * });
- *
- * Minimale Version:
- * sendAdminPush({ title: "Test", body: "Das ist eine Testnachricht" });
- */
-window.sendAdminPush = async function(options = {}) {
-    if (!options.title || !options.body) {
-        console.error('❌ Fehler: title und body sind erforderlich!');
-        console.log('Beispiel: sendAdminPush({ title: "Titel", body: "Nachricht" })');
-        return;
-    }
-
-    const payload = {
-        title: options.title,
-        body: options.body,
-        url: options.url || "/",
-        icon: options.icon || "/assets/icons/app-icon-192.png"
-    };
-
-    try {
-        console.log('📤 Sende Push-Benachrichtigung...');
-        const response = await fetch(`${API_BASE_URL}/api/push/admin/send`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Request failed');
-        }
-
-        const result = await response.json();
-        console.log('✅ Push-Benachrichtigung gesendet!');
-        console.log(`   Erfolgreich: ${result.success}`);
-        console.log(`   Fehlgeschlagen: ${result.failed}`);
-        console.log(`   Gesamt Subscribers: ${result.total_subscriptions}`);
-        return result;
-    } catch (error) {
-        console.error('❌ Fehler beim Senden:', error.message);
-        throw error;
-    }
-};
-
-// Helper info in console
-console.log('%c📢 Admin Push Helper geladen!', 'color: #4A46E4; font-weight: bold; font-size: 14px;');
-console.log('Verwende: sendAdminPush({ title: "Titel", body: "Nachricht" })');
-console.log('Beispiel: sendAdminPush({ title: "Neue Inhalte", body: "Schau dir die neuesten Filme an!", url: "/index.html#services" })');
 
 // === INITIALIZATION ===
 
@@ -1180,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startStatsRefresh();
     initPushNotifications();
     initNotificationButtons(); // Initialize push button
-    initPushForm(); // Initialize admin push form
+
 
     // Show welcome message on first visit
     if (!localStorage.getItem('hasVisited')) {
