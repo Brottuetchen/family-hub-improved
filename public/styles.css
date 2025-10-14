@@ -154,6 +154,7 @@ a:hover {
     font-size: 1.25rem;
     font-weight: 600;
     white-space: nowrap;
+    margin-left: 16px;
 }
 
 .app-header__nav {
