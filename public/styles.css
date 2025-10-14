@@ -140,7 +140,7 @@ a:hover {
 .app-header__logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     color: white;
     text-decoration: none;
 }
