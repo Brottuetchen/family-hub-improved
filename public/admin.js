@@ -49,6 +49,13 @@ function initPushForm() {
     });
 }
 
+function formatEndpoint(endpoint) {
+    if (endpoint.length > 80) {
+        return `${endpoint.substring(0, 40)}...${endpoint.substring(endpoint.length - 40)}`;
+    }
+    return endpoint;
+}
+
 function initSubscriptionManagement() {
     const loadButton = document.getElementById('loadSubscriptions');
     const subList = document.getElementById('subscriptionList');
@@ -75,9 +82,28 @@ function initSubscriptionManagement() {
             item.className = 'subscription-item';
             item.dataset.id = sub.id;
 
+            const endpointWrapper = document.createElement('div');
+            endpointWrapper.className = 'subscription-item__endpoint-wrapper';
+
             const endpoint = document.createElement('div');
             endpoint.className = 'subscription-item__endpoint';
-            endpoint.textContent = sub.endpoint;
+            endpoint.textContent = formatEndpoint(sub.endpoint);
+            endpoint.title = sub.endpoint;
+
+            const copyButton = document.createElement('button');
+            copyButton.className = 'btn btn--secondary btn--small';
+            copyButton.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+            copyButton.onclick = () => {
+                navigator.clipboard.writeText(sub.endpoint);
+                const originalText = copyButton.innerHTML;
+                copyButton.innerHTML = 'Copied!';
+                setTimeout(() => {
+                    copyButton.innerHTML = originalText;
+                }, 2000);
+            };
+
+            endpointWrapper.appendChild(endpoint);
+            endpointWrapper.appendChild(copyButton);
 
             const deleteButton = document.createElement('button');
             deleteButton.className = 'btn btn--danger';
@@ -105,7 +131,7 @@ function initSubscriptionManagement() {
                 });
             });
 
-            item.appendChild(endpoint);
+            item.appendChild(endpointWrapper);
             item.appendChild(deleteButton);
             subList.appendChild(item);
         });
