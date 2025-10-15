@@ -96,5 +96,12 @@
     "url": "http://192.168.188.145:3000",
     "icon": "assets/icons/gitea.svg",
     "category": "development"
+  },
+  {
+    "name": "Booklore",
+    "description": "Deine persönliche Buch-Bibliothek",
+    "url": "http://192.168.188.152:6060",
+    "icon": "assets/icons/audiobookshelf.svg",
+    "category": "media"
   }
 ]
