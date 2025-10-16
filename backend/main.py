@@ -198,6 +198,25 @@ async def health_check():
 
 # === PUSH NOTIFICATIONS ===
 
+@app.get("/api/push/debug")
+async def push_debug(current_user: User = Depends(get_current_admin_user)):
+    """Debug-Info zur Push-Konfiguration (admin only)."""
+    try:
+        vapid_source = "env" if (os.getenv("VAPID_PUBLIC_KEY") and os.getenv("VAPID_PRIVATE_KEY")) else (
+            "file" if (Path(__file__).parent / "vapid_keys.json").exists() else "default"
+        )
+        info = {
+            "subscriptions_file": str(SUBSCRIPTIONS_FILE),
+            "subscriptions_file_exists": SUBSCRIPTIONS_FILE.exists(),
+            "subscriptions_count": len(push_subscriptions),
+            "vapid_public_key_prefix": (VAPID_PUBLIC_KEY or "")[:24],
+            "vapid_source": vapid_source,
+        }
+        return info
+    except Exception as e:
+        logger.error(f"push_debug error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/vapid-public-key")
 async def get_vapid_public_key():
     """Gibt VAPID Public Key für Push Subscriptions zurück"""
