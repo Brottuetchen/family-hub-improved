@@ -165,8 +165,26 @@ function initSubscriptionManagement() {
     loadButton.addEventListener('click', loadSubscriptions);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Require authentication and admin role for this page
+    try {
+        const isAuth = await window.AuthUtils.requireAuth();
+        if (!isAuth) {
+            return; // redirected to login
+        }
+
+        const user = await window.AuthUtils.getCurrentUser();
+        if (!user || !user.is_admin) {
+            alert('Admin-Rechte erforderlich.');
+            window.location.href = '/index.html';
+            return;
+        }
+    } catch (e) {
+        console.error('Auth guard failed:', e);
+        window.location.href = '/login.html';
+        return;
+    }
+
     initPushForm();
     initSubscriptionManagement();
 });
-
