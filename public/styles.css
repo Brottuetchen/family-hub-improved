@@ -329,6 +329,25 @@ a:hover {
     font-weight: 600;
 }
 
+/* Logout Button Styling */
+#logoutButton {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-error);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 500;
+}
+
+#logoutButton:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-left-color: var(--color-error);
+    color: var(--color-error);
+}
+
 /* === NOTIFICATION DROPDOWN === */
 
 .notification-dropdown {
