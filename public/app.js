@@ -576,9 +576,17 @@ async function initPushNotifications() {
         console.warn('Push notifications not supported (no SW or PushManager)');
         // Button sichtbar lassen, aber Aktivieren-Button deaktivieren
         const enablePushInMenuBtn = document.getElementById('enablePushInMenu');
+        const pushEnableText = document.querySelector('#pushEnableSection .push-enable-text');
+        // Bestmögliche HTTPS-URL ableiten: bevorzugt global konfiguriert, sonst gleicher Host mit https
+        const secureUrl = window.SECURE_APP_URL || `https://${window.location.host}`;
         if (enablePushInMenuBtn) {
             enablePushInMenuBtn.disabled = true;
             enablePushInMenuBtn.title = 'Push-Benachrichtigungen benötigen HTTPS & Service Worker';
+        }
+        if (pushEnableText) {
+            pushEnableText.innerHTML = `Push-Benachrichtigungen benötigen eine sichere Verbindung (HTTPS). ` +
+                `Öffne die App über <a href="${secureUrl}" target="_blank" rel="noopener">${secureUrl}</a>, ` +
+                `um Benachrichtigungen zu aktivieren und den Verlauf zu sehen.`;
         }
         return;
     }
