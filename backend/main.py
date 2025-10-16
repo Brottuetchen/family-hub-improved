@@ -229,6 +229,19 @@ async def get_vapid_public_key():
 
     return {"publicKey": VAPID_PUBLIC_KEY}
 
+@app.get("/api/push/subscriptions-count")
+async def get_subscriptions_count():
+    """Returns current subscription count and storage info (no auth)."""
+    try:
+        return {
+            "count": len(push_subscriptions),
+            "file": str(SUBSCRIPTIONS_FILE),
+            "file_exists": SUBSCRIPTIONS_FILE.exists()
+        }
+    except Exception as e:
+        logger.error(f"subscriptions-count error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/push/subscribe")
 async def subscribe_push(subscription: PushSubscription):
     """Speichert neue Push Subscription"""

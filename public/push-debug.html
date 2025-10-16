@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Push Debug - Family Hub</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="auth-utils.js"></script>
+</head>
+<body>
+  <main class="section" style="max-width: 900px; margin: 2rem auto;">
+    <h1>Push Debug</h1>
+    <p>Hilft, Probleme mit Web Push schnell zu identifizieren.</p>
+
+    <section class="card" style="padding: 1rem; margin-top: 1rem;">
+      <h2>Zustand</h2>
+      <pre id="envInfo" style="white-space: pre-wrap"></pre>
+      <button id="btnRefresh" class="btn btn--secondary">Neu prüfen</button>
+    </section>
+
+    <section class="card" style="padding: 1rem; margin-top: 1rem;">
+      <h2>Aktionen</h2>
+      <div style="display:flex; gap: .5rem; flex-wrap: wrap;">
+        <button id="btnRegisterSW" class="btn btn--secondary">Service Worker registrieren</button>
+        <button id="btnSubscribe" class="btn btn--primary">Push abonnieren</button>
+        <button id="btnTestPush" class="btn btn--secondary">Test-Push senden</button>
+        <button id="btnDebugApi" class="btn btn--secondary">/api/push/debug (Admin)</button>
+      </div>
+      <pre id="actionLog" style="white-space: pre-wrap; margin-top: .75rem;"></pre>
+    </section>
+  </main>
+
+  <script src="push-manager.js"></script>
+  <script src="push-debug.js"></script>
+</body>
+</html>
+
