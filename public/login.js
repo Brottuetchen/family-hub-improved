@@ -92,12 +92,15 @@ async function handleLogin(event) {
         // Login successful
         showAlert('Login erfolgreich! Weiterleitung...', 'success');
 
-        // Store user info (not sensitive data)
+        // Store user info and token (fallback if cookies don't work)
         localStorage.setItem('user', JSON.stringify({
             username: data.user.username,
             email: data.user.email,
             is_admin: data.user.is_admin
         }));
+
+        // Store access token as fallback for cookie issues
+        localStorage.setItem('access_token', data.access_token);
 
         // Redirect to main app after short delay
         setTimeout(() => {

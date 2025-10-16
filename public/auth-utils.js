@@ -8,9 +8,23 @@ const AuthUtils = {
     // Check if user is authenticated
     async isAuthenticated() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+            // Try with cookies first
+            let response = await fetch(`${API_BASE_URL}/api/auth/me`, {
                 credentials: 'include'
             });
+
+            // If cookies fail, try with Bearer token from localStorage
+            if (!response.ok) {
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                }
+            }
+
             return response.ok;
         } catch (error) {
             console.error('Auth check error:', error);
@@ -21,9 +35,22 @@ const AuthUtils = {
     // Get current user info
     async getCurrentUser() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+            // Try with cookies first
+            let response = await fetch(`${API_BASE_URL}/api/auth/me`, {
                 credentials: 'include'
             });
+
+            // If cookies fail, try with Bearer token
+            if (!response.ok) {
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                }
+            }
 
             if (!response.ok) {
                 return null;
@@ -63,6 +90,7 @@ const AuthUtils = {
         } finally {
             // Clear local storage
             localStorage.removeItem('user');
+            localStorage.removeItem('access_token');
             // Redirect to login
             window.location.href = '/login.html';
         }
@@ -85,19 +113,30 @@ const AuthUtils = {
         // Ensure credentials are included
         options.credentials = 'include';
 
+        // Try with cookies first
         let response = await fetch(url, options);
 
-        // If unauthorized, try to refresh token
+        // If unauthorized, try with Bearer token
         if (response.status === 401) {
-            const refreshed = await this.refreshToken();
-
-            if (refreshed) {
-                // Retry request with new token
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                options.headers = options.headers || {};
+                options.headers['Authorization'] = `Bearer ${token}`;
                 response = await fetch(url, options);
-            } else {
-                // Refresh failed, redirect to login
-                this.logout();
-                throw new Error('Authentication failed');
+            }
+
+            // If still unauthorized, try to refresh token
+            if (response.status === 401) {
+                const refreshed = await this.refreshToken();
+
+                if (refreshed) {
+                    // Retry request with new token
+                    response = await fetch(url, options);
+                } else {
+                    // Refresh failed, don't redirect for public endpoints
+                    // Just return the response
+                    return response;
+                }
             }
         }
 
