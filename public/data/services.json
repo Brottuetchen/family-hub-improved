@@ -1,7 +1,7 @@
 [
   {
     "name": "Plex Media Server",
-    "description": "Deine persönliche Streaming-Bibliothek für Filme, Serien und Musik",
+    "description": "Deine pers��nliche Streaming-Bibliothek fǬr Filme, Serien und Musik",
     "url": "http://192.168.188.7:32400/web",
     "icon": "assets/icons/plex.svg",
     "category": "media"
@@ -14,53 +14,67 @@
     "category": "media"
   },
   {
+    "name": "Audiobookshelf",
+    "description": "H��rbǬcher und Podcasts organisieren und streamen",
+    "url": "http://192.168.188.84:13378",
+    "icon": "assets/icons/audiobookshelf.svg",
+    "category": "media"
+  },
+  {
+    "name": "Immich",
+    "description": "Selbst-gehostete Foto- und Video-Backup-L��sung",
+    "url": "http://192.168.188.94:2283",
+    "icon": "assets/icons/immich.svg",
+    "category": "productivity"
+  },
+  {
+    "name": "Booklore",
+    "description": "Deine pers��nliche Buch-Bibliothek",
+    "url": "http://192.168.188.152:6060",
+    "icon": "assets/icons/audiobookshelf.svg",
+    "category": "media"
+  },
+  {
+    "name": "Teddycloud",
+    "description": "Toniebox Server fǬr personalisierte H��rspiele und Musik",
+    "url": "http://192.168.188.151",
+    "icon": "assets/icons/audiobookshelf.svg",
+    "category": "media"
+  },
+  {
     "name": "Sonarr",
-    "description": "Automatisches Download-Management für TV-Serien",
+    "description": "Automatisches Download-Management fǬr TV-Serien",
     "url": "http://192.168.188.71:8989",
     "icon": "assets/icons/overseerr.svg",
     "category": "automation"
   },
   {
     "name": "Radarr",
-    "description": "Automatisches Download-Management für Filme",
+    "description": "Automatisches Download-Management fǬr Filme",
     "url": "http://192.168.188.73:7878",
     "icon": "assets/icons/overseerr.svg",
     "category": "automation"
   },
   {
     "name": "Lidarr",
-    "description": "Automatisches Download-Management für Musik",
+    "description": "Automatisches Download-Management fǬr Musik",
     "url": "http://192.168.188.76:8686",
     "icon": "assets/icons/audiobookshelf.svg",
     "category": "automation"
   },
   {
     "name": "SABnzbd",
-    "description": "Usenet Downloader für schnelle und sichere Downloads",
+    "description": "Usenet Downloader fǬr schnelle und sichere Downloads",
     "url": "http://192.168.188.90:7777",
     "icon": "assets/icons/overseerr.svg",
     "category": "automation"
   },
   {
     "name": "Trilium Notes",
-    "description": "Deine persönliche Wissensdatenbank und Notizen-App",
+    "description": "Deine pers��nliche Wissensdatenbank und Notizen-App",
     "url": "http://192.168.188.62:8080",
     "icon": "assets/icons/trilium.svg",
     "category": "productivity"
-  },
-  {
-    "name": "Immich",
-    "description": "Selbst-gehostete Foto- und Video-Backup-Lösung",
-    "url": "http://192.168.188.94:2283",
-    "icon": "assets/icons/immich.svg",
-    "category": "productivity"
-  },
-  {
-    "name": "Audiobookshelf",
-    "description": "Hörbücher und Podcasts organisieren und streamen",
-    "url": "http://192.168.188.84:13378",
-    "icon": "assets/icons/audiobookshelf.svg",
-    "category": "media"
   },
   {
     "name": "Nextcloud",
@@ -96,19 +110,5 @@
     "url": "http://192.168.188.145:3000",
     "icon": "assets/icons/gitea.svg",
     "category": "development"
-  },
-  {
-    "name": "Booklore",
-    "description": "Deine persönliche Buch-Bibliothek",
-    "url": "http://192.168.188.152:6060",
-    "icon": "assets/icons/audiobookshelf.svg",
-    "category": "media"
-  },
-  {
-    "name": "Teddycloud",
-    "description": "Toniebox Server für personalisierte Hörspiele und Musik",
-    "url": "http://192.168.188.XXX:XXXX",
-    "icon": "assets/icons/audiobookshelf.svg",
-    "category": "media"
   }
 ]
