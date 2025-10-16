@@ -571,13 +571,15 @@ async function updateAllStats() {
 // === PUSH NOTIFICATIONS ===
 
 async function initPushNotifications() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.warn('Push notifications not supported');
-        if (notificationToggle) {
-        if (notificationToggle) {
-            notificationToggle.style.display = 'none';
+    const supported = ('serviceWorker' in navigator) && ('PushManager' in window);
+    if (!supported) {
+        console.warn('Push notifications not supported (no SW or PushManager)');
+        // Button sichtbar lassen, aber Aktivieren-Button deaktivieren
+        const enablePushInMenuBtn = document.getElementById('enablePushInMenu');
+        if (enablePushInMenuBtn) {
+            enablePushInMenuBtn.disabled = true;
+            enablePushInMenuBtn.title = 'Push-Benachrichtigungen benötigen HTTPS & Service Worker';
         }
-    }
         return;
     }
 
