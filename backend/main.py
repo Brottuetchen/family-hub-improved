@@ -250,6 +250,10 @@ async def send_push_notification(data: Dict):
                 push_subscriptions.remove(subscription)
                 subscriptions_changed = True
                 logger.info(f"Removed invalid subscription: {subscription['endpoint'][:50]}...")
+        except Exception as e:
+            # Unerwartete Fehler ebenfalls abfangen, damit der Endpoint nicht 500 liefert
+            logger.exception(f"Unexpected error sending push: {e}")
+            failed_count += 1
 
     if subscriptions_changed:
         persist_subscriptions()
@@ -297,6 +301,9 @@ async def admin_send_push(notification: PushNotification):
                 push_subscriptions.remove(subscription)
                 subscriptions_changed = True
                 logger.info(f"Removed invalid subscription: {subscription['endpoint'][:50]}...")
+        except Exception as e:
+            logger.exception(f"Unexpected error in admin push: {e}")
+            failed_count += 1
 
     if subscriptions_changed:
         persist_subscriptions()

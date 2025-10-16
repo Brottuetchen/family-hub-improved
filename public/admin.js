@@ -30,10 +30,20 @@ function initPushForm() {
                 body: JSON.stringify(payload)
             });
 
-            const result = await response.json();
+            let result;
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                if (!response.ok) {
+                    throw new Error(text || `HTTP ${response.status}`);
+                }
+                result = { message: text };
+            }
 
             if (!response.ok) {
-                throw new Error(result.detail || 'Fehler beim Senden');
+                throw new Error(result.detail || result.message || 'Fehler beim Senden');
             }
 
             pushStatus.textContent = `✅ Nachricht erfolgreich an ${result.success} von ${result.total_subscriptions} Geräten gesendet.`;
