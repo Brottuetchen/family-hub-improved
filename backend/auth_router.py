@@ -24,7 +24,9 @@ from auth import (
     clear_auth_cookies,
     check_rate_limit,
     log_login_attempt,
-    get_password_hash
+    get_password_hash,
+    SECURE_COOKIES,
+    ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
@@ -198,9 +200,9 @@ async def refresh_token(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,
+        secure=SECURE_COOKIES,  # Use configurable setting
         samesite="lax",
-        max_age=30 * 60  # 30 minutes
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
 
     return {

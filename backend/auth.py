@@ -21,6 +21,11 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
+# Cookie security - set to False for HTTP, True for HTTPS
+# In production behind reverse proxy, set SECURE_COOKIES=false because
+# the backend sees HTTP even though users connect via HTTPS
+SECURE_COOKIES = os.getenv("SECURE_COOKIES", "false").lower() == "true"
+
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -258,7 +263,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,  # Only HTTPS
+        secure=SECURE_COOKIES,  # Configurable based on environment
         samesite="lax",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
@@ -268,7 +273,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,  # Only HTTPS
+        secure=SECURE_COOKIES,  # Configurable based on environment
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
