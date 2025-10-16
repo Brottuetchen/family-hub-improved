@@ -188,7 +188,7 @@ function createServiceCard(service) {
 
 async function loadServices() {
     try {
-        const services = await fetchJson('data/services.json');
+        const services = await fetchJson('/data/services.json');
         servicesGrid.innerHTML = '';
         services.forEach(service => {
             servicesGrid.appendChild(createServiceCard(service));

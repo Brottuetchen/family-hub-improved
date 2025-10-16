@@ -196,7 +196,7 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames
-                    .filter((name) => name.startsWith('family-hub-') && name !== CACHE_VERSION)
+                    .filter((name) => name.startsWith('family-hub-') && ![STATIC_CACHE, DYNAMIC_CACHE, IMAGE_CACHE].includes(name))
                     .map((name) => {
                         console.log('[SW] Deleting old cache:', name);
                         return caches.delete(name);
