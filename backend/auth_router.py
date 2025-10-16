@@ -6,7 +6,7 @@ Handles login, logout, token refresh, and user management
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
@@ -55,7 +55,7 @@ class UserResponse(BaseModel):
 
 class CreateUserRequest(BaseModel):
     username: str
-    email: EmailStr
+    email: str  # Changed from EmailStr to str (email-validator not needed)
     password: str
     full_name: Optional[str] = None
     is_admin: bool = False

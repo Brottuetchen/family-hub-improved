@@ -686,11 +686,11 @@ async def shutdown_event():
 if __name__ == "__main__":
     import uvicorn
 
-    # Development Server
+    # Production Server
     uvicorn.run(
         app,
         host="0.0.0.0",
         port=8000,
         log_level="info",
-        reload=True  # Auto-reload bei Code-Änderungen
+        reload=False  # No auto-reload for production
     )
