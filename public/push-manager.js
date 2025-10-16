@@ -15,6 +15,12 @@ class PushManager {
      * Prüft ob Push Notifications unterstützt werden
      */
     checkSupport() {
+        // Secure context is required for Service Worker + Push (except localhost)
+        if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            console.warn('Push requires a secure context (HTTPS)');
+            return false;
+        }
+
         if (!('serviceWorker' in navigator)) {
             console.warn('Service Worker not supported');
             return false;

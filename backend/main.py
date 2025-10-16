@@ -91,6 +91,18 @@ VAPID_CLAIMS = {
     "sub": "mailto:trapp.constantin@gmail.com"
 }
 
+# Optional: Lade VAPID Keys aus backend/vapid_keys.json, falls nicht per ENV gesetzt
+try:
+    if (not os.getenv("VAPID_PRIVATE_KEY")) or (not os.getenv("VAPID_PUBLIC_KEY")):
+        _vapid_path = Path(__file__).parent / "vapid_keys.json"
+        if _vapid_path.exists():
+            with open(_vapid_path, "r", encoding="utf-8") as _vf:
+                _vk = json.load(_vf)
+                VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", _vk.get("private_key", VAPID_PRIVATE_KEY))
+                VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", _vk.get("public_key", VAPID_PUBLIC_KEY))
+except Exception as _exc:
+    logger.warning(f"VAPID keys file load failed: {_exc}")
+
 # Service URLs aus deinem Homelab
 PLEX_URL = "http://192.168.188.7:32400"
 PLEX_TOKEN = "oe1a9iRoLZktgJEAXFvo"
@@ -100,6 +112,10 @@ OVERSEERR_API_KEY = "MTc1ODU1NDgxMzY0NGE3MWZjZDY4LWJhMzItNGI5NC1hNDNiLWEyZWViODE
 
 NEWSLETTER_DIR = Path('/opt/newsletter-output')
 SUBSCRIPTIONS_FILE = Path(os.getenv("PUSH_SUBSCRIPTIONS_FILE", "/opt/newsletter-output/push_subscriptions.json"))
+
+# Fallback fr lokale/dev-Umgebungen (z.B. Windows):
+if not SUBSCRIPTIONS_FILE.parent.exists():
+    SUBSCRIPTIONS_FILE = Path(__file__).parent / "push_subscriptions.json"
 
 # In-Memory Storage (später: SQLite oder Redis für Persistence)
 push_subscriptions: List[Dict] = []
