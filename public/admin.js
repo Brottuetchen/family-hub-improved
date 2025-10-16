@@ -24,7 +24,7 @@ function initPushForm() {
         pushStatus.style.color = 'var(--color-warning)';
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/push/admin/send`, {
+            const response = await window.AuthUtils.authenticatedFetch(`${API_BASE_URL}/api/push/admin/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -52,7 +52,7 @@ function initPushForm() {
             pushForm.reset();
 
         } catch (error) {
-            pushStatus.textContent = `❌ Fehler: ${error.message}`;
+            pushStatus.textContent = `⚠️ Fehler: ${error.message}`;
             pushStatus.style.background = 'rgba(239, 68, 68, 0.1)'; // Error color
             pushStatus.style.color = 'var(--color-error)';
         }
@@ -123,7 +123,7 @@ function initSubscriptionManagement() {
                 if (!confirm('Möchten Sie dieses Abonnement wirklich löschen?')) return;
 
                 showStatus('Lösche Abonnement...');
-                fetch(`${API_BASE_URL}/api/push/subscriptions/${sub.id}`, {
+                window.AuthUtils.authenticatedFetch(`${API_BASE_URL}/api/push/subscriptions/${sub.id}`, {
                     method: 'DELETE'
                 })
                 .then(response => {
@@ -132,12 +132,12 @@ function initSubscriptionManagement() {
                     }
                     return response.json();
                 })
-                .then(data => {
+                .then(() => {
                     showStatus('✅ Abonnement gelöscht.', false);
                     item.remove();
                 })
                 .catch(error => {
-                    showStatus(`❌ ${error.message}`, true);
+                    showStatus(`⚠️ ${error.message}`, true);
                 });
             });
 
@@ -150,7 +150,7 @@ function initSubscriptionManagement() {
     const loadSubscriptions = async () => {
         showStatus('Lade Abonnements...');
         try {
-            const response = await fetch(`${API_BASE_URL}/api/push/subscriptions`);
+            const response = await window.AuthUtils.authenticatedFetch(`${API_BASE_URL}/api/push/subscriptions`);
             if (!response.ok) {
                 throw new Error('Fehler beim Laden der Abonnements.');
             }
@@ -158,7 +158,7 @@ function initSubscriptionManagement() {
             renderSubscriptions(subscriptions);
             showStatus(`✅ ${subscriptions.length} Abonnements geladen.`, false);
         } catch (error) {
-            showStatus(`❌ ${error.message}`, true);
+            showStatus(`⚠️ ${error.message}`, true);
         }
     };
 
@@ -169,3 +169,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initPushForm();
     initSubscriptionManagement();
 });
+
