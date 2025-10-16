@@ -4,8 +4,8 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 
-# Push Notifications
-pywebpush==1.14.0
+# Push Notifications (fixes EC curve error)
+pywebpush==2.0.0
 
 # HTTP Requests
 requests==2.31.0
