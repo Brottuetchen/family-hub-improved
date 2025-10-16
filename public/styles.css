@@ -287,7 +287,7 @@ a:hover {
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     min-width: 200px;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to show all menu items including logout */
     z-index: 1001;
     animation: dropdownEnter 0.2s ease;
 }
