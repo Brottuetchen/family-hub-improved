@@ -1065,18 +1065,28 @@ document.addEventListener('visibilitychange', () => {
 // === AUTHENTICATION CHECK ===
 
 async function checkAuthentication() {
+    console.log('[AUTH] Checking authentication...');
+
     // Check if user is authenticated
-    const isAuth = await window.AuthUtils.requireAuth();
+    const isAuth = await window.AuthUtils.isAuthenticated();
+    console.log('[AUTH] isAuthenticated:', isAuth);
+
     if (!isAuth) {
-        return false; // Will redirect to login
+        console.log('[AUTH] Not authenticated, redirecting to login');
+        // Save current page for redirect after login
+        localStorage.setItem('redirectAfterLogin', window.location.pathname);
+        window.location.href = '/login.html';
+        return false;
     }
 
     // Get user info and display
     const user = await window.AuthUtils.getCurrentUser();
     if (user) {
-        console.log(`Logged in as: ${user.username}`);
+        console.log(`[AUTH] Logged in as: ${user.username} (Admin: ${user.is_admin})`);
         // Cache user info
         localStorage.setItem('user', JSON.stringify(user));
+    } else {
+        console.warn('[AUTH] Authentication passed but could not get user info');
     }
 
     return true;
