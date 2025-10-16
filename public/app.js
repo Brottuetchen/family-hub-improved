@@ -899,17 +899,30 @@ function initNavigation() {
 
     // Active Menu Item beim Scrollen aktualisieren
     const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const id = entry.target.id;
-                const menuItem = document.querySelector(`.menu-item[href="#${id}"]`);
-                if (menuItem) {
+        // Sort entries by intersectionRatio (highest = most visible)
+        const sortedEntries = entries
+            .filter(e => e.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+        if (sortedEntries.length > 0) {
+            const mostVisible = sortedEntries[0];
+            const id = mostVisible.target.id;
+            const menuItem = document.querySelector(`.menu-item[href="#${id}"]`);
+
+            if (menuItem) {
+                // Only update if different from current
+                const currentActive = document.querySelector('.menu-item.active');
+                if (currentActive !== menuItem) {
                     menuItems.forEach(i => i.classList.remove('active'));
                     menuItem.classList.add('active');
+                    console.log(`[NAV] Active section: ${id}`);
                 }
             }
-        });
-    }, { threshold: 0.3 });
+        }
+    }, {
+        threshold: [0, 0.1, 0.3, 0.5, 0.7, 1.0],
+        rootMargin: '-10% 0px -70% 0px'  // Top 10%, Bottom 70%
+    });
 
     document.querySelectorAll('section[id], main[id]').forEach(section => {
         observer.observe(section);

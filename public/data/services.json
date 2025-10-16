@@ -103,5 +103,12 @@
     "url": "http://192.168.188.152:6060",
     "icon": "assets/icons/audiobookshelf.svg",
     "category": "media"
+  },
+  {
+    "name": "Teddycloud",
+    "description": "Toniebox Server für personalisierte Hörspiele und Musik",
+    "url": "http://192.168.188.XXX:XXXX",
+    "icon": "assets/icons/audiobookshelf.svg",
+    "category": "media"
   }
 ]
