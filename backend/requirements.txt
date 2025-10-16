@@ -13,6 +13,19 @@ requests==2.31.0
 # Data Validation
 pydantic==2.5.0
 
+# Authentication & Security
+python-jose[cryptography]==3.3.0  # JWT tokens
+passlib[bcrypt]==1.7.4            # Password hashing
+python-multipart==0.0.6           # Form data
+bcrypt==4.1.2                     # Password hashing
+
+# Database
+sqlalchemy==2.0.23                # ORM
+alembic==1.13.1                   # Migrations
+
+# Rate Limiting
+slowapi==0.1.9                    # Rate limiting middleware
+
 # Optional: Database (für spätere Erweiterung)
 # sqlalchemy==2.0.23
 # alembic==1.12.1

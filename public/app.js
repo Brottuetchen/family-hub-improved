@@ -1062,14 +1062,58 @@ document.addEventListener('visibilitychange', () => {
 
 
 
+// === AUTHENTICATION CHECK ===
+
+async function checkAuthentication() {
+    // Check if user is authenticated
+    const isAuth = await window.AuthUtils.requireAuth();
+    if (!isAuth) {
+        return false; // Will redirect to login
+    }
+
+    // Get user info and display
+    const user = await window.AuthUtils.getCurrentUser();
+    if (user) {
+        console.log(`Logged in as: ${user.username}`);
+        // Cache user info
+        localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    return true;
+}
+
+// Setup logout button
+function setupLogout() {
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (confirm('Möchtest du dich wirklich abmelden?')) {
+                await window.AuthUtils.logout();
+            }
+        });
+    }
+}
+
 // === INITIALIZATION ===
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('Family Hub initialized');
+
+    // Check authentication first
+    const isAuthenticated = await checkAuthentication();
+    if (!isAuthenticated) {
+        return; // Stop initialization if not authenticated
+    }
 
     if (localStorage.getItem(PUSH_DISMISSED_KEY) === '1') {
         hidePushModal();
     }
+
+    // Setup logout button
+    setupLogout();
 
     // Core Functions
     renderNotificationHistory();

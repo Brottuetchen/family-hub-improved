@@ -1,9 +1,10 @@
 """
 Family Hub - FastAPI Backend
 Provides API endpoints for stats, push notifications, and service management
+NOW WITH SECURE AUTHENTICATION
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, Response
@@ -19,6 +20,11 @@ import requests
 from pathlib import Path
 from datetime import datetime
 
+# Authentication imports
+from database import init_db, User
+from auth import get_current_user, get_current_admin_user
+from auth_router import router as auth_router
+
 # Logging Setup
 logging.basicConfig(
     level=logging.INFO,
@@ -29,9 +35,12 @@ logger = logging.getLogger(__name__)
 # FastAPI App
 app = FastAPI(
     title="Family Hub API",
-    description="Backend für Family Hub PWA mit Push Notifications und Stats",
-    version="2.0.0"
+    description="Backend für Family Hub PWA mit Push Notifications, Stats und Authentication",
+    version="3.0.0"
 )
+
+# Include authentication router
+app.include_router(auth_router)
 
 # Cache Control Middleware
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -265,8 +274,11 @@ async def send_push_notification(data: Dict):
     }
 
 @app.post("/api/push/admin/send")
-async def admin_send_push(notification: PushNotification):
-    """Admin Endpoint: Sende benutzerdefinierte Push-Benachrichtigung"""
+async def admin_send_push(
+    notification: PushNotification,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Admin Endpoint: Sende benutzerdefinierte Push-Benachrichtigung (requires admin authentication)"""
     if not push_subscriptions:
         return {"success": 0, "failed": 0, "message": "No subscribers"}
 
@@ -322,8 +334,8 @@ def get_subscription_id(subscription: Dict) -> str:
     return hashlib.sha256(subscription.get("endpoint", "").encode("utf-8")).hexdigest()
 
 @app.get("/api/push/subscriptions")
-async def get_subscriptions():
-    """Gibt eine Liste aller Push-Subscriptions zurück (anonymisiert)."""
+async def get_subscriptions(current_user: User = Depends(get_current_admin_user)):
+    """Gibt eine Liste aller Push-Subscriptions zurück (anonymisiert) (requires admin authentication)"""
     return [
         {
             "id": get_subscription_id(sub),
@@ -334,8 +346,11 @@ async def get_subscriptions():
     ]
 
 @app.delete("/api/push/subscriptions/{subscription_id}")
-async def delete_subscription(subscription_id: str):
-    """Löscht eine Push-Subscription anhand ihrer ID."""
+async def delete_subscription(
+    subscription_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Löscht eine Push-Subscription anhand ihrer ID (requires admin authentication)"""
     global push_subscriptions
     initial_count = len(push_subscriptions)
     
@@ -649,9 +664,16 @@ else:
 @app.on_event("startup")
 async def startup_event():
     logger.info("=" * 50)
-    logger.info("Family Hub API started")
+    logger.info("Family Hub API started with AUTHENTICATION")
+
+    # Initialize database
+    init_db()
+    logger.info("Database initialized")
+
     logger.info(f"VAPID configured: {VAPID_PUBLIC_KEY != 'BMu4f7EOE-CxK2xrMMAa587Fmu_keSyYClMEEq4QjWE2UXagXIEJl0Q-aHuA_lDC8KKabeENonCOrSkq6yoWiLg'}")
     logger.info(f"Push subscriptions: {len(push_subscriptions)}")
+    logger.info("=" * 50)
+    logger.info("IMPORTANT: Create admin user with: python create_admin.py")
     logger.info("=" * 50)
 
 @app.on_event("shutdown")
