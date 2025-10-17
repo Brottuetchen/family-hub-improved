@@ -34,3 +34,7 @@ Thumbs.db
 # Test files
 test_*.py
 *_test.py
+
+# Push Notifications - Secrets
+backend/vapid_keys.json
+backend/push_subscriptions.json
