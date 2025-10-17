@@ -1,7 +1,7 @@
 [
   {
     "name": "Plex Media Server",
-    "description": "Deine pers��nliche Streaming-Bibliothek fǬr Filme, Serien und Musik",
+    "description": "Deine persönliche Streaming-Bibliothek für Filme, Serien und Musik",
     "url": "http://192.168.188.7:32400/web",
     "icon": "assets/icons/plex.svg",
     "category": "media"
@@ -15,63 +15,63 @@
   },
   {
     "name": "Audiobookshelf",
-    "description": "H��rbǬcher und Podcasts organisieren und streamen",
+    "description": "Hörbücher und Podcasts organisieren und streamen",
     "url": "http://192.168.188.84:13378",
     "icon": "assets/icons/audiobookshelf.svg",
     "category": "media"
   },
   {
     "name": "Immich",
-    "description": "Selbst-gehostete Foto- und Video-Backup-L��sung",
+    "description": "Selbst-gehostete Foto- und Video-Backup-Lösung",
     "url": "http://192.168.188.94:2283",
     "icon": "assets/icons/immich.svg",
     "category": "productivity"
   },
   {
     "name": "Booklore",
-    "description": "Deine pers��nliche Buch-Bibliothek",
+    "description": "Deine persönliche Buch-Bibliothek",
     "url": "http://192.168.188.152:6060",
     "icon": "assets/icons/audiobookshelf.svg",
     "category": "media"
   },
   {
     "name": "Teddycloud",
-    "description": "Toniebox Server fǬr personalisierte H��rspiele und Musik",
+    "description": "Toniebox Server für personalisierte Hörspiele und Musik",
     "url": "http://192.168.188.151",
     "icon": "assets/icons/audiobookshelf.svg",
     "category": "media"
   },
   {
     "name": "Sonarr",
-    "description": "Automatisches Download-Management fǬr TV-Serien",
+    "description": "Automatisches Download-Management für TV-Serien",
     "url": "http://192.168.188.71:8989",
     "icon": "assets/icons/overseerr.svg",
     "category": "automation"
   },
   {
     "name": "Radarr",
-    "description": "Automatisches Download-Management fǬr Filme",
+    "description": "Automatisches Download-Management für Filme",
     "url": "http://192.168.188.73:7878",
     "icon": "assets/icons/overseerr.svg",
     "category": "automation"
   },
   {
     "name": "Lidarr",
-    "description": "Automatisches Download-Management fǬr Musik",
+    "description": "Automatisches Download-Management für Musik",
     "url": "http://192.168.188.76:8686",
     "icon": "assets/icons/audiobookshelf.svg",
     "category": "automation"
   },
   {
     "name": "SABnzbd",
-    "description": "Usenet Downloader fǬr schnelle und sichere Downloads",
+    "description": "Usenet Downloader für schnelle und sichere Downloads",
     "url": "http://192.168.188.90:7777",
     "icon": "assets/icons/overseerr.svg",
     "category": "automation"
   },
   {
     "name": "Trilium Notes",
-    "description": "Deine pers��nliche Wissensdatenbank und Notizen-App",
+    "description": "Deine persönliche Wissensdatenbank und Notizen-App",
     "url": "http://192.168.188.62:8080",
     "icon": "assets/icons/trilium.svg",
     "category": "productivity"
