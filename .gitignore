@@ -6,6 +6,10 @@ __pycache__/
 .Python
 venv/
 env/
+.venv/
+.claude/
+-
+ --date=short
 *.egg-info/
 
 # Environment
