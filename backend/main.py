@@ -737,14 +737,11 @@ async def get_active_streams():
             # Get library item ID for cover
             library_item_id = session.get("libraryItemId")
 
-            # Build cover URL - always try to get cover from library item
+            # Build cover URL - proxy through backend to avoid mixed content issues
             cover_url = None
             if library_item_id:
-                # For podcasts and books, cover is at the library item level
-                cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{library_item_id}/cover"
-
-                # Add auth token as query param for cover images
-                cover_url = f"{cover_url}?token={AUDIOBOOKSHELF_TOKEN}"
+                # Use backend proxy for HTTPS compatibility
+                cover_url = f"/api/audiobookshelf/cover/{library_item_id}"
 
             abs_info = {
                 "source": "audiobookshelf",
@@ -851,7 +848,7 @@ async def get_plex_stats():
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# === PLEX IMAGE PROXY ===
+# === IMAGE PROXIES ===
 
 @app.get("/api/plex/image/{path:path}")
 async def proxy_plex_image(path: str):
@@ -872,6 +869,27 @@ async def proxy_plex_image(path: str):
     except Exception as e:
         logger.error(f"Plex image proxy error: {e}")
         raise HTTPException(status_code=404, detail="Image not found")
+
+@app.get("/api/audiobookshelf/cover/{library_item_id}")
+async def proxy_audiobookshelf_cover(library_item_id: str):
+    """Proxy Audiobookshelf cover images through HTTPS backend to avoid mixed content"""
+    try:
+        cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{library_item_id}/cover"
+        headers = {"Authorization": f"Bearer {AUDIOBOOKSHELF_TOKEN}"}
+        response = requests.get(cover_url, headers=headers, timeout=10, stream=True)
+        response.raise_for_status()
+
+        return Response(
+            content=response.content,
+            media_type=response.headers.get('Content-Type', 'image/jpeg'),
+            headers={
+                'Cache-Control': 'public, max-age=86400',
+                'Access-Control-Allow-Origin': '*'
+            }
+        )
+    except Exception as e:
+        logger.error(f"Audiobookshelf cover proxy error: {e}")
+        raise HTTPException(status_code=404, detail="Cover not found")
 
 # === PLEX METADATA (for frontend enrichment) ===
 
