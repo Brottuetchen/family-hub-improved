@@ -175,6 +175,8 @@ push_subscriptions.extend(load_subscriptions_from_file())
 class PushSubscription(BaseModel):
     endpoint: str
     keys: Dict[str, str]
+    # optional metadata fields are accepted but ignored for validation
+    # they will be stored as-is if present
 
 class PushNotification(BaseModel):
     title: str
@@ -211,12 +213,29 @@ async def push_debug(current_user: User = Depends(get_current_admin_user)):
         vapid_source = "env" if (os.getenv("VAPID_PUBLIC_KEY") and os.getenv("VAPID_PRIVATE_KEY")) else (
             "file" if (Path(__file__).parent / "vapid_keys.json").exists() else "default"
         )
+        # provider breakdown
+        providers = {"apple": 0, "google": 0, "mozilla": 0, "unknown": 0}
+        samples = {"apple": None, "google": None, "mozilla": None, "unknown": None}
+        for sub in push_subscriptions:
+            ep = (sub.get("endpoint") or "").lower()
+            key = (
+                "apple" if "web.push.apple.com" in ep else
+                "google" if "fcm.googleapis.com" in ep or "firebase" in ep else
+                "mozilla" if "updates.push.services.mozilla.com" in ep else
+                "unknown"
+            )
+            providers[key] += 1
+            if samples[key] is None:
+                samples[key] = ep[:72]
+
         info = {
             "subscriptions_file": str(SUBSCRIPTIONS_FILE),
             "subscriptions_file_exists": SUBSCRIPTIONS_FILE.exists(),
             "subscriptions_count": len(push_subscriptions),
             "vapid_public_key_prefix": (VAPID_PUBLIC_KEY or "")[:24],
             "vapid_source": vapid_source,
+            "providers": providers,
+            "sample_endpoints": {k: v for k, v in samples.items() if v},
         }
         return info
     except Exception as e:
@@ -250,9 +269,19 @@ async def get_subscriptions_count():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/push/subscribe")
-async def subscribe_push(subscription: PushSubscription):
+async def subscribe_push(subscription: PushSubscription, request: Request):
     """Speichert neue Push Subscription"""
     sub_dict = subscription.dict()
+    # add lightweight metadata for debugging (does not affect webpush)
+    try:
+        ua = request.headers.get("user-agent")
+        sub_dict.setdefault("meta", {})
+        sub_dict["meta"].update({
+            "ua": ua,
+            "added_at": datetime.utcnow().isoformat(),
+        })
+    except Exception:
+        pass
 
     # Prüfe ob bereits existiert
     for existing in push_subscriptions:
@@ -270,6 +299,54 @@ async def subscribe_push(subscription: PushSubscription):
         "message": "Subscription saved",
         "total_subscriptions": len(push_subscriptions)
     }
+
+
+@app.post("/api/push/admin/test/{subscription_id}")
+async def admin_test_push(
+    subscription_id: str,
+    notification: PushNotification | None = None,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Send a test push to a single subscription by ID (admin only)."""
+    payload = {
+        "title": (notification.title if notification else "Family Hub Test"),
+        "body": (notification.body if notification else "Testbenachrichtigung"),
+        "url": (notification.url if notification else "/"),
+        "icon": (notification.icon if notification else "/assets/icons/app-icon-192.png"),
+    }
+
+    # find subscription
+    target = None
+    for sub in push_subscriptions:
+        if get_subscription_id(sub) == subscription_id:
+            target = sub
+            break
+
+    if not target:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    try:
+        webpush(
+            subscription_info=target,
+            data=json.dumps(payload),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims=VAPID_CLAIMS,
+            ttl=86400,
+        )
+        return {"success": True}
+    except WebPushException as e:
+        # surface diagnostic info
+        detail = {
+            "error": str(e),
+            "status": getattr(getattr(e, "response", None), "status_code", None),
+            "body": None,
+        }
+        try:
+            if e.response is not None:
+                detail["body"] = e.response.text
+        except Exception:
+            pass
+        raise HTTPException(status_code=502, detail=detail)
 
 @app.post("/api/push/notify")
 async def send_push_notification(data: Dict):

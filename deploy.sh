@@ -54,7 +54,7 @@ echo -e "${GREEN}✓${NC} Container läuft"
 
 # Install dependencies in container
 echo -e "${YELLOW}Installiere Dependencies im Container...${NC}"
-pct exec $CONTAINER_ID -- bash -c "apt update && apt install -y python3 python3-pip python3-venv git curl"
+pct exec $CONTAINER_ID -- bash -c "apt update && apt install -y python3 python3-pip python3-venv git curl ca-certificates && update-ca-certificates || true"
 
 # Create installation directory
 echo -e "${YELLOW}Erstelle Installationsverzeichnis...${NC}"
