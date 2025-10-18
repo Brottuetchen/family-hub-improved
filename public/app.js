@@ -6,19 +6,6 @@ const API_BASE_URL = window.location.origin;
 const DEFAULT_PLEX_WEB_URL = 'http://192.168.188.7:32400/web';
 const USE_MOCK_DATA = false; // Auf false setzen wenn Backend läuft
 
-// Helper function to convert VAPID key
-function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-}
-
-
 // Local Storage Keys
 const PUSH_DISMISSED_KEY = 'pushDismissed';
 const NEWSLETTER_LAST_READ_KEY = 'newsletterLastRead';
@@ -604,22 +591,27 @@ async function initPushNotifications() {
         return;
     }
 
-    // Check for existing push subscription on page load
-    try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        
-        if (subscription) {
-            console.log('Existing push subscription found');
-            notificationToggle?.classList.add('active');
-            localStorage.removeItem(PUSH_DISMISSED_KEY);
-            console.log('Bell icon turned green');
-        } else {
-            console.log('No existing push subscription');
+    // Lade Push Manager
+    const script = document.createElement('script');
+    script.src = 'push-manager.js';
+    script.onload = async () => {
+        try {
+            pushManager = new window.PushManager(API_BASE_URL);
+            console.log('Push Manager created');
+            
+            const hasSubscription = await pushManager.init();
+            console.log('Push Manager initialized, has subscription:', hasSubscription);
+
+            if (hasSubscription) {
+                notificationToggle?.classList.add('active');
+                localStorage.removeItem(PUSH_DISMISSED_KEY);
+                console.log('Bell icon turned green (active class added)');
+            }
+        } catch (error) {
+            console.error('Push Manager initialization error:', error);
         }
-    } catch (error) {
-        console.error('Error checking push subscription:', error);
-    }
+    };
+    document.head.appendChild(script);
 }
 
 // === NOTIFICATION HISTORY ===
@@ -999,46 +991,16 @@ function initNotificationButtons() {
             e.preventDefault();
             e.stopPropagation();
             try {
-                console.log('=== PUSH SUBSCRIPTION START ===');
-                
-                // Step 1: Request permission
-                const permission = await Notification.requestPermission();
-                console.log('Permission:', permission);
-                
-                if (permission !== 'granted') {
-                    alert('Benachrichtigungen wurden abgelehnt!');
+                if (!pushManager) {
+                    console.error('Push manager not initialized');
+                    alert('Push-Benachrichtigungen sind noch nicht bereit. Bitte versuche es in wenigen Sekunden erneut.');
                     return;
                 }
-
-                // Step 2: Get VAPID public key
-                const vapidResp = await fetch();
-                const { publicKey } = await vapidResp.json();
-                console.log('VAPID key received:', publicKey.substring(0, 20) + '...');
-
-                // Step 3: Subscribe to push
-                const registration = await navigator.serviceWorker.ready;
-                console.log('Service Worker ready');
-                
-                const subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(publicKey)
-                });
-                console.log('Push subscription created:', subscription.endpoint.substring(0, 50) + '...');
-
-                // Step 4: Save to backend
-                const saveResp = await fetch(, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(subscription.toJSON())
-                });
-
-                const result = await saveResp.json();
-                console.log('Backend response:', result);
-
-                // Step 5: Update UI
+                await pushManager.subscribe();
                 notificationToggle?.classList.add('active');
                 localStorage.removeItem(PUSH_DISMISSED_KEY);
 
+                // Hide push enable section and close dropdown
                 const pushEnableSection = document.getElementById('pushEnableSection');
                 const notificationDropdown = document.getElementById('notificationDropdown');
                 if (pushEnableSection) {
@@ -1049,11 +1011,9 @@ function initNotificationButtons() {
                 }
 
                 alert('Push-Benachrichtigungen aktiviert!');
-                console.log('=== PUSH SUBSCRIPTION SUCCESS ===');
-                
             } catch (error) {
-                console.error('Push subscription error:', error);
-                alert('Fehler: ' + error.message);
+                console.error('Push subscription failed:', error);
+                alert('Fehler beim Aktivieren der Push-Benachrichtigungen.');
             }
         });
     }
