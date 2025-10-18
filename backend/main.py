@@ -705,31 +705,11 @@ async def get_active_streams():
 
     # 2. Fetch TeddyCloud active Tonies
     try:
-        teddycloud_url = f"{TEDDYCLOUD_URL}/api/tonieboxesJson"
-        response = requests.get(teddycloud_url, timeout=10)
-        response.raise_for_status()
-
-        data = response.json()
-
-        # TeddyCloud returns array of Tonieboxes
-        if isinstance(data, list):
-            for box in data:
-                # Check if there's an active Tonie on this box
-                # Structure depends on TeddyCloud response - we'll look for current tag/content
-                last_query = box.get("last_query_time")
-                if last_query:
-                    # Active Toniebox found
-                    content = box.get("content", {})
-                    tonie_info = {
-                        "source": "teddycloud",
-                        "title": content.get("title", box.get("name", "Unbekannter Tonie")),
-                        "type": "tonie",
-                        "user": box.get("boxName", "Toniebox"),
-                        "subtitle": content.get("series", "Hörbuch"),
-                        "thumb": content.get("picture", None),
-                        "icon": "🧸"
-                    }
-                    all_streams.append(tonie_info)
+        # TeddyCloud's /api/tonieboxesJson only returns box models, not active sessions
+        # We need to check the actual boxes for active content
+        # For now, skip TeddyCloud as it requires a different API endpoint
+        # TODO: Find correct TeddyCloud API endpoint for active Tonies
+        pass
 
     except Exception as e:
         logger.error(f"TeddyCloud error: {e}")
@@ -744,23 +724,40 @@ async def get_active_streams():
         data = response.json()
         sessions = data.get("sessions", []) if isinstance(data, dict) else data
 
+        # Get only the most recent session from today (currently playing)
+        # Check if session was updated within the last 5 minutes (300000ms)
+        import time
+        current_time_ms = int(time.time() * 1000)
+        five_minutes_ago = current_time_ms - (5 * 60 * 1000)
+
         for session in sessions:
-            # Only show currently open sessions
-            if session.get("open", False):
+            # Check if session is recent (active within last 5 minutes)
+            updated_at = session.get("updatedAt", 0)
+            if updated_at >= five_minutes_ago:
                 media_metadata = session.get("mediaMetadata", {})
+                display_author = session.get("displayAuthor", "")
+
+                # Build cover path URL
+                cover_path = session.get("coverPath")
+                cover_url = None
+                if cover_path:
+                    # Audiobookshelf cover path is absolute, need to convert to URL
+                    cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{session.get('libraryItemId')}/cover"
 
                 abs_info = {
                     "source": "audiobookshelf",
-                    "title": media_metadata.get("title", "Unknown Audiobook"),
-                    "type": "audiobook",
-                    "user": session.get("displayTitle", "Unknown User"),
-                    "subtitle": media_metadata.get("authorName", ""),
+                    "title": session.get("displayTitle", media_metadata.get("title", "Unknown Audiobook")),
+                    "type": session.get("mediaType", "audiobook"),
+                    "user": session.get("user", {}).get("username", "Unknown User"),
+                    "subtitle": display_author or media_metadata.get("author", ""),
                     "progress": session.get("currentTime", 0),
                     "duration": session.get("duration", 0),
-                    "thumb": session.get("coverPath", None),
+                    "thumb": cover_url,
                     "icon": "📚"
                 }
                 all_streams.append(abs_info)
+                # Only show the most recent one
+                break
 
     except Exception as e:
         logger.error(f"Audiobookshelf error: {e}")
