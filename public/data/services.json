@@ -52,7 +52,7 @@
     "name": "Radarr",
     "description": "Automatisches Download-Management für Filme",
     "url": "http://192.168.188.73:7878",
-    "icon": "assets/icons/overseerr.svg",
+    "icon": "assets/icons/radarr.svg",
     "category": "automation"
   },
   {

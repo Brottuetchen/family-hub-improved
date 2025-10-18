@@ -150,6 +150,11 @@ function getMockData(endpoint) {
             streams: [],
             recently_added: [],
             timestamp: new Date().toISOString()
+        },
+        '/api/media/active-streams': {
+            active_streams: 0,
+            streams: [],
+            timestamp: new Date().toISOString()
         }
     };
     return Promise.resolve(mockData[endpoint] || {});
@@ -398,9 +403,10 @@ async function loadNewsletters() {
 
 // === QUICK STATS ===
 
-async function updatePlexStats() {
+async function updateMediaStats() {
     try {
-        const stats = await fetchAPI('/api/plex/stats');
+        // Fetch unified active streams from all sources (Plex, TeddyCloud, Audiobookshelf)
+        const stats = await fetchAPI('/api/media/active-streams');
         const streamsEl = document.getElementById('plexStreams');
         const recentStreamEl = document.getElementById('plexRecent');
         const recentCountEl = document.getElementById('plexRecentCount');
@@ -415,34 +421,39 @@ async function updatePlexStats() {
         }
 
         if (recentStreamEl) {
-            // Create a container for stream information
+            // Create a container for stream information from all sources
             recentStreamEl.innerHTML = '';
-            
+
             if (stats?.streams && stats.streams.length > 0) {
                 // Create grid for stream covers
                 const streamGrid = document.createElement('div');
-                // Use the same grid class as other stat cards for consistency
                 streamGrid.className = 'stat-card__recent-grid';
 
                 stats.streams.forEach(stream => {
-                    const streamCover = document.createElement('a'); // Use 'a' tag for links
-                    streamCover.className = 'stream-cover';
-                    const plexUrl = resolvePlexItemUrl(stream);
-                    if (plexUrl) {
-                        streamCover.href = plexUrl;
-                        streamCover.target = '_blank';
-                        streamCover.rel = 'noopener noreferrer';
-                    }
-                    
-                    // Verwende den Backend-Proxy für Plex-Bilder
-                    // Bevorzuge das Serien-Cover (grandparentThumb) für Episoden
-                    const thumb = (stream.type === 'episode' && stream.grandparentThumb) ? stream.grandparentThumb : (stream.thumb || stream.art);
-                    if (thumb) {
-                        streamCover.style.backgroundImage = `url('/api/plex/image${thumb}')`;
+                    const streamCover = document.createElement('div');
+                    streamCover.className = `stream-cover stream-cover--${stream.source}`;
+
+                    // Add source-specific styling class
+                    streamCover.dataset.source = stream.source;
+
+                    // Set thumbnail based on source
+                    if (stream.thumb) {
+                        streamCover.style.backgroundImage = `url('${stream.thumb}')`;
                     }
 
-                    streamCover.title = stream.title || 'Aktiver Stream';
-                    streamCover.dataset.title = stream.title || 'Aktiver Stream';
+                    // Build title text with icon
+                    const titleText = stream.subtitle
+                        ? `${stream.icon} ${stream.title}\n${stream.subtitle}`
+                        : `${stream.icon} ${stream.title}`;
+
+                    streamCover.title = titleText;
+                    streamCover.dataset.title = titleText;
+
+                    // Add source badge
+                    const sourceBadge = document.createElement('span');
+                    sourceBadge.className = 'stream-source-badge';
+                    sourceBadge.textContent = stream.icon;
+                    streamCover.appendChild(sourceBadge);
 
                     streamGrid.appendChild(streamCover);
                 });
@@ -565,7 +576,7 @@ async function updatePlexStats() {
 
 
 async function updateAllStats() {
-    await updatePlexStats();
+    await updateMediaStats();
 }
 
 // === PUSH NOTIFICATIONS ===

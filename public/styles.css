@@ -864,6 +864,46 @@ main {
     box-shadow: var(--shadow-md);
 }
 
+/* Source-specific stream styling */
+.stream-source-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 24px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    z-index: 2;
+}
+
+.stream-cover--plex {
+    border: 2px solid rgba(229, 160, 13, 0.3);
+}
+
+.stream-cover--plex:hover {
+    border-color: rgba(229, 160, 13, 0.6);
+    box-shadow: 0 0 20px rgba(229, 160, 13, 0.3);
+}
+
+.stream-cover--teddycloud {
+    border: 2px solid rgba(59, 130, 246, 0.3);
+}
+
+.stream-cover--teddycloud:hover {
+    border-color: rgba(59, 130, 246, 0.6);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.stream-cover--audiobookshelf {
+    border: 2px solid rgba(168, 85, 247, 0.3);
+}
+
+.stream-cover--audiobookshelf:hover {
+    border-color: rgba(168, 85, 247, 0.6);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+}
+
 .recent-cover::after {
     content: attr(data-title);
     position: absolute;

@@ -114,6 +114,11 @@ PLEX_TOKEN = "oe1a9iRoLZktgJEAXFvo"
 OVERSEERR_URL = "http://192.168.188.79:5055"
 OVERSEERR_API_KEY = "MTc1ODU1NDgxMzY0NGE3MWZjZDY4LWJhMzItNGI5NC1hNDNiLWEyZWViODE4MmE2OQ=="
 
+TEDDYCLOUD_URL = "http://192.168.188.151"
+
+AUDIOBOOKSHELF_URL = "http://192.168.188.84:13378"
+AUDIOBOOKSHELF_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlJZCI6IjI2ODNiZGUzLTlkZWEtNGMxZi04MTEwLWNlNjE0YzQ2N2YyMiIsIm5hbWUiOiJuOG4iLCJ0eXBlIjoiYXBpIiwiaWF0IjoxNzYwMzc4MzU4fQ.oZHbmOOycwyhkLY1G-6NLfdwRE_GKc60xBkU0qGebcU"
+
 NEWSLETTER_DIR = Path('/opt/newsletter-output')
 SUBSCRIPTIONS_FILE = Path(os.getenv("PUSH_SUBSCRIPTIONS_FILE", "/opt/newsletter-output/push_subscriptions.json"))
 
@@ -608,6 +613,121 @@ async def get_services_status():
         })
 
     return status_list
+
+# === UNIFIED MEDIA STREAMS ===
+
+@app.get("/api/media/active-streams")
+async def get_active_streams():
+    """
+    Unified endpoint for all active media streams from:
+    - Plex (movies, TV shows, music)
+    - TeddyCloud (active Tonies playing audiobooks)
+    - Audiobookshelf (audiobooks, podcasts)
+    """
+    all_streams = []
+
+    # 1. Fetch Plex active sessions
+    try:
+        sessions_url = f"{PLEX_URL}/status/sessions"
+        headers = {"Accept": "application/json", "X-Plex-Token": PLEX_TOKEN}
+        response = requests.get(sessions_url, headers=headers, timeout=5)
+        response.raise_for_status()
+
+        data = response.json()
+        sessions = data.get('MediaContainer', {}).get('Metadata', [])
+
+        for session in sessions:
+            # Use grandparent thumb for episodes, regular thumb otherwise
+            thumb = session.get("grandparentThumb") if session.get("type") == "episode" else session.get("thumb")
+
+            stream_info = {
+                "source": "plex",
+                "title": session.get("title", "Unknown"),
+                "type": session.get("type", "unknown"),
+                "user": session.get("User", {}).get("title", "Unknown User"),
+                "progress": session.get("viewOffset", 0),
+                "duration": session.get("duration", 0),
+                "thumb": f"/api/plex/image{thumb}" if thumb else None,
+                "icon": "🎬"
+            }
+
+            # For TV episodes: add show name
+            if session.get("type") == "episode":
+                stream_info["show"] = session.get("grandparentTitle", "")
+                stream_info["subtitle"] = f"{stream_info['show']} {session.get('parentIndex', '')}x{session.get('index', '')}"
+
+            all_streams.append(stream_info)
+
+    except Exception as e:
+        logger.error(f"Plex sessions error: {e}")
+
+    # 2. Fetch TeddyCloud active Tonies
+    try:
+        teddycloud_url = f"{TEDDYCLOUD_URL}/api/tonieboxesJson"
+        response = requests.get(teddycloud_url, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+
+        # TeddyCloud returns array of Tonieboxes
+        if isinstance(data, list):
+            for box in data:
+                # Check if there's an active Tonie on this box
+                # Structure depends on TeddyCloud response - we'll look for current tag/content
+                last_query = box.get("last_query_time")
+                if last_query:
+                    # Active Toniebox found
+                    content = box.get("content", {})
+                    tonie_info = {
+                        "source": "teddycloud",
+                        "title": content.get("title", box.get("name", "Unbekannter Tonie")),
+                        "type": "tonie",
+                        "user": box.get("boxName", "Toniebox"),
+                        "subtitle": content.get("series", "Hörbuch"),
+                        "thumb": content.get("picture", None),
+                        "icon": "🧸"
+                    }
+                    all_streams.append(tonie_info)
+
+    except Exception as e:
+        logger.error(f"TeddyCloud error: {e}")
+
+    # 3. Fetch Audiobookshelf active sessions
+    try:
+        abs_sessions_url = f"{AUDIOBOOKSHELF_URL}/api/sessions"
+        headers = {"Authorization": f"Bearer {AUDIOBOOKSHELF_TOKEN}"}
+        response = requests.get(abs_sessions_url, headers=headers, timeout=5)
+        response.raise_for_status()
+
+        data = response.json()
+        sessions = data.get("sessions", []) if isinstance(data, dict) else data
+
+        for session in sessions:
+            # Only show currently open sessions
+            if session.get("open", False):
+                media_metadata = session.get("mediaMetadata", {})
+
+                abs_info = {
+                    "source": "audiobookshelf",
+                    "title": media_metadata.get("title", "Unknown Audiobook"),
+                    "type": "audiobook",
+                    "user": session.get("displayTitle", "Unknown User"),
+                    "subtitle": media_metadata.get("authorName", ""),
+                    "progress": session.get("currentTime", 0),
+                    "duration": session.get("duration", 0),
+                    "thumb": session.get("coverPath", None),
+                    "icon": "📚"
+                }
+                all_streams.append(abs_info)
+
+    except Exception as e:
+        logger.error(f"Audiobookshelf error: {e}")
+
+    return {
+        "active_streams": len(all_streams),
+        "streams": all_streams,
+        "timestamp": datetime.now().isoformat()
+    }
 
 # === PLEX STATS ===
 
