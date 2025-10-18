@@ -3,7 +3,7 @@
  * Enhanced with Push Notifications, Offline Support, and Caching
  */
 
-const CACHE_VERSION = 'family-hub-v4.1';
+const CACHE_VERSION = 'family-hub-v4.2-ios';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -309,6 +309,7 @@ async function networkFirst(request) {
 
 /**
  * Push Event: Empfange Push Notification vom Server
+ * iOS-compatible implementation
  */
 self.addEventListener('push', (event) => {
     console.log('[SW] Push notification received');
@@ -329,18 +330,26 @@ self.addEventListener('push', (event) => {
         }
     }
 
+    // iOS requires simpler notification options (no actions support yet)
+    const isIOS = self.clients && self.clients.matchAll ? true : false; // Basic detection in SW context
+
     const options = {
         body: data.body,
         icon: data.icon || '/assets/icons/app-icon-192.png',
         badge: '/assets/icons/app-icon-192.png',
-        vibrate: [200, 100, 200, 100, 200],
         tag: data.tag || 'family-hub-notification',
         requireInteraction: false,
         data: {
             url: data.url || '/',
             timestamp: Date.now()
-        },
-        actions: [
+        }
+    };
+
+    // Only add vibrate and actions if not on iOS (these might cause issues)
+    // iOS Safari/PWA doesn't support notification actions yet
+    if (!/(iPhone|iPad|iPod)/i.test(self.navigator.userAgent || '')) {
+        options.vibrate = [200, 100, 200, 100, 200];
+        options.actions = [
             {
                 action: 'open',
                 title: 'Öffnen',
@@ -350,8 +359,8 @@ self.addEventListener('push', (event) => {
                 action: 'close',
                 title: 'Schließen'
             }
-        ]
-    };
+        ];
+    }
 
     event.waitUntil((async () => {
         await self.registration.showNotification(data.title, options);

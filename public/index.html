@@ -14,8 +14,18 @@
     <link rel="icon" href="assets/icons/app-icon-192.png">
     <link rel="apple-touch-icon" href="assets/icons/app-icon-192.png">
     <link rel="stylesheet" href="styles.css">
+
+    <!-- Service Worker Registration - BEFORE other scripts for iOS -->
+    <script>
+        // Early Service Worker registration for iOS compatibility
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => console.log('[SW] Registered early:', reg.scope))
+                .catch(err => console.error('[SW] Registration failed:', err));
+        }
+    </script>
+
     <script src="auth-utils.js"></script>
-    <script src="push-subscribe-inline.js"></script>
 </head>
 <body>
     <!-- Sticky Header mit Navigation -->

@@ -572,12 +572,18 @@ async function updateAllStats() {
 
 async function initPushNotifications() {
     const supported = ('serviceWorker' in navigator) && ('PushManager' in window);
+    const enablePushInMenuBtn = document.getElementById('enablePushInMenu');
+    const pushEnableText = document.querySelector('#pushEnableSection .push-enable-text');
+
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    const isStandalone = window.navigator.standalone === true ||
+                        window.matchMedia('(display-mode: standalone)').matches;
+
     if (!supported) {
         console.warn('Push notifications not supported (no SW or PushManager)');
-        // Button sichtbar lassen, aber Aktivieren-Button deaktivieren
-        const enablePushInMenuBtn = document.getElementById('enablePushInMenu');
-        const pushEnableText = document.querySelector('#pushEnableSection .push-enable-text');
-        // Bestmögliche HTTPS-URL ableiten: bevorzugt global konfiguriert, sonst gleicher Host mit https
         const secureUrl = window.SECURE_APP_URL || `https://${window.location.host}`;
         if (enablePushInMenuBtn) {
             enablePushInMenuBtn.disabled = true;
@@ -591,25 +597,41 @@ async function initPushNotifications() {
         return;
     }
 
+    // iOS-specific warning if not installed as PWA
+    if (isIOS && !isStandalone) {
+        console.warn('[iOS] PWA not installed - push notifications require installation');
+        if (enablePushInMenuBtn) {
+            enablePushInMenuBtn.disabled = false; // Keep enabled but will show error
+        }
+        if (pushEnableText) {
+            pushEnableText.innerHTML = `<strong>iOS:</strong> Push-Benachrichtigungen benötigen die Installation als App. ` +
+                `Tippe auf das <strong>Teilen-Symbol</strong> <svg style="display:inline;width:1em;height:1em;vertical-align:middle;" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z"/></svg> ` +
+                `und wähle <strong>"Zum Home-Bildschirm"</strong>.`;
+        }
+    }
+
     // Lade Push Manager
     const script = document.createElement('script');
     script.src = 'push-manager.js';
     script.onload = async () => {
         try {
             pushManager = new window.PushManager(API_BASE_URL);
-            console.log('Push Manager created');
-            
+            console.log('[Push] Push Manager created');
+
             const hasSubscription = await pushManager.init();
-            console.log('Push Manager initialized, has subscription:', hasSubscription);
+            console.log('[Push] Push Manager initialized, has subscription:', hasSubscription);
 
             if (hasSubscription) {
                 notificationToggle?.classList.add('active');
                 localStorage.removeItem(PUSH_DISMISSED_KEY);
-                console.log('Bell icon turned green (active class added)');
+                console.log('[Push] Bell icon turned green (active class added)');
             }
         } catch (error) {
-            console.error('Push Manager initialization error:', error);
+            console.error('[Push] Push Manager initialization error:', error);
         }
+    };
+    script.onerror = () => {
+        console.error('[Push] Failed to load push-manager.js');
     };
     document.head.appendChild(script);
 }
@@ -818,25 +840,25 @@ function registerServiceWorker() {
         return;
     }
 
+    // Service Worker is already registered in index.html <head> for iOS compatibility
+    // We just need to wait for it and set up message handling
+
     navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
 
-    window.addEventListener('load', async () => {
+    // Use immediate ready check instead of waiting for window load
+    (async () => {
         try {
-            const registration = await navigator.serviceWorker.register('service-worker.js');
-            swRegistration = registration;
-            console.log('Service Worker registered:', registration);
-        } catch (error) {
-            console.error('Service Worker registration failed:', error);
-        }
-
-        try {
+            // Wait for the SW that was registered early
             const readyRegistration = await navigator.serviceWorker.ready;
             swRegistration = readyRegistration;
+            console.log('[SW] Service Worker ready:', readyRegistration.scope);
+
+            // Load notification history once SW is ready
             await loadNotificationHistory();
         } catch (error) {
-            console.error('Service Worker readiness failed:', error);
+            console.error('[SW] Service Worker setup failed:', error);
         }
-    });
+    })();
 }
 
 // === PWA INSTALL ===

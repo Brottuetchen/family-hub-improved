@@ -36,6 +36,22 @@ class PushManager {
             return false;
         }
 
+        // iOS-specific checks
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        if (isIOS) {
+            console.log('[iOS] Push notifications detected on iOS device');
+            // iOS 16.4+ supports push, but requires PWA installation
+            const isStandalone = window.navigator.standalone === true ||
+                                window.matchMedia('(display-mode: standalone)').matches;
+
+            if (!isStandalone) {
+                console.warn('[iOS] Push notifications require PWA to be installed (Add to Home Screen)');
+                // Still return true - we'll show a helpful message to the user
+            }
+        }
+
         return true;
     }
 
@@ -144,6 +160,22 @@ class PushManager {
             throw new Error('Push notifications not supported');
         }
 
+        // iOS-specific check
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        if (isIOS) {
+            const isStandalone = window.navigator.standalone === true ||
+                                window.matchMedia('(display-mode: standalone)').matches;
+
+            if (!isStandalone) {
+                const errorMsg = 'iOS benötigt die Installation als PWA (Add to Home Screen) für Push-Benachrichtigungen. ' +
+                                'Tippe auf das Teilen-Symbol und wähle "Zum Home-Bildschirm".';
+                console.error('[iOS]', errorMsg);
+                throw new Error(errorMsg);
+            }
+        }
+
         try {
             // 1. Hole Permission
             const permission = await this.requestPermission();
@@ -156,16 +188,42 @@ class PushManager {
             const publicKey = await this.getPublicKey();
             const applicationServerKey = this.urlBase64ToUint8Array(publicKey);
 
-            // 3. Warte auf Service Worker
-            const registration = await navigator.serviceWorker.ready;
+            // 3. Warte auf Service Worker (mit iOS-Timeout)
+            console.log('[Push] Waiting for service worker...');
+            const registration = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Service Worker timeout')), 10000)
+                )
+            ]);
 
-            // 4. Erstelle Subscription
-            this.subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: applicationServerKey
-            });
+            console.log('[Push] Service worker ready, subscribing...');
 
-            console.log('Push subscription created:', this.subscription);
+            // 4. Erstelle Subscription (mit iOS retry logic)
+            let subscribeAttempt = 0;
+            const maxAttempts = 3;
+
+            while (subscribeAttempt < maxAttempts) {
+                try {
+                    this.subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: applicationServerKey
+                    });
+
+                    console.log('[Push] Subscription created successfully:', this.subscription.endpoint);
+                    break;
+                } catch (subscribeError) {
+                    subscribeAttempt++;
+                    console.warn(`[Push] Subscribe attempt ${subscribeAttempt} failed:`, subscribeError);
+
+                    if (subscribeAttempt >= maxAttempts) {
+                        throw subscribeError;
+                    }
+
+                    // Wait before retry (iOS sometimes needs a moment)
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
 
             // 5. Sende Subscription an Backend
             await this.sendSubscriptionToBackend(this.subscription);
@@ -173,7 +231,15 @@ class PushManager {
             return this.subscription;
 
         } catch (error) {
-            console.error('Push subscription failed:', error);
+            console.error('[Push] Subscription failed:', error);
+            // Provide user-friendly error messages
+            if (error.name === 'NotAllowedError') {
+                throw new Error('Push-Benachrichtigungen wurden blockiert. Bitte erlaube Benachrichtigungen in den Einstellungen.');
+            } else if (error.name === 'NotSupportedError') {
+                throw new Error('Push-Benachrichtigungen werden auf diesem Gerät nicht unterstützt.');
+            } else if (error.message.includes('timeout')) {
+                throw new Error('Service Worker konnte nicht geladen werden. Bitte versuche es erneut.');
+            }
             throw error;
         }
     }

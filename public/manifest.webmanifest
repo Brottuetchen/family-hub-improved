@@ -3,6 +3,7 @@
   "short_name": "Family Hub",
   "description": "Zentrale Familien-App für Media Services, Newsletter und Homelab-Verwaltung",
   "lang": "de-DE",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
