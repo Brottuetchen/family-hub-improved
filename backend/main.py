@@ -734,12 +734,17 @@ async def get_active_streams():
             media_metadata = session.get("mediaMetadata", {})
             display_author = session.get("displayAuthor", "")
 
-            # Build cover path URL
-            cover_path = session.get("coverPath")
+            # Get library item ID for cover
+            library_item_id = session.get("libraryItemId")
+
+            # Build cover URL - always try to get cover from library item
             cover_url = None
-            if cover_path:
-                # Audiobookshelf cover path is absolute, need to convert to URL
-                cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{session.get('libraryItemId')}/cover"
+            if library_item_id:
+                # For podcasts and books, cover is at the library item level
+                cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{library_item_id}/cover"
+
+                # Add auth token as query param for cover images
+                cover_url = f"{cover_url}?token={AUDIOBOOKSHELF_TOKEN}"
 
             abs_info = {
                 "source": "audiobookshelf",
