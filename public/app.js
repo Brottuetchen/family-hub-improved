@@ -595,12 +595,20 @@ async function initPushNotifications() {
     const script = document.createElement('script');
     script.src = 'push-manager.js';
     script.onload = async () => {
-        pushManager = new window.PushManager(API_BASE_URL);
-        const hasSubscription = await pushManager.init();
+        try {
+            pushManager = new window.PushManager(API_BASE_URL);
+            console.log('Push Manager created');
+            
+            const hasSubscription = await pushManager.init();
+            console.log('Push Manager initialized, has subscription:', hasSubscription);
 
-        if (hasSubscription) {
-            notificationToggle?.classList.add('active');
-            localStorage.removeItem(PUSH_DISMISSED_KEY);
+            if (hasSubscription) {
+                notificationToggle?.classList.add('active');
+                localStorage.removeItem(PUSH_DISMISSED_KEY);
+                console.log('Bell icon turned green (active class added)');
+            }
+        } catch (error) {
+            console.error('Push Manager initialization error:', error);
         }
     };
     document.head.appendChild(script);

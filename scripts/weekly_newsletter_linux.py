@@ -748,7 +748,7 @@ def convert_tmdb_to_media_item(tmdb_data: Dict, media_type: str) -> Optional[Med
 
 
 def get_ollama_recommendations(movies: List[MediaItem], shows: List[MediaItem]) -> Tuple[List[Dict], List[Dict]]:
-    """Use Ollama to select top 5 movies and top 5 TV shows"""
+    """Use Ollama to select top 5 movies and top 5 TV shows - GUARANTEED to return exactly 5 of each"""
 
     # Prepare data for Ollama
     movies_data = [
@@ -777,6 +777,8 @@ def get_ollama_recommendations(movies: List[MediaItem], shows: List[MediaItem]) 
 Provide a brief reason for each selection (max 50 words). Answer in German. Give a concise summary. 
 1 of those 5 recommandations should be a wildcard (lower rating but interesting).
 
+IMPORTANT: You MUST return EXACTLY 5 movies and EXACTLY 5 TV shows. No more, no less.
+
 Movies: {json.dumps(movies_data, ensure_ascii=False)}
 
 TV Shows: {json.dumps(shows_data, ensure_ascii=False)}
@@ -802,10 +804,54 @@ Return ONLY valid JSON in this exact format (no other text):
         # Parse the JSON response
         recommendations = json.loads(response_text)
 
-        selected_movies = recommendations.get('movies', [])[:5]
-        selected_shows = recommendations.get('shows', [])[:5]
+        selected_movies = recommendations.get('movies', [])
+        selected_shows = recommendations.get('shows', [])
 
-        logger.info(f"Ollama selected {len(selected_movies)} movies and {len(selected_shows)} shows")
+        logger.info(f"Ollama initially returned {len(selected_movies)} movies and {len(selected_shows)} shows")
+
+        # CRITICAL FIX: Ensure we have EXACTLY 5 movies and 5 shows
+        # If Ollama returns fewer than 5, fill up with top-rated items
+        if len(selected_movies) < 5:
+            logger.warning(f"Ollama only returned {len(selected_movies)} movies, filling up to 5...")
+            selected_titles = {m['title'] for m in selected_movies}
+            sorted_movies = sorted(movies, key=lambda x: (x.rating, x.vote_count), reverse=True)
+            
+            for movie in sorted_movies:
+                if len(selected_movies) >= 5:
+                    break
+                if movie.title not in selected_titles:
+                    selected_movies.append({
+                        'title': movie.title,
+                        'reason': f'Top-bewerteter Film ({movie.rating:.1f}/10 mit {movie.vote_count} Stimmen)'
+                    })
+                    logger.info(f"Added fallback movie: {movie.title}")
+
+        if len(selected_shows) < 5:
+            logger.warning(f"Ollama only returned {len(selected_shows)} shows, filling up to 5...")
+            selected_titles = {s['title'] for s in selected_shows}
+            sorted_shows = sorted(shows, key=lambda x: (x.rating, x.vote_count), reverse=True)
+            
+            for show in sorted_shows:
+                if len(selected_shows) >= 5:
+                    break
+                if show.title not in selected_titles:
+                    selected_shows.append({
+                        'title': show.title,
+                        'reason': f'Top-bewertete Serie ({show.rating:.1f}/10 mit {show.vote_count} Stimmen)'
+                    })
+                    logger.info(f"Added fallback show: {show.title}")
+
+        # Limit to exactly 5 (in case Ollama returned more)
+        selected_movies = selected_movies[:5]
+        selected_shows = selected_shows[:5]
+
+        logger.info(f"FINAL: Selected EXACTLY {len(selected_movies)} movies and {len(selected_shows)} shows")
+
+        # Double-check assertion
+        if len(selected_movies) != 5 or len(selected_shows) != 5:
+            logger.error(f"CRITICAL: Failed to get exactly 5 items! Movies: {len(selected_movies)}, Shows: {len(selected_shows)}")
+            logger.info("Falling back to rating-based selection")
+            return fallback_selection(movies, shows)
 
         return selected_movies, selected_shows
 
@@ -821,20 +867,22 @@ Return ONLY valid JSON in this exact format (no other text):
 
 
 def fallback_selection(movies: List[MediaItem], shows: List[MediaItem]) -> Tuple[List[Dict], List[Dict]]:
-    """Fallback selection based on ratings if Ollama fails"""
+    """Fallback selection based on ratings if Ollama fails - GUARANTEED to return exactly 5 of each"""
     # Sort by rating and vote count
     sorted_movies = sorted(movies, key=lambda x: (x.rating, x.vote_count), reverse=True)[:5]
     sorted_shows = sorted(shows, key=lambda x: (x.rating, x.vote_count), reverse=True)[:5]
 
     selected_movies = [
-        {'title': m.title, 'reason': f'Highly rated with {m.vote_count} votes'}
+        {'title': m.title, 'reason': f'Hochbewertet mit {m.vote_count} Stimmen ({m.rating:.1f}/10)'}
         for m in sorted_movies
     ]
 
     selected_shows = [
-        {'title': s.title, 'reason': f'Highly rated with {s.vote_count} votes'}
+        {'title': s.title, 'reason': f'Hochbewertet mit {s.vote_count} Stimmen ({s.rating:.1f}/10)'}
         for s in sorted_shows
     ]
+
+    logger.info(f"Fallback selection: {len(selected_movies)} movies, {len(selected_shows)} shows")
 
     return selected_movies, selected_shows
 

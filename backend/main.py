@@ -10,7 +10,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, Response
 from pywebpush import webpush, WebPushException
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import json
@@ -74,7 +73,6 @@ app.add_middleware(
 app.add_middleware(CacheControlMiddleware)
 
 # Recognize X-Forwarded-* headers when running behind a reverse proxy (e.g., on Proxmox)
-app.add_middleware(ProxyHeadersMiddleware)
 
 # === CONFIGURATION ===
 
