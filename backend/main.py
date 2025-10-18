@@ -705,11 +705,79 @@ async def get_active_streams():
 
     # 2. Fetch TeddyCloud active Tonies
     try:
-        # TeddyCloud's /api/tonieboxesJson only returns box models, not active sessions
-        # We need to check the actual boxes for active content
-        # For now, skip TeddyCloud as it requires a different API endpoint
-        # TODO: Find correct TeddyCloud API endpoint for active Tonies
-        pass
+        # Get list of Tonieboxes
+        boxes_url = f"{TEDDYCLOUD_URL}/api/getBoxes"
+        boxes_response = requests.get(boxes_url, timeout=10)
+        boxes_response.raise_for_status()
+        boxes_data = boxes_response.json()
+
+        # For each box, check for active Tonie
+        if "boxes" in boxes_data and boxes_data["boxes"]:
+            for box in boxes_data["boxes"]:
+                box_id = box.get("ID")
+                if not box_id:
+                    continue
+
+                # Get the last RUID (currently playing Tonie) for this box
+                last_ruid_url = f"{TEDDYCLOUD_URL}/api/settings/get/internal.last_ruid?overlay={box_id}"
+                last_ruid_response = requests.get(last_ruid_url, timeout=5)
+
+                if last_ruid_response.status_code == 200:
+                    last_ruid = last_ruid_response.text.strip()
+
+                    # Check if there's actually a Tonie (not empty or "0000...")
+                    if last_ruid and not last_ruid.startswith("0000000"):
+                        # Get timestamp to check if recently played (within last 30 min)
+                        last_time_url = f"{TEDDYCLOUD_URL}/api/settings/get/internal.last_ruid_time?overlay={box_id}"
+                        last_time_response = requests.get(last_time_url, timeout=5)
+
+                        if last_time_response.status_code == 200:
+                            import time
+                            last_time = int(last_time_response.text.strip())
+                            current_time = int(time.time())
+                            time_diff = current_time - last_time
+
+                            # Only show if played within last 30 minutes
+                            if time_diff <= 1800:  # 30 minutes
+                                # Get tag index to find metadata for this RUID
+                                tag_index_url = f"{TEDDYCLOUD_URL}/api/getTagIndex?overlay={box_id}"
+                                tag_index_response = requests.get(tag_index_url, timeout=10)
+
+                                if tag_index_response.status_code == 200:
+                                    tag_index = tag_index_response.json()
+
+                                    # Find the tag with matching RUID
+                                    for tag in tag_index.get("tags", []):
+                                        if tag.get("ruid") == last_ruid:
+                                            tonie_info = tag.get("tonieInfo", {})
+                                            series = tonie_info.get("series", "")
+                                            episode = tonie_info.get("episode", "")
+                                            picture = tonie_info.get("picture", "")
+                                            tracks = tonie_info.get("tracks", [])
+
+                                            # Build title
+                                            title = episode if episode else series
+                                            if not title:
+                                                title = "Unbekannter Tonie"
+
+                                            # Build subtitle
+                                            subtitle = None
+                                            if series and episode and series != episode:
+                                                subtitle = series
+                                            elif tracks and len(tracks) > 0:
+                                                subtitle = f"{len(tracks)} Titel"
+
+                                            tonie_stream = {
+                                                "source": "teddycloud",
+                                                "title": title,
+                                                "type": "tonie",
+                                                "user": box.get("boxName", "Toniebox"),
+                                                "subtitle": subtitle,
+                                                "thumb": picture if picture and not picture.endswith("/img_unknown.png") else None,
+                                                "icon": "🧸"
+                                            }
+                                            all_streams.append(tonie_stream)
+                                            break
 
     except Exception as e:
         logger.error(f"TeddyCloud error: {e}")
