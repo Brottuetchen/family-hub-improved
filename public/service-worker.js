@@ -3,7 +3,7 @@
  * Enhanced with Push Notifications, Offline Support, and Caching
  */
 
-const CACHE_VERSION = 'family-hub-v4.0';
+const CACHE_VERSION = 'family-hub-v4.1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
