@@ -443,9 +443,39 @@ async function updateMediaStats() {
                     // Set thumbnail based on source
                     if (stream.thumb) {
                         streamCover.style.backgroundImage = `url('${stream.thumb}')`;
+                        streamCover.classList.add('has-thumbnail');
+                    } else {
+                        // No thumbnail - show title as text fallback
+                        streamCover.classList.add('no-thumbnail');
+
+                        // Create text overlay for streams without covers
+                        const textOverlay = document.createElement('div');
+                        textOverlay.className = 'stream-text-overlay';
+
+                        const iconEl = document.createElement('div');
+                        iconEl.className = 'stream-text-icon';
+                        iconEl.textContent = stream.icon;
+
+                        const titleEl = document.createElement('div');
+                        titleEl.className = 'stream-text-title';
+                        titleEl.textContent = stream.title;
+
+                        if (stream.subtitle) {
+                            const subtitleEl = document.createElement('div');
+                            subtitleEl.className = 'stream-text-subtitle';
+                            subtitleEl.textContent = stream.subtitle;
+                            textOverlay.appendChild(iconEl);
+                            textOverlay.appendChild(titleEl);
+                            textOverlay.appendChild(subtitleEl);
+                        } else {
+                            textOverlay.appendChild(iconEl);
+                            textOverlay.appendChild(titleEl);
+                        }
+
+                        streamCover.appendChild(textOverlay);
                     }
 
-                    // Build title text with icon
+                    // Build title text with icon for tooltip
                     const titleText = stream.subtitle
                         ? `${stream.icon} ${stream.title}\n${stream.subtitle}`
                         : `${stream.icon} ${stream.title}`;
@@ -453,11 +483,13 @@ async function updateMediaStats() {
                     streamCover.title = titleText;
                     streamCover.dataset.title = titleText;
 
-                    // Add source badge
-                    const sourceBadge = document.createElement('span');
-                    sourceBadge.className = 'stream-source-badge';
-                    sourceBadge.textContent = stream.icon;
-                    streamCover.appendChild(sourceBadge);
+                    // Add source badge (only if has thumbnail)
+                    if (stream.thumb) {
+                        const sourceBadge = document.createElement('span');
+                        sourceBadge.className = 'stream-source-badge';
+                        sourceBadge.textContent = stream.icon;
+                        streamCover.appendChild(sourceBadge);
+                    }
 
                     streamGrid.appendChild(streamCover);
                 });
