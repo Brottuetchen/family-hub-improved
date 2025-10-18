@@ -736,12 +736,16 @@ async def get_active_streams():
 
             # Get library item ID for cover
             library_item_id = session.get("libraryItemId")
+            media_type = session.get("mediaType")
 
             # Build cover URL - proxy through backend to avoid mixed content issues
+            # NOTE: Podcasts don't work reliably with Audiobookshelf API
+            # The /api/items/{id} endpoint doesn't return podcast data properly
             cover_url = None
-            if library_item_id:
-                # Proxy will fetch item data and extract cover path
+            if library_item_id and media_type == "book":
+                # Only fetch covers for books - podcasts will show with icon only
                 cover_url = f"/api/audiobookshelf/cover/{library_item_id}"
+            # Podcasts will display without cover (📚 icon only)
 
             abs_info = {
                 "source": "audiobookshelf",
@@ -871,17 +875,27 @@ async def proxy_plex_image(path: str):
         raise HTTPException(status_code=404, detail="Image not found")
 
 @app.get("/api/audiobookshelf/cover/{library_item_id}")
-async def proxy_audiobookshelf_cover(library_item_id: str):
+@app.get("/api/audiobookshelf/cover/{library_item_id}/{episode_id}")
+async def proxy_audiobookshelf_cover(library_item_id: str, episode_id: str = None):
     """Proxy Audiobookshelf cover images through HTTPS backend to avoid mixed content"""
     try:
         headers = {"Authorization": f"Bearer {AUDIOBOOKSHELF_TOKEN}"}
 
-        # Audiobookshelf API doesn't always have /cover endpoint
-        # Instead, get the full item and extract the cover URL
+        # For podcasts, the library item is the podcast feed itself
+        # Try to get the podcast (library item) which should have the cover
         item_url = f"{AUDIOBOOKSHELF_URL}/api/items/{library_item_id}"
         logger.info(f"Fetching Audiobookshelf item: {item_url}")
 
         item_response = requests.get(item_url, headers=headers, timeout=10)
+
+        # If 404, this might be a podcast where we need different endpoint
+        if item_response.status_code == 404 and episode_id:
+            logger.info(f"Item 404, trying podcast endpoint with episode: {episode_id}")
+            # For podcasts, try to get the podcast itself (parent)
+            # The libraryItemId might actually be the podcast ID
+            # Let's try a different approach: just return a placeholder or skip
+            raise HTTPException(status_code=404, detail="Podcast covers not available via API")
+
         item_response.raise_for_status()
 
         item_data = item_response.json()
