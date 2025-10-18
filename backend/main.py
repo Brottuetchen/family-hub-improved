@@ -807,13 +807,13 @@ async def get_active_streams():
             media_type = session.get("mediaType")
 
             # Build cover URL - proxy through backend to avoid mixed content issues
-            # NOTE: Podcasts don't work reliably with Audiobookshelf API
-            # The /api/items/{id} endpoint doesn't return podcast data properly
+            # NOTE: Audiobookshelf API cover endpoints are unreliable
+            # Both podcasts and books often return 404
+            # Use text overlay instead for better reliability
             cover_url = None
-            if library_item_id and media_type == "book":
-                # Only fetch covers for books - podcasts will show with icon only
-                cover_url = f"/api/audiobookshelf/cover/{library_item_id}"
-            # Podcasts will display without cover (📚 icon only)
+            # Disable cover loading for now - use text fallback for all items
+            # if library_item_id:
+            #     cover_url = f"/api/audiobookshelf/cover/{library_item_id}"
 
             abs_info = {
                 "source": "audiobookshelf",
