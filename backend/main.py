@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, Response
 from pywebpush import webpush, WebPushException
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import json
@@ -72,6 +73,9 @@ app.add_middleware(
 # Cache Control Middleware hinzufügen
 app.add_middleware(CacheControlMiddleware)
 
+# Recognize X-Forwarded-* headers when running behind a reverse proxy (e.g., on Proxmox)
+app.add_middleware(ProxyHeadersMiddleware)
+
 # === CONFIGURATION ===
 
 # VAPID Keys für Push Notifications
@@ -87,6 +91,8 @@ VAPID_PUBLIC_KEY = os.getenv(
     "VAPID_PUBLIC_KEY",
     "BCd4UmkQcwVgZy5kJTm7llHbOBuFwYKTOS3jP3Dn97g_rSUMH_V4WFGVyuJvzwyuzhAOCM3h4K249kilbJK4td0"
 )
+# Track defaults to detect unconfigured state reliably
+_DEFAULT_VAPID_PUBLIC = "BCd4UmkQcwVgZy5kJTm7llHbOBuFwYKTOS3jP3Dn97g_rSUMH_V4WFGVyuJvzwyuzhAOCM3h4K249kilbJK4td0"
 VAPID_CLAIMS = {
     "sub": "mailto:trapp.constantin@gmail.com"
 }
@@ -220,7 +226,8 @@ async def push_debug(current_user: User = Depends(get_current_admin_user)):
 @app.get("/api/vapid-public-key")
 async def get_vapid_public_key():
     """Gibt VAPID Public Key für Push Subscriptions zurück"""
-    if VAPID_PUBLIC_KEY == "BMu4f7EOE-CxK2xrMMAa587Fmu_keSyYClMEEq4QjWE2UXagXIEJl0Q-aHuA_lDC8KKabeENonCOrSkq6yoWiLg":
+    # If the current key equals the known default, treat as not configured
+    if (VAPID_PUBLIC_KEY or "") == _DEFAULT_VAPID_PUBLIC:
         logger.warning("VAPID keys not configured!")
         raise HTTPException(
             status_code=501,
@@ -631,6 +638,52 @@ async def proxy_plex_image(path: str):
     except Exception as e:
         logger.error(f"Plex image proxy error: {e}")
         raise HTTPException(status_code=404, detail="Image not found")
+
+# === PLEX METADATA (for frontend enrichment) ===
+
+@app.get("/api/plex/metadata/{rating_key}")
+async def get_plex_metadata(rating_key: str):
+    """Fetch Plex metadata for a given rating key and return essential fields.
+
+    Keeps response minimal for frontend use (title, type, thumbs).
+    """
+    try:
+        url = f"{PLEX_URL}/library/metadata/{rating_key}"
+        headers = {
+            "Accept": "application/json",
+            "X-Plex-Token": PLEX_TOKEN,
+        }
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+
+        # Try to parse JSON, otherwise return minimal fallback
+        try:
+            data = response.json()
+            item = (
+                data.get("MediaContainer", {})
+                .get("Metadata", [{}])[0]
+            )
+            thumb_path = item.get("thumb")
+            result = {
+                "title": item.get("title"),
+                "type": item.get("type"),
+                "ratingKey": item.get("ratingKey", rating_key),
+                "thumb": thumb_path,
+                "thumb_url": f"/api/plex/image{thumb_path}" if thumb_path else None,
+                "art": item.get("art"),
+                "grandparentThumb": item.get("grandparentThumb"),
+            }
+            return result
+        except ValueError:
+            # Non-JSON (e.g., XML) – return minimal fields only
+            return {"ratingKey": rating_key}
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Plex metadata error: {e}")
+        raise HTTPException(status_code=502, detail="Could not fetch Plex metadata")
+    except Exception as e:
+        logger.error(f"Unexpected plex metadata error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # === OVERSEERR STATS ===
 

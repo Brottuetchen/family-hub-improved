@@ -275,7 +275,7 @@ class PushManager {
         await registration.showNotification(title, {
             body: body,
             icon: '/assets/icons/app-icon-192.png',
-            badge: '/assets/icons/badge-icon.png',
+            badge: '/assets/icons/app-icon-192.png',
             vibrate: [200, 100, 200],
             tag: 'test-notification',
             requireInteraction: false

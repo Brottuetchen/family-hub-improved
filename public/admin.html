@@ -77,6 +77,46 @@
             </div>
             <div id="subscriptionStatus" class="push-status"></div>
         </section>
+
+        <!-- User Management -->
+        <section id="users" class="section" aria-labelledby="users-heading">
+            <div class="section__header">
+                <h2 id="users-heading">Benutzerverwaltung</h2>
+                <p>Benutzer anlegen, auflisten und löschen (Admin‑Rechte erforderlich).</p>
+            </div>
+
+            <form id="userCreateForm" class="push-form" autocomplete="off">
+                <div class="form-group">
+                    <label for="userUsername">Benutzername</label>
+                    <input type="text" id="userUsername" name="username" placeholder="z.B. anna" required>
+                </div>
+                <div class="form-group">
+                    <label for="userEmail">E‑Mail</label>
+                    <input type="email" id="userEmail" name="email" placeholder="z.B. anna@example.local" required>
+                </div>
+                <div class="form-group">
+                    <label for="userPassword">Passwort</label>
+                    <input type="password" id="userPassword" name="password" placeholder="Mindestens 8 Zeichen" required>
+                </div>
+                <div class="form-group">
+                    <label for="userFullName">Vollständiger Name (optional)</label>
+                    <input type="text" id="userFullName" name="full_name" placeholder="z.B. Anna Muster">
+                </div>
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="userIsAdmin" name="is_admin"> Admin‑Rechte vergeben
+                    </label>
+                </div>
+                <button type="submit" class="btn btn--primary">Benutzer anlegen</button>
+                <div id="userStatus" class="push-status"></div>
+            </form>
+
+            <div style="margin-top: 16px; display:flex; gap:8px; align-items:center;">
+                <button id="loadUsers" class="btn btn--secondary">Benutzer laden</button>
+            </div>
+
+            <ul id="userList" class="newsletter-list" style="margin-top: 16px;"></ul>
+        </section>
     </main>
 
     <script type="module" src="admin.js"></script>

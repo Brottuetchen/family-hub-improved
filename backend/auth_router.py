@@ -68,6 +68,18 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class UpdateUserRequest(BaseModel):
+    username: Optional[str] = None  # not used for updates but tolerated
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    is_admin: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
+
 # === AUTHENTICATION ENDPOINTS ===
 
 @router.post("/login", response_model=TokenResponse)
@@ -332,6 +344,74 @@ async def delete_user(
     db.commit()
 
     return {"message": f"User {user.username} deleted successfully"}
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: int,
+    updates: UpdateUserRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Update user fields (admin only): email, full_name, is_admin, is_active
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Prevent self-demotion and self-deactivation
+    if user.id == current_user.id:
+        if updates.is_admin is False:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove your own admin rights")
+        if updates.is_active is False:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate your own account")
+
+    if updates.email is not None and updates.email != user.email:
+        # Ensure unique email
+        existing_email = db.query(User).filter(User.email == updates.email).first()
+        if existing_email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+        user.email = updates.email
+
+    if updates.full_name is not None:
+        user.full_name = updates.full_name
+
+    if updates.is_admin is not None:
+        user.is_admin = bool(updates.is_admin)
+
+    if updates.is_active is not None:
+        user.is_active = bool(updates.is_active)
+
+    user.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: int,
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Reset a user's password (admin only)
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if not payload.new_password or len(payload.new_password) < 4:
+        # keep minimal requirement for private setup
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password too short")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    user.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": f"Password for {user.username} updated"}
 
 
 # === HEALTH CHECK ===

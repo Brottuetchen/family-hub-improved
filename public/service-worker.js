@@ -332,7 +332,7 @@ self.addEventListener('push', (event) => {
     const options = {
         body: data.body,
         icon: data.icon || '/assets/icons/app-icon-192.png',
-        badge: '/assets/icons/badge-icon.png',
+        badge: '/assets/icons/app-icon-192.png',
         vibrate: [200, 100, 200, 100, 200],
         tag: data.tag || 'family-hub-notification',
         requireInteraction: false,
