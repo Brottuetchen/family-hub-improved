@@ -591,27 +591,29 @@ async function initPushNotifications() {
         return;
     }
 
-    // Lade Push Manager
-    const script = document.createElement('script');
-    script.src = 'push-manager.js';
-    script.onload = async () => {
-        try {
-            pushManager = new window.PushManager(API_BASE_URL);
-            console.log('Push Manager created');
-            
-            const hasSubscription = await pushManager.init();
-            console.log('Push Manager initialized, has subscription:', hasSubscription);
-
-            if (hasSubscription) {
-                notificationToggle?.classList.add('active');
-                localStorage.removeItem(PUSH_DISMISSED_KEY);
-                console.log('Bell icon turned green (active class added)');
-            }
-        } catch (error) {
-            console.error('Push Manager initialization error:', error);
+    // Initialize Push Manager (loaded from push-manager.js in HTML head)
+    try {
+        if (!window.PushManager) {
+            console.error('PushManager class not loaded from push-manager.js');
+            return;
         }
-    };
-    document.head.appendChild(script);
+        
+        pushManager = new window.PushManager(API_BASE_URL);
+        console.log('Push Manager created');
+        
+        const hasSubscription = await pushManager.init();
+        console.log('Push Manager initialized, has subscription:', hasSubscription);
+
+        if (hasSubscription) {
+            notificationToggle?.classList.add('active');
+            localStorage.removeItem(PUSH_DISMISSED_KEY);
+            console.log('Bell icon turned green (active class added)');
+        } else {
+            console.log('No existing push subscription found');
+        }
+    } catch (error) {
+        console.error('Push Manager initialization error:', error);
+    }
 }
 
 // === NOTIFICATION HISTORY ===
