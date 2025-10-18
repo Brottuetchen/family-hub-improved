@@ -740,7 +740,7 @@ async def get_active_streams():
             # Build cover URL - proxy through backend to avoid mixed content issues
             cover_url = None
             if library_item_id:
-                # Use backend proxy for HTTPS compatibility
+                # Proxy will fetch item data and extract cover path
                 cover_url = f"/api/audiobookshelf/cover/{library_item_id}"
 
             abs_info = {
@@ -874,22 +874,67 @@ async def proxy_plex_image(path: str):
 async def proxy_audiobookshelf_cover(library_item_id: str):
     """Proxy Audiobookshelf cover images through HTTPS backend to avoid mixed content"""
     try:
-        cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{library_item_id}/cover"
         headers = {"Authorization": f"Bearer {AUDIOBOOKSHELF_TOKEN}"}
-        response = requests.get(cover_url, headers=headers, timeout=10, stream=True)
-        response.raise_for_status()
+
+        # Audiobookshelf API doesn't always have /cover endpoint
+        # Instead, get the full item and extract the cover URL
+        item_url = f"{AUDIOBOOKSHELF_URL}/api/items/{library_item_id}"
+        logger.info(f"Fetching Audiobookshelf item: {item_url}")
+
+        item_response = requests.get(item_url, headers=headers, timeout=10)
+        item_response.raise_for_status()
+
+        item_data = item_response.json()
+        logger.info(f"Audiobookshelf item data keys: {list(item_data.keys())}")
+
+        # Extract cover path from different possible locations
+        cover_path = None
+
+        # Try media.coverPath
+        if "media" in item_data:
+            cover_path = item_data["media"].get("coverPath")
+            if cover_path:
+                logger.info(f"Found cover in media.coverPath: {cover_path}")
+
+        # Try media.metadata.cover
+        if not cover_path and "media" in item_data and "metadata" in item_data["media"]:
+            cover_path = item_data["media"]["metadata"].get("cover")
+            if cover_path:
+                logger.info(f"Found cover in media.metadata.cover: {cover_path}")
+
+        # Try libraryFiles for cover image
+        if not cover_path and "libraryFiles" in item_data:
+            for file in item_data["libraryFiles"]:
+                if file.get("fileType") == "image" or "cover" in file.get("metadata", {}).get("filename", "").lower():
+                    cover_path = file.get("metadata", {}).get("path")
+                    if cover_path:
+                        logger.info(f"Found cover in libraryFiles: {cover_path}")
+                        break
+
+        if not cover_path:
+            logger.error(f"No cover path found in item data. Available keys: {list(item_data.keys())}")
+            raise HTTPException(status_code=404, detail="No cover found for this item")
+
+        # Now fetch the actual cover image from filesystem through Audiobookshelf
+        # Use the /s/item endpoint which serves static files
+        cover_download_url = f"{AUDIOBOOKSHELF_URL}{cover_path}"
+        logger.info(f"Fetching cover from: {cover_download_url}")
+
+        cover_response = requests.get(cover_download_url, headers=headers, timeout=10, stream=True)
+        cover_response.raise_for_status()
 
         return Response(
-            content=response.content,
-            media_type=response.headers.get('Content-Type', 'image/jpeg'),
+            content=cover_response.content,
+            media_type=cover_response.headers.get('Content-Type', 'image/jpeg'),
             headers={
                 'Cache-Control': 'public, max-age=86400',
                 'Access-Control-Allow-Origin': '*'
             }
         )
+
     except Exception as e:
         logger.error(f"Audiobookshelf cover proxy error: {e}")
-        raise HTTPException(status_code=404, detail="Cover not found")
+        raise HTTPException(status_code=404, detail=f"Cover not found: {str(e)}")
 
 # === PLEX METADATA (for frontend enrichment) ===
 
