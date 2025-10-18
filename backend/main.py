@@ -784,19 +784,35 @@ async def get_active_streams():
 
     # 3. Fetch Audiobookshelf active sessions
     try:
-        abs_sessions_url = f"{AUDIOBOOKSHELF_URL}/api/sessions"
+        # Try to get currently playing session from /api/me/listening-sessions
+        # This endpoint shows active playback sessions
+        abs_sessions_url = f"{AUDIOBOOKSHELF_URL}/api/me/listening-sessions"
         headers = {"Authorization": f"Bearer {AUDIOBOOKSHELF_TOKEN}"}
         response = requests.get(abs_sessions_url, headers=headers, timeout=5)
         response.raise_for_status()
 
         data = response.json()
-        sessions = data.get("sessions", []) if isinstance(data, dict) else data
+        logger.info(f"Audiobookshelf listening sessions response: {data}")
 
-        # Get the most recent session (first in list)
-        # Show it regardless of age - Audiobookshelf doesn't have a "currently playing" API
-        # so we show the last thing that was played
+        # listening-sessions returns currently active sessions
+        sessions = data if isinstance(data, list) else []
+
+        # If no active listening sessions, fall back to /api/sessions and look for recent ones
+        if not sessions:
+            logger.info("No active listening sessions, checking /api/sessions")
+            abs_sessions_url = f"{AUDIOBOOKSHELF_URL}/api/sessions"
+            response = requests.get(abs_sessions_url, headers=headers, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+            all_sessions = data.get("sessions", []) if isinstance(data, dict) else data
+
+            # Filter for sessions updated in the last 5 minutes (currently playing)
+            now = time.time()
+            sessions = [s for s in all_sessions if now - s.get("updatedAt", 0) / 1000 < 300]
+            logger.info(f"Found {len(sessions)} sessions updated in last 5 minutes")
+
         if sessions:
-            # Sessions are already sorted by most recent first in the API response
+            # Take the first/most recent active session
             session = sessions[0]
 
             media_metadata = session.get("mediaMetadata", {})
