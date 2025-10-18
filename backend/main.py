@@ -724,8 +724,9 @@ async def get_active_streams():
         data = response.json()
         sessions = data.get("sessions", []) if isinstance(data, dict) else data
 
-        # Sort sessions by updatedAt (most recent first) and get the first one
-        # This assumes the most recently updated session is currently playing
+        # Get the most recent session (first in list)
+        # Show it regardless of age - Audiobookshelf doesn't have a "currently playing" API
+        # so we show the last thing that was played
         if sessions:
             # Sessions are already sorted by most recent first in the API response
             session = sessions[0]
@@ -740,27 +741,18 @@ async def get_active_streams():
                 # Audiobookshelf cover path is absolute, need to convert to URL
                 cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{session.get('libraryItemId')}/cover"
 
-            # Check if session is reasonably recent (within last hour)
-            # to avoid showing very old sessions
-            import time
-            current_time_ms = int(time.time() * 1000)
-            one_hour_ago = current_time_ms - (60 * 60 * 1000)
-            updated_at = session.get("updatedAt", 0)
-
-            # Only show if updated within last hour
-            if updated_at >= one_hour_ago:
-                abs_info = {
-                    "source": "audiobookshelf",
-                    "title": session.get("displayTitle", media_metadata.get("title", "Unknown Audiobook")),
-                    "type": session.get("mediaType", "audiobook"),
-                    "user": session.get("user", {}).get("username", "Unknown User"),
-                    "subtitle": display_author or media_metadata.get("author", ""),
-                    "progress": session.get("currentTime", 0),
-                    "duration": session.get("duration", 0),
-                    "thumb": cover_url,
-                    "icon": "📚"
-                }
-                all_streams.append(abs_info)
+            abs_info = {
+                "source": "audiobookshelf",
+                "title": session.get("displayTitle", media_metadata.get("title", "Unknown Audiobook")),
+                "type": session.get("mediaType", "audiobook"),
+                "user": session.get("user", {}).get("username", "Unknown User"),
+                "subtitle": display_author or media_metadata.get("author", ""),
+                "progress": session.get("currentTime", 0),
+                "duration": session.get("duration", 0),
+                "thumb": cover_url,
+                "icon": "📚"
+            }
+            all_streams.append(abs_info)
 
     except Exception as e:
         logger.error(f"Audiobookshelf error: {e}")
