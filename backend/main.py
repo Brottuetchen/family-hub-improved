@@ -616,6 +616,48 @@ async def get_services_status():
 
 # === UNIFIED MEDIA STREAMS ===
 
+@app.get("/api/media/debug")
+async def debug_media_apis():
+    """
+    Debug endpoint to see raw API responses from all sources
+    """
+    debug_info = {
+        "plex": {"error": None, "data": None},
+        "teddycloud": {"error": None, "data": None},
+        "audiobookshelf": {"error": None, "data": None}
+    }
+
+    # Debug Plex
+    try:
+        sessions_url = f"{PLEX_URL}/status/sessions"
+        headers = {"Accept": "application/json", "X-Plex-Token": PLEX_TOKEN}
+        response = requests.get(sessions_url, headers=headers, timeout=5)
+        response.raise_for_status()
+        debug_info["plex"]["data"] = response.json()
+    except Exception as e:
+        debug_info["plex"]["error"] = str(e)
+
+    # Debug TeddyCloud
+    try:
+        teddycloud_url = f"{TEDDYCLOUD_URL}/api/tonieboxesJson"
+        response = requests.get(teddycloud_url, timeout=10)
+        response.raise_for_status()
+        debug_info["teddycloud"]["data"] = response.json()
+    except Exception as e:
+        debug_info["teddycloud"]["error"] = str(e)
+
+    # Debug Audiobookshelf
+    try:
+        abs_sessions_url = f"{AUDIOBOOKSHELF_URL}/api/sessions"
+        headers = {"Authorization": f"Bearer {AUDIOBOOKSHELF_TOKEN}"}
+        response = requests.get(abs_sessions_url, headers=headers, timeout=5)
+        response.raise_for_status()
+        debug_info["audiobookshelf"]["data"] = response.json()
+    except Exception as e:
+        debug_info["audiobookshelf"]["error"] = str(e)
+
+    return debug_info
+
 @app.get("/api/media/active-streams")
 async def get_active_streams():
     """
