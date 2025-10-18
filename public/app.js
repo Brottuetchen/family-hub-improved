@@ -406,7 +406,11 @@ async function loadNewsletters() {
 async function updateMediaStats() {
     try {
         // Fetch unified active streams from all sources (Plex, TeddyCloud, Audiobookshelf)
-        const stats = await fetchAPI('/api/media/active-streams');
+        const streamStats = await fetchAPI('/api/media/active-streams');
+
+        // Also fetch Plex stats for recently added items
+        const plexStats = await fetchAPI('/api/plex/stats');
+
         const streamsEl = document.getElementById('plexStreams');
         const recentStreamEl = document.getElementById('plexRecent');
         const recentCountEl = document.getElementById('plexRecentCount');
@@ -414,7 +418,7 @@ async function updateMediaStats() {
         const recentDetailEl = document.getElementById('plexRecentDetail');
         const plexCardEl = document.getElementById('plexStats');
 
-        const streamCount = stats?.active_streams ?? 0;
+        const streamCount = streamStats?.active_streams ?? 0;
 
         if (streamsEl) {
             streamsEl.textContent = `${streamCount} aktive Stream${streamCount !== 1 ? 's' : ''}`;
@@ -424,12 +428,12 @@ async function updateMediaStats() {
             // Create a container for stream information from all sources
             recentStreamEl.innerHTML = '';
 
-            if (stats?.streams && stats.streams.length > 0) {
+            if (streamStats?.streams && streamStats.streams.length > 0) {
                 // Create grid for stream covers
                 const streamGrid = document.createElement('div');
                 streamGrid.className = 'stat-card__recent-grid';
 
-                stats.streams.forEach(stream => {
+                streamStats.streams.forEach(stream => {
                     const streamCover = document.createElement('div');
                     streamCover.className = `stream-cover stream-cover--${stream.source}`;
 
@@ -472,8 +476,8 @@ async function updateMediaStats() {
             }
         }
 
-        const recentItems = Array.isArray(stats?.recently_added)
-            ? stats.recently_added.slice(0, 4)
+        const recentItems = Array.isArray(plexStats?.recently_added)
+            ? plexStats.recently_added.slice(0, 4)
             : [];
 
         if (recentCountEl) {
@@ -483,8 +487,8 @@ async function updateMediaStats() {
         }
 
         if (recentDetailEl) {
-            if (recentItems.length && stats?.timestamp) {
-                const updatedAt = new Date(stats.timestamp);
+            if (recentItems.length && plexStats?.timestamp) {
+                const updatedAt = new Date(plexStats.timestamp);
                 recentDetailEl.textContent = `Stand: ${updatedAt.toLocaleTimeString('de-DE', {
                     hour: '2-digit',
                     minute: '2-digit'
