@@ -724,26 +724,31 @@ async def get_active_streams():
         data = response.json()
         sessions = data.get("sessions", []) if isinstance(data, dict) else data
 
-        # Get only the most recent session from today (currently playing)
-        # Check if session was updated within the last 5 minutes (300000ms)
-        import time
-        current_time_ms = int(time.time() * 1000)
-        five_minutes_ago = current_time_ms - (5 * 60 * 1000)
+        # Sort sessions by updatedAt (most recent first) and get the first one
+        # This assumes the most recently updated session is currently playing
+        if sessions:
+            # Sessions are already sorted by most recent first in the API response
+            session = sessions[0]
 
-        for session in sessions:
-            # Check if session is recent (active within last 5 minutes)
+            media_metadata = session.get("mediaMetadata", {})
+            display_author = session.get("displayAuthor", "")
+
+            # Build cover path URL
+            cover_path = session.get("coverPath")
+            cover_url = None
+            if cover_path:
+                # Audiobookshelf cover path is absolute, need to convert to URL
+                cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{session.get('libraryItemId')}/cover"
+
+            # Check if session is reasonably recent (within last hour)
+            # to avoid showing very old sessions
+            import time
+            current_time_ms = int(time.time() * 1000)
+            one_hour_ago = current_time_ms - (60 * 60 * 1000)
             updated_at = session.get("updatedAt", 0)
-            if updated_at >= five_minutes_ago:
-                media_metadata = session.get("mediaMetadata", {})
-                display_author = session.get("displayAuthor", "")
 
-                # Build cover path URL
-                cover_path = session.get("coverPath")
-                cover_url = None
-                if cover_path:
-                    # Audiobookshelf cover path is absolute, need to convert to URL
-                    cover_url = f"{AUDIOBOOKSHELF_URL}/api/items/{session.get('libraryItemId')}/cover"
-
+            # Only show if updated within last hour
+            if updated_at >= one_hour_ago:
                 abs_info = {
                     "source": "audiobookshelf",
                     "title": session.get("displayTitle", media_metadata.get("title", "Unknown Audiobook")),
@@ -756,8 +761,6 @@ async def get_active_streams():
                     "icon": "📚"
                 }
                 all_streams.append(abs_info)
-                # Only show the most recent one
-                break
 
     except Exception as e:
         logger.error(f"Audiobookshelf error: {e}")
