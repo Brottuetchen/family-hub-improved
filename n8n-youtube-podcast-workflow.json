@@ -1,0 +1,226 @@
+{
+  "name": "YouTube to Podcast - AudioBookshelf",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "minutes", "minutesInterval": 30}]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.youtube.com/@Malternativ",
+        "options": {}
+      },
+      "id": "fetch-page",
+      "name": "Fetch YouTube Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const html = $input.item.json.data;\nconst channelName = \"Malternativ\";\n\nlet channelId = null;\nlet m = html.match(/\"channelId\":\"(UC[\\w-]{22,})\"/);\nif (m) channelId = m[1];\nif (!channelId) {\n  m = html.match(/\"browseId\":\"(UC[\\w-]{22,})\"/);\n  if (m) channelId = m[1];\n}\nif (!channelId) throw new Error('Could not extract channel ID');\n\nreturn { json: { channelId, channelName, rssUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=' + channelId } };"
+      },
+      "id": "extract-id",
+      "name": "Extract Channel ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.rssUrl }}",
+        "options": {}
+      },
+      "id": "fetch-rss",
+      "name": "Fetch RSS Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const xml = $input.first().json.data;\nconst channelName = $input.first().json.channelName;\nconst channelId = $input.first().json.channelId;\n\nconst entryRegex = /<entry>([\\s\\S]*?)<\\/entry>/g;\nconst videos = [];\nlet match, count = 0;\n\nwhile ((match = entryRegex.exec(xml)) !== null && count < 3) {\n  const entry = match[1];\n  const videoId = (entry.match(/<yt:videoId>([^<]+)/) || [])[1];\n  const title = (entry.match(/<title>([^<]+)/) || [])[1];\n  const published = (entry.match(/<published>([^<]+)/) || [])[1];\n  const thumbnail = (entry.match(/<media:thumbnail url=\\\"([^\\\"]+)/) || [])[1];\n  \n  if (videoId && title) {\n    const date = published ? new Date(published).toISOString().split('T')[0].replace(/-/g, '') : 'unknown';\n    const safeTitle = title.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\\s+/g, '_').substring(0, 80);\n    const filename = `${date}_${safeTitle}.mp3`;\n    \n    videos.push({ json: {\n      videoId, title, thumbnail, channelName, channelId,\n      url: `https://www.youtube.com/watch?v=${videoId}`,\n      filename,\n      filePath: `/mnt/nas/podcasts/${channelName}/${filename}`\n    }});\n    count++;\n  }\n}\n\nreturn videos;"
+      },
+      "id": "parse-rss",
+      "name": "Parse RSS Videos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "command": "=test -f \"{{ $json.filePath }}\" && echo \"exists\" || echo \"not_exists\""
+      },
+      "id": "check-file",
+      "name": "Check if Downloaded",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const checkResult = $input.item.json.stdout;\nconst originalData = $node[\"Parse RSS Videos\"].json;\nreturn { json: { ...originalData, fileExists: checkResult.includes('exists') } };"
+      },
+      "id": "restore-data",
+      "name": "Restore Original Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{"value1": "={{ $json.fileExists }}", "value2": false}]
+        }
+      },
+      "id": "if-new",
+      "name": "IF Not Downloaded",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1550, 300]
+    },
+    {
+      "parameters": {
+        "command": "=mkdir -p \"/mnt/nas/podcasts/{{ $json.channelName }}\" && cd \"/mnt/nas/podcasts/{{ $json.channelName }}\" && /usr/local/bin/yt-dlp --extract-audio --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadata --add-metadata --write-thumbnail --convert-thumbnails jpg --output \"{{ $json.filename.replace('.mp3', '') }}.%(ext)s\" \"{{ $json.url }}\""
+      },
+      "id": "download",
+      "name": "Download Video",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1650, 200],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { channelName: $json.channelName, title: $json.title, downloaded: true } };"
+      },
+      "id": "mark-downloaded",
+      "name": "Mark Downloaded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { channelName: $json.channelName, title: $json.title, downloaded: false } };"
+      },
+      "id": "mark-skipped",
+      "name": "Mark Skipped",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition"
+      },
+      "id": "merge",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nlet newDownloads = 0;\nconst videos = [];\n\nfor (const item of items) {\n  if (item.json.downloaded === true) {\n    newDownloads++;\n    videos.push({ title: item.json.title });\n  }\n}\n\nreturn [{ json: { newDownloads, channelName: \"Malternativ\", videos } }];"
+      },
+      "id": "aggregate",
+      "name": "Count Downloads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{ $json.newDownloads }}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "id": "if-has-new",
+      "name": "IF Has New Downloads",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.188.84:13378/audiobookshelf/api/libraries/952b2028-1591-4f7e-b6e7-a7f1ce5f59e6/scan",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{"name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlJZCI6IjI2ODNiZGUzLTlkZWEtNGMxZi04MTEwLWNlNjE0YzQ2N2YyMiIsIm5hbWUiOiJuOG4iLCJ0eXBlIjoiYXBpIiwiaWF0IjoxNzYwMzc4MzU4fQ.oZHbmOOycwyhkLY1G-6NLfdwRE_GKc60xBkU0qGebcU"}]
+        }
+      },
+      "id": "scan-abs",
+      "name": "Scan AudioBookshelf",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2650, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const n = $json.newDownloads;\nconst v = $json.videos;\nlet body = n === 1 ? v[0].title : n <= 3 ? v.map(x => x.title).join(', ') : `${n} neue Videos`;\nreturn { json: { title: \"🎙️ Neue Malternativ Episoden\", body: body.substring(0, 150) } };"
+      },
+      "id": "prepare-push",
+      "name": "Prepare Push",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2850, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.188.150:8000/api/push/notify",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [{"value": "={{ $json.title }}", "name": "title"}, {"value": "={{ $json.body }}", "name": "body"}]
+        },
+        "options": {"continueOnFail": true}
+      },
+      "id": "send-push",
+      "name": "Send Push",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [3050, 200],
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {"main": [[{"node": "Fetch YouTube Page", "type": "main", "index": 0}]]},
+    "Fetch YouTube Page": {"main": [[{"node": "Extract Channel ID", "type": "main", "index": 0}]]},
+    "Extract Channel ID": {"main": [[{"node": "Fetch RSS Feed", "type": "main", "index": 0}]]},
+    "Fetch RSS Feed": {"main": [[{"node": "Parse RSS Videos", "type": "main", "index": 0}]]},
+    "Parse RSS Videos": {"main": [[{"node": "Check if Downloaded", "type": "main", "index": 0}]]},
+    "Check if Downloaded": {"main": [[{"node": "Restore Original Data", "type": "main", "index": 0}]]},
+    "Restore Original Data": {"main": [[{"node": "IF Not Downloaded", "type": "main", "index": 0}]]},
+    "IF Not Downloaded": {"main": [[{"node": "Download Video", "type": "main", "index": 0}], [{"node": "Mark Skipped", "type": "main", "index": 0}]]},
+    "Download Video": {"main": [[{"node": "Mark Downloaded", "type": "main", "index": 0}]]},
+    "Mark Downloaded": {"main": [[{"node": "Merge Results", "type": "main", "index": 0}]]},
+    "Mark Skipped": {"main": [[{"node": "Merge Results", "type": "main", "index": 1}]]},
+    "Merge Results": {"main": [[{"node": "Count Downloads", "type": "main", "index": 0}]]},
+    "Count Downloads": {"main": [[{"node": "IF Has New Downloads", "type": "main", "index": 0}]]},
+    "IF Has New Downloads": {"main": [[{"node": "Scan AudioBookshelf", "type": "main", "index": 0}]]},
+    "Scan AudioBookshelf": {"main": [[{"node": "Prepare Push", "type": "main", "index": 0}]]},
+    "Prepare Push": {"main": [[{"node": "Send Push", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}
