@@ -1,0 +1,10 @@
+**/__pycache__/
+**/*.pyc
+backend/.venv/
+.venv/
+*.db
+*.db-journal
+.git/
+.env
+node_modules/
+newsletters/

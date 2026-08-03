@@ -1,0 +1,47 @@
+# Hermes Family OS — Docker Compose
+# Startet Backend (inkl. Frontend), PostgreSQL und Redis.
+# Konfiguration über .env (siehe .env.example).
+
+services:
+  hermes:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Überschreibt DATABASE_URL/REDIS_URL für den Container-Verbund
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-hermes}:${POSTGRES_PASSWORD:-hermes}@db:5432/${POSTGRES_DB:-hermes}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "${PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hermes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hermes}
+      POSTGRES_DB: ${POSTGRES_DB:-hermes}
+    volumes:
+      - hermes_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hermes}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - hermes_redis:/data
+
+volumes:
+  hermes_pgdata:
+  hermes_redis:
