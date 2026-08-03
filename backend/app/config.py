@@ -109,13 +109,35 @@ class Settings(BaseSettings):
 
     # --- Hermes AI ---
     ai_enabled: bool = True
-    # OpenAI-kompatibler Endpoint. Für lokale Modelle (Ollama, LM Studio, vLLM)
-    # einfach base_url anpassen, z.B. http://localhost:11434/v1
-    ai_provider: str = "openai"  # openai | local | none
+    # openai | local | hermes_agent | none
+    #   openai/local  = direktes OpenAI-kompatibles Modell (eigene Tool-Schleife)
+    #   hermes_agent  = der echte NousResearch/hermes-agent als Sidecar (er ist
+    #                   selbst der Agent; wir relayen nur und injizieren KEINE Tools)
+    ai_provider: str = "none"
     ai_base_url: str = "https://api.openai.com/v1"
     ai_api_key: Optional[str] = None
     ai_model: str = "gpt-4o-mini"
     ai_max_tokens: int = 1024
+    # Modell für Sprach-Transkription (OpenAI-/Whisper-kompatibel, via Backend)
+    ai_transcribe_model: str = "whisper-1"
+
+    # --- NousResearch/hermes-agent (Sidecar) ---
+    # OpenAI-kompatibler API-Server des Sidecars (…/v1), z.B. http://hermes-agent:8890/v1
+    hermes_agent_url: Optional[str] = None
+    # Web-Dashboard des Sidecars (für die eingebettete Voll-UI), z.B. http://hermes-agent:9119
+    hermes_agent_dashboard_url: Optional[str] = None
+    # Modellname, den der Sidecar nutzen soll (er verwaltet Provider/Login selbst)
+    hermes_agent_model: str = "default"
+    # Optionaler Shared-Secret/Token für den API-Server (falls konfiguriert)
+    hermes_agent_token: Optional[str] = None
+
+    # --- MCP-Server (Haushalts-Werkzeuge an hermes-agent) ---
+    # Exponiert unsere Tools als MCP-Server, damit hermes-agent Einkauf/Kalender/
+    # Licht/Finanzen … steuern kann. Als eigener Dienst: python -m app.mcp.server
+    mcp_host: str = "0.0.0.0"
+    mcp_port: int = 8765
+    # Rolle, mit der der Familien-Agent handelt (guest<child<partner<admin).
+    mcp_role: str = "partner"
 
     @property
     def cors_origin_list(self) -> List[str]:

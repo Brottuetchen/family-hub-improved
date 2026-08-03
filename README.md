@@ -145,15 +145,20 @@ Vollständige Liste: [`.env.example`](.env.example) · Connector-Doku: [`docs/CO
 
 ## Hermes AI
 
-Der Assistent besitzt **Werkzeuge** (Tools) und führt Aktionen wirklich aus:
-`get_daily_overview`, `add_shopping_item`, `create_task`, `create_reminder`,
-`get_weather`, `list_tasks`, `get_shopping_list`, `get_finance_overview`,
-`get_meal_plan`, `search`.
+Vier Betriebsmodi (`AI_PROVIDER`):
 
-- **Mit LLM** (`AI_PROVIDER=openai|local`): echtes Function-Calling.
-- **Ohne LLM**: regelbasierter Fallback für die wichtigsten deutschen Kommandos –
-  d.h. „Bestell Milch" oder „Was steht heute an?" funktionieren **auch ohne API-Key**.
-- **Spracheingabe**: Mikrofon-Button im AI-Panel (Web Speech API, de-DE).
+- **`hermes_agent` (empfohlen):** der komplette [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
+  läuft als **Sidecar** und ist das eigentliche Gehirn (Skills/Selbstlernen, Memory,
+  40+ Tools, Subagents, **Voice**, **Abo-Login inkl. Codex/ChatGPT & Nous Portal**).
+  Nutzung über unsere Oberfläche: **„Assistent"** (Chat + Voice-Messages) und
+  **„Hermes Agent"** (sein volles Dashboard, eingebettet hinter unserem Login).
+  → **[docs/HERMES_AGENT.md](docs/HERMES_AGENT.md)**
+- **`openai` / `local`:** eigenes OpenAI-kompatibles Modell; unser Agent führt die
+  Tool-Schleife selbst (23 Werkzeuge: Einkauf, Kalender, Smart Home, Finanzen …).
+- **`none`:** regelbasierter Fallback – „Bestell Milch" / „Was steht heute an?"
+  funktionieren **auch ohne Modell**, offline.
+
+**Voice-Messages:** 🎙 im „Assistent" nimmt auf → Transkription → normaler Chat.
 
 ---
 

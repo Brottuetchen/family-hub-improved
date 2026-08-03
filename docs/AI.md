@@ -7,11 +7,12 @@ führt Aktionen über die Module wirklich aus (Function Calling). „Hermes" ist
 
 ## Betriebsmodi (`AI_PROVIDER`)
 
-| Modus    | Was passiert | Voraussetzung |
-|----------|--------------|---------------|
-| `none`   | **Kein LLM.** Deutscher Regel-/Intent-Parser ordnet Sätze den Werkzeugen zu. Offline, sofort, deterministisch. | – |
-| `local`  | Lokales, OpenAI-kompatibles Modell (Ollama, LM Studio, vLLM). Privat, kein Cloud-Traffic. | lokaler LLM-Server |
-| `openai` | OpenAI-Cloud. | API-Key |
+| Modus          | Was passiert | Voraussetzung |
+|----------------|--------------|---------------|
+| `hermes_agent` | **Empfohlen.** Der komplette [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) als Sidecar ist der Agent (Skills, Memory, Tools, Voice, Abo-Login inkl. Codex/ChatGPT). Wir relayen nur. Siehe **[docs/HERMES_AGENT.md](HERMES_AGENT.md)**. | Sidecar-Dienst |
+| `none`         | **Kein LLM.** Deutscher Regel-/Intent-Parser ordnet Sätze den Werkzeugen zu. Offline, sofort, deterministisch. | – |
+| `local`        | Lokales, OpenAI-kompatibles Modell (Ollama, LM Studio, vLLM). Privat, kein Cloud-Traffic. | lokaler LLM-Server |
+| `openai`       | OpenAI-kompatibles Cloud-Modell. | API-Key |
 
 Im `none`-Modus „denkt" nichts im Hintergrund – der Chat ist reines
 Request/Response. Dauerhaft läuft nur der Erinnerungs-Scheduler.

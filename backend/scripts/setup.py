@@ -146,23 +146,28 @@ def write_env(path: Path, env: dict) -> None:
         ("Datenbank", ["DATABASE_URL", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB", "REDIS_URL"]),
         ("Push (VAPID)", ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_EMAIL"]),
         ("Wetter", ["WEATHER_ENABLED", "WEATHER_LATITUDE", "WEATHER_LONGITUDE", "WEATHER_LOCATION_NAME"]),
-        ("Hermes AI", ["AI_ENABLED", "AI_PROVIDER", "AI_BASE_URL", "AI_API_KEY", "AI_MODEL", "AI_MAX_TOKENS"]),
+        ("Hermes AI", ["AI_ENABLED", "AI_PROVIDER", "AI_BASE_URL", "AI_API_KEY", "AI_MODEL", "AI_MAX_TOKENS", "AI_TRANSCRIBE_MODEL"]),
+        ("Hermes Agent (Sidecar)", ["HERMES_AGENT_URL", "HERMES_AGENT_DASHBOARD_URL", "HERMES_AGENT_MODEL", "HERMES_AGENT_TOKEN", "HERMES_AGENT_IMAGE"]),
         ("Connectoren", [k for _, fields in CONNECTORS for (k, _, _) in fields]),
     ]
     lines = ["# Hermes Family OS – erzeugt vom Installer (backend/scripts/setup.py)", ""]
     written = set()
     for section, keys in order:
-        lines.append(f"# --- {section} ---")
+        # Leere Werte NICHT schreiben – sonst würden Code-Defaults überschrieben.
+        section_lines = []
         for key in keys:
-            lines.append(f"{key}={env.get(key, '')}")
             written.add(key)
-        lines.append("")
-    # Übrig gebliebene Keys (falls .env manuell erweitert wurde)
-    extra = [k for k in env if k not in written]
+            val = env.get(key, "")
+            if val != "":
+                section_lines.append(f"{key}={val}")
+        if section_lines:
+            lines.append(f"# --- {section} ---")
+            lines.extend(section_lines)
+            lines.append("")
+    extra = [f"{k}={env[k]}" for k in env if k not in written and env[k] != ""]
     if extra:
         lines.append("# --- Weitere ---")
-        for key in extra:
-            lines.append(f"{key}={env[key]}")
+        lines.extend(extra)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -217,25 +222,37 @@ def main() -> int:
     else:
         env["DATABASE_URL"] = "sqlite:///./hermes.db"
 
-    # KI (Cloud – kein lokales Modell)
-    head("Hermes AI (Cloud-Modell)")
-    if ask_yesno("KI-Assistent mit einem Cloud-Modell aktivieren?", env.get("AI_PROVIDER", "none") != "none"):
-        print("  OpenAI-kompatibel: OpenAI, oder ein eigener kompatibler Endpoint.")
+    # KI-Modus
+    head("Hermes AI")
+    print("  (1) agent  = kompletter NousResearch/hermes-agent als Sidecar (empfohlen)")
+    print("  (2) cloud  = OpenAI-kompatibles Cloud-Modell (API-Key)")
+    print("  (3) none   = regelbasiert (ohne externes Modell)")
+    current = "agent" if env.get("AI_PROVIDER") == "hermes_agent" else ("cloud" if env.get("AI_PROVIDER") in ("openai", "local") else "none")
+    mode = ask("KI-Modus (agent/cloud/none)", current).lower()
+    env["AI_ENABLED"] = "true"
+    env["AI_MAX_TOKENS"] = env.get("AI_MAX_TOKENS", "1024")
+
+    if mode == "agent":
+        env["AI_PROVIDER"] = "hermes_agent"
+        env["HERMES_AGENT_URL"] = ask("hermes-agent API-URL (…/v1)", env.get("HERMES_AGENT_URL", "http://hermes-agent:8890/v1"))
+        env["HERMES_AGENT_DASHBOARD_URL"] = ask("hermes-agent Dashboard-URL", env.get("HERMES_AGENT_DASHBOARD_URL", "http://hermes-agent:9119"))
+        env["HERMES_AGENT_MODEL"] = ask("Modell (im Sidecar)", env.get("HERMES_AGENT_MODEL", "default"))
+        env["HERMES_AGENT_IMAGE"] = ask("Docker-Image (gepinnt!)", env.get("HERMES_AGENT_IMAGE", "nousresearch/hermes-agent:latest"))
+        print(_c("  Start:  docker compose --profile agent up -d", "36"))
+        print(_c("  Login (einmalig, interaktiv):", "36"))
+        print(_c("    docker compose exec hermes-agent hermes auth add openai --type device-code   # Codex/ChatGPT-Abo", "1"))
+        print(_c("    docker compose exec hermes-agent hermes setup --portal                        # Nous Portal", "1"))
+        print(_c("  Details: docs/HERMES_AGENT.md", "33"))
+    elif mode == "cloud":
         provider = ask("Provider (openai / custom)", env.get("AI_PROVIDER", "openai") if env.get("AI_PROVIDER") in ("openai", "custom") else "openai")
-        if provider == "custom":
-            env["AI_PROVIDER"] = "openai"  # OpenAI-kompatibler Codepfad
-            env["AI_BASE_URL"] = ask("Base-URL (…/v1)", env.get("AI_BASE_URL", "https://api.openai.com/v1"))
-        else:
-            env["AI_PROVIDER"] = "openai"
-            env["AI_BASE_URL"] = "https://api.openai.com/v1"
+        env["AI_PROVIDER"] = "openai"  # OpenAI-kompatibler Codepfad
+        env["AI_BASE_URL"] = ("https://api.openai.com/v1" if provider != "custom"
+                              else ask("Base-URL (…/v1)", env.get("AI_BASE_URL", "https://api.openai.com/v1")))
         env["AI_API_KEY"] = ask_secret("API-Key", env.get("AI_API_KEY", ""))
         env["AI_MODEL"] = ask("Modell", env.get("AI_MODEL", "gpt-4o-mini"))
-        env["AI_ENABLED"] = "true"
     else:
         env["AI_PROVIDER"] = "none"
-        env["AI_ENABLED"] = "true"
         print(_c("  KI läuft im regelbasierten Modus (ohne externes Modell).", "33"))
-    env["AI_MAX_TOKENS"] = env.get("AI_MAX_TOKENS", "1024")
 
     # Push
     head("Push-Benachrichtigungen (VAPID)")

@@ -1,14 +1,20 @@
-"""LLM-Client (OpenAI-kompatibel).
+"""LLM-Client (OpenAI-kompatibel) mit drei Betriebsmodi.
 
-Funktioniert mit OpenAI ebenso wie mit lokalen Modellen (Ollama, LM Studio,
-vLLM, GPT-OSS), indem lediglich ``AI_BASE_URL`` angepasst wird. Ist kein
-Provider/Key konfiguriert, meldet ``is_configured=False`` und der Agent nutzt
-den regelbasierten Fallback.
+* ``openai`` / ``local`` – direktes OpenAI-kompatibles Modell; unser Agent führt
+  die Tool-Schleife selbst (Function-Calling).
+* ``hermes_agent`` – der echte NousResearch/hermes-agent läuft als Sidecar und
+  ist selbst der Agent. Wir **relayen** nur Chat/Streaming an seinen
+  OpenAI-kompatiblen API-Server und injizieren KEINE eigenen Tool-Schemas
+  (Tools/Skills/Memory macht der Sidecar).
+
+Ist nichts konfiguriert, meldet ``is_configured=False`` und der Agent nutzt den
+regelbasierten Fallback.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+import json
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
 
@@ -19,16 +25,61 @@ logger = get_logger("ai.llm")
 
 
 class LLMClient:
+    # --- Modus/Backend ---
+
+    @property
+    def provider(self) -> str:
+        return settings.ai_provider
+
+    @property
+    def is_agentic(self) -> bool:
+        """True, wenn der externe hermes-agent das Gehirn ist (kein eigener Tool-Loop)."""
+        return settings.ai_provider == "hermes_agent"
+
     @property
     def is_configured(self) -> bool:
         if not settings.ai_enabled:
             return False
         if settings.ai_provider == "none":
             return False
-        # Lokale Provider brauchen ggf. keinen Key.
+        if settings.ai_provider == "hermes_agent":
+            return bool(settings.hermes_agent_url)
         if settings.ai_provider == "local":
             return bool(settings.ai_base_url)
         return bool(settings.ai_api_key)
+
+    @property
+    def model(self) -> str:
+        return settings.hermes_agent_model if self.is_agentic else settings.ai_model
+
+    def _base_url(self) -> str:
+        raw = settings.hermes_agent_url if self.is_agentic else settings.ai_base_url
+        return (raw or "").rstrip("/")
+
+    def _headers(self) -> Dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.is_agentic:
+            if settings.hermes_agent_token:
+                headers["Authorization"] = f"Bearer {settings.hermes_agent_token}"
+        elif settings.ai_api_key:
+            headers["Authorization"] = f"Bearer {settings.ai_api_key}"
+        return headers
+
+    def _payload(self, messages: List[Dict[str, Any]], tools, tool_choice, stream: bool) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "max_tokens": settings.ai_max_tokens,
+        }
+        if stream:
+            payload["stream"] = True
+        # Im Agentic-Modus KEINE Tools injizieren – der Sidecar ist der Agent.
+        if tools and not self.is_agentic:
+            payload["tools"] = tools
+            payload["tool_choice"] = tool_choice
+        return payload
+
+    # --- Nicht-Streaming ---
 
     async def chat(
         self,
@@ -39,26 +90,68 @@ class LLMClient:
         """Ein Chat-Completion-Aufruf. Gibt die Assistant-Message zurück."""
         if not self.is_configured:
             raise RuntimeError("LLM not configured")
-
-        payload: Dict[str, Any] = {
-            "model": settings.ai_model,
-            "messages": messages,
-            "max_tokens": settings.ai_max_tokens,
-        }
-        if tools:
-            payload["tools"] = tools
-            payload["tool_choice"] = tool_choice
-
-        headers = {"Content-Type": "application/json"}
-        if settings.ai_api_key:
-            headers["Authorization"] = f"Bearer {settings.ai_api_key}"
-
-        url = f"{settings.ai_base_url.rstrip('/')}/chat/completions"
-        async with httpx.AsyncClient(timeout=45.0, verify=settings.verify_tls) as client:
-            resp = await client.post(url, json=payload, headers=headers)
+        payload = self._payload(messages, tools, tool_choice, stream=False)
+        url = f"{self._base_url()}/chat/completions"
+        async with httpx.AsyncClient(timeout=120.0, verify=settings.verify_tls) as client:
+            resp = await client.post(url, json=payload, headers=self._headers())
             resp.raise_for_status()
             data = resp.json()
         return data["choices"][0]["message"]
+
+    # --- Streaming (SSE) ---
+
+    # --- Sprach-Transkription (Voice-Messages) ---
+
+    async def transcribe(self, content: bytes, filename: str, content_type: str) -> str:
+        """Transkribiert Audio über einen OpenAI-/Whisper-kompatiblen Endpoint.
+
+        Nutzt den hermes-agent-Sidecar (agentic) bzw. das konfigurierte Modell.
+        """
+        if not self.is_configured:
+            raise RuntimeError("LLM not configured")
+        url = f"{self._base_url()}/audio/transcriptions"
+        headers = {}
+        auth = self._headers().get("Authorization")
+        if auth:
+            headers["Authorization"] = auth
+        files = {"file": (filename or "audio.webm", content, content_type or "audio/webm")}
+        data = {"model": settings.ai_transcribe_model}
+        async with httpx.AsyncClient(timeout=120.0, verify=settings.verify_tls) as client:
+            resp = await client.post(url, headers=headers, data=data, files=files)
+            resp.raise_for_status()
+            payload = resp.json()
+        return (payload.get("text") or "").strip()
+
+    async def stream_chat(self, messages: List[Dict[str, Any]]) -> AsyncIterator[str]:
+        """Streamt die Antwort-Tokens (Content-Deltas) eines Chat-Completions-Aufrufs.
+
+        Für den Agentic-/Relay-Modus (hermes-agent) sowie direkte Modelle nutzbar.
+        Yields die reinen Text-Deltas.
+        """
+        if not self.is_configured:
+            raise RuntimeError("LLM not configured")
+        payload = self._payload(messages, tools=None, tool_choice="auto", stream=True)
+        url = f"{self._base_url()}/chat/completions"
+        async with httpx.AsyncClient(timeout=None, verify=settings.verify_tls) as client:
+            async with client.stream("POST", url, json=payload, headers=self._headers()) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    choices = chunk.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta") or {}
+                    text = delta.get("content")
+                    if text:
+                        yield text
 
 
 llm_client = LLMClient()

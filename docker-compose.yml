@@ -13,6 +13,10 @@ services:
       # Überschreibt DATABASE_URL/REDIS_URL für den Container-Verbund
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-hermes}:${POSTGRES_PASSWORD:-hermes}@db:5432/${POSTGRES_DB:-hermes}
       REDIS_URL: redis://redis:6379/0
+      # Verweist auf den optionalen hermes-agent-Sidecar (nur relevant, wenn
+      # AI_PROVIDER=hermes_agent). Harmlos, wenn der Sidecar nicht läuft.
+      HERMES_AGENT_URL: ${HERMES_AGENT_URL:-http://hermes-agent:8890/v1}
+      HERMES_AGENT_DASHBOARD_URL: ${HERMES_AGENT_DASHBOARD_URL:-http://hermes-agent:9119}
     ports:
       - "${PORT:-8000}:8000"
     depends_on:
@@ -64,7 +68,55 @@ services:
     #           count: all
     #           capabilities: ["gpu"]
 
+  # NousResearch/hermes-agent als Sidecar — das echte, komplette KI-Gehirn
+  # (Skills/Selbstlernen, Memory, 40+ Tools, Subagents, Voice, Abo-Logins).
+  # Aktivieren:  docker compose --profile agent up -d
+  # WICHTIG (ehrlich): hermes-agent ist groß (~610 MB) und sehr aktiv.
+  #  * PINNE eine feste Version und richte dich nach dessen offizieller Doku:
+  #    https://github.com/NousResearch/hermes-agent  ·  hermes-agent.nousresearch.com
+  #  * Setze HERMES_AGENT_IMAGE auf ein veröffentlichtes Image ODER ersetze
+  #    'image:' durch einen 'build:'-Block, der das gepinnte Repo baut.
+  #  * Start-Befehl/Ports ('command'/expose) ggf. an die gepinnte Version anpassen.
+  #  * Einmaliger Login danach (Codex/ChatGPT-Abo oder Nous Portal):
+  #      docker compose exec hermes-agent hermes auth add openai --type device-code
+  #      docker compose exec hermes-agent hermes setup --portal
+  #    Details: docs/HERMES_AGENT.md
+  hermes-agent:
+    image: ${HERMES_AGENT_IMAGE:-nousresearch/hermes-agent:latest}
+    profiles: ["agent"]
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - hermes_agent_home:/root/.hermes   # Config + Credential-Pool (Login) – persistent
+    expose:
+      - "9119"   # Web-Dashboard (über unseren Reverse-Proxy /agent erreichbar)
+      - "8890"   # OpenAI-kompatibler API-Server (Port ggf. anpassen)
+    # command: ["hermes", "dashboard", "--host", "0.0.0.0", "--no-open"]  # per gepinnter Version
+
+  # MCP-Server: gibt hermes-agent Zugriff auf unsere Haushalts-Werkzeuge
+  # (Einkauf, Kalender, Licht, Finanzen, Wartung, Essensplan …).
+  # In hermes-agent einen MCP-Server hinzufügen, der auf
+  #   http://hermes-mcp:8765/mcp   (Streamable HTTP) zeigt.  Siehe docs/HERMES_AGENT.md
+  hermes-mcp:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    profiles: ["agent"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-hermes}:${POSTGRES_PASSWORD:-hermes}@db:5432/${POSTGRES_DB:-hermes}
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8765"
+    command: ["python", "-m", "app.mcp.server"]
+    expose:
+      - "8765"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   hermes_pgdata:
   hermes_redis:
   hermes_ollama:
+  hermes_agent_home:

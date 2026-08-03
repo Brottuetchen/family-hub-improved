@@ -19,6 +19,7 @@ from app.core.database import init_db
 from app.core.logging_config import get_logger, setup_logging
 from app.services.scheduler import run_scheduler
 from app.routers import (
+    agent_proxy,
     ai,
     auth,
     calendar,
@@ -112,6 +113,7 @@ for module in (
     notifications,
     connectors,
     media,
+    agent_proxy,
 ):
     app.include_router(module.router)
 
