@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.ai.llm import llm_client
 from app.ai.tools import TOOLS, ToolContext, openai_tools
 from app.core.logging_config import get_logger
+from app.services.recurrence import WEEKDAYS_DE, next_at, next_weekday
 
 logger = get_logger("ai.agent")
 
@@ -190,18 +191,61 @@ def _extract_reminder(text: str) -> Optional[Dict[str, Any]]:
         m = re.search(r"erinnerung[:\s]+(.+)$", low)
     if not m:
         return None
-    rest = text[text.lower().index(m.group(1)):]
-    due = _parse_when(rest)
-    # "an den Müll" -> Müll
-    title = re.sub(r"^(heute\s+abend|heute\s+früh|heute|morgen\s+früh|morgen|übermorgen)\s*", "", rest, flags=re.IGNORECASE)
-    title = re.sub(r"^(an|um|dass|daran,?)\s+", "", title, flags=re.IGNORECASE).strip()
-    title = re.sub(r"^(den|die|das|der)\s+", "", title, flags=re.IGNORECASE).strip()
-    if not title:
-        title = rest.strip()
-    result: Dict[str, Any] = {"title": title.capitalize()}
+    rest = text[low.index(m.group(1)):]
+    recurrence, rec_due = _parse_recurrence(rest)
+    due = rec_due or _parse_when(rest)
+    result: Dict[str, Any] = {"title": _reminder_title(rest)}
     if due:
         result["due_at"] = due.isoformat()
+    if recurrence != "none":
+        result["recurrence"] = recurrence
     return result
+
+
+def _extract_time(low: str) -> tuple[int, int]:
+    m = re.search(r"um\s+(\d{1,2})(?::(\d{2}))?\s*(uhr)?", low)
+    if m and (m.group(3) or m.group(2)):
+        return int(m.group(1)), int(m.group(2) or 0)
+    if "abend" in low:
+        return 19, 0
+    if "früh" in low or "morgens" in low:
+        return 8, 0
+    if "mittag" in low:
+        return 12, 0
+    return 9, 0
+
+
+def _parse_recurrence(text: str):
+    low = text.lower()
+    hour, minute = _extract_time(low)
+    for name, idx in WEEKDAYS_DE.items():
+        if re.search(rf"\bjede[nrs]?\s+{name}", low) or re.search(rf"\b{name}s\b", low):
+            return "weekly", next_weekday(idx, hour, minute)
+    if re.search(r"werktags|jeden werktag|unter der woche", low):
+        due = next_at(hour, minute)
+        while due.weekday() >= 5:
+            due = next_at(hour, minute, due)
+        return "weekdays", due
+    if re.search(r"t[äa]glich|jeden tag", low):
+        return "daily", next_at(hour, minute)
+    if re.search(r"w[öo]chentlich|jede woche", low):
+        return "weekly", next_at(hour, minute)
+    if re.search(r"monatlich|jeden monat", low):
+        return "monthly", next_at(hour, minute)
+    return "none", None
+
+
+def _reminder_title(rest: str) -> str:
+    t = rest
+    t = re.sub(r"\b(jede[nrs]?\s+)?(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag)s?\b", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(jeden tag|t[äa]glich|werktags|jeden werktag|unter der woche|w[öo]chentlich|jede woche|monatlich|jeden monat)\b", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bum\s+\d{1,2}(:\d{2})?\s*uhr\b", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"^(heute\s+abend|heute\s+früh|heute|morgen\s+früh|morgen|übermorgen)\s*", "", t.strip(), flags=re.IGNORECASE)
+    t = re.sub(r"\b(abends?|morgens|mittags|früh)\b", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"^(an|um|dass|daran,?)\s+", "", t.strip(), flags=re.IGNORECASE)
+    t = re.sub(r"^(den|die|das|der)\s+", "", t.strip(), flags=re.IGNORECASE)
+    t = re.sub(r"\s{2,}", " ", t).strip(" ,.")
+    return t.capitalize() if t else rest.strip().capitalize()
 
 
 def _extract_task(text: str) -> Optional[str]:

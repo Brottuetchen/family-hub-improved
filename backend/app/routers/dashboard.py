@@ -115,6 +115,7 @@ async def get_dashboard(db: Session = Depends(get_db), current_user: User = Depe
                 "title": r.title,
                 "due_at": r.due_at.isoformat() if r.due_at else None,
                 "priority": r.priority,
+                "recurrence": r.recurrence,
             }
             for r in reminders
         ],

@@ -143,25 +143,35 @@ async def _list_tasks(ctx: ToolContext) -> str:
 
 
 async def _create_reminder(
-    ctx: ToolContext, title: str, due_at: Optional[str] = None, priority: str = "info"
+    ctx: ToolContext,
+    title: str,
+    due_at: Optional[str] = None,
+    priority: str = "info",
+    recurrence: str = "none",
 ) -> str:
+    from app.services.recurrence import VALID_RECURRENCE, label
+
     parsed_due = None
     if due_at:
         try:
             parsed_due = datetime.fromisoformat(due_at.replace("Z", "+00:00")).replace(tzinfo=None)
         except ValueError:
             parsed_due = None
+    if recurrence not in VALID_RECURRENCE:
+        recurrence = "none"
     reminder = Reminder(
         title=title,
         due_at=parsed_due,
         priority=priority if priority in {"critical", "important", "info"} else "info",
+        recurrence=recurrence,
         source="ai",
         created_by=ctx.user_id,
     )
     ctx.db.add(reminder)
     ctx.db.commit()
     when = f" (fällig {parsed_due.strftime('%d.%m. %H:%M')})" if parsed_due else ""
-    return f"Erinnerung '{title}'{when} wurde gespeichert. ⏰"
+    rec = f", {label(recurrence)}" if recurrence != "none" else ""
+    return f"Erinnerung '{title}'{when}{rec} wurde gespeichert. ⏰"
 
 
 async def _get_finance_overview(ctx: ToolContext) -> str:
@@ -256,13 +266,18 @@ TOOLS: Dict[str, Tool] = {
     ),
     "create_reminder": Tool(
         name="create_reminder",
-        description="Erstellt eine Erinnerung, z.B. 'Heute Abend an den Müll denken'.",
+        description="Erstellt eine Erinnerung, z.B. 'Heute Abend an den Müll denken' oder wiederkehrend 'jeden Dienstag 19 Uhr Müll'.",
         parameters={
             "type": "object",
             "properties": {
                 "title": {"type": "string"},
                 "due_at": {"type": "string", "description": "Zeitpunkt ISO 8601 (optional)"},
                 "priority": {"type": "string", "enum": ["critical", "important", "info"]},
+                "recurrence": {
+                    "type": "string",
+                    "enum": ["none", "daily", "weekdays", "weekly", "monthly"],
+                    "description": "Wiederholung (optional)",
+                },
             },
             "required": ["title"],
         },

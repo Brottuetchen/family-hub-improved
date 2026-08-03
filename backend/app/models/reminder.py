@@ -23,6 +23,8 @@ class Reminder(Base):
     due_at = Column(DateTime, nullable=True, index=True)
     # Priorität: critical | important | info
     priority = Column(String, default="info")
+    # Wiederholung: none | daily | weekdays | weekly | monthly
+    recurrence = Column(String, default="none")
     # Quelle: user | ai | connector:<name>
     source = Column(String, default="user")
     completed = Column(Boolean, default=False)

@@ -273,7 +273,7 @@ function dashboardHTML(d) {
       ? list(d.reminders.map((r) => `
           <div class="row">
             <button class="check" data-action="complete-reminder" data-id="${r.id}"></button>
-            <div class="body"><div class="t">${esc(r.title)}</div><div class="s">${r.due_at ? "Fällig " + fmtDate(r.due_at) + " " + fmtTime(r.due_at) : ""}</div></div>
+            <div class="body"><div class="t">${esc(r.title)}</div><div class="s">${r.due_at ? "Fällig " + fmtDate(r.due_at) + " " + fmtTime(r.due_at) : ""}${recSuffix(r.recurrence)}</div></div>
             <span class="pill ${esc(r.priority)}">${esc(r.priority)}</span>
           </div>`).join(""))
       : empty("Keine Erinnerungen")));
@@ -356,10 +356,20 @@ VIEWS.reminders = async function () {
     title: "⏰ Erinnerungen",
     fetch: () => api("/api/reminders"),
     row: (r) => `<div class="row"><button class="check" data-action="complete-reminder" data-id="${r.id}"></button>
-      <div class="body"><div class="t">${esc(r.title)}</div><div class="s">${r.due_at ? "Fällig " + fmtDate(r.due_at) + " " + fmtTime(r.due_at) : ""}</div></div>
+      <div class="body"><div class="t">${esc(r.title)}</div><div class="s">${r.due_at ? "Fällig " + fmtDate(r.due_at) + " " + fmtTime(r.due_at) : "Ohne Termin"}${recSuffix(r.recurrence)}</div></div>
       <span class="pill ${esc(r.priority)}">${esc(r.priority)}</span></div>`,
     emptyMsg: "Keine Erinnerungen",
-    form: `<form class="add-row" data-form="add-reminder"><input class="input" name="title" placeholder="Woran erinnern?"><button class="btn">+</button></form>`,
+    form: `<form class="add-row" data-form="add-reminder" style="flex-wrap:wrap">
+      <input class="input" name="title" placeholder="Woran erinnern? (z.B. Müll rausbringen)" style="flex:1 1 100%">
+      <input class="input" name="due_at" type="datetime-local" style="flex:1 1 46%">
+      <select class="input" name="recurrence" style="flex:1 1 46%">
+        <option value="none">Einmalig</option>
+        <option value="daily">Täglich</option>
+        <option value="weekdays">Werktags (Mo–Fr)</option>
+        <option value="weekly">Wöchentlich</option>
+        <option value="monthly">Monatlich</option>
+      </select>
+      <button class="btn block">Erinnerung hinzufügen</button></form>`,
   });
 };
 
@@ -402,6 +412,13 @@ VIEWS.family = simpleView("👪 Familie", async () => {
 
 function mealLabel(type) {
   return { breakfast: "Frühstück", lunch: "Mittagessen", dinner: "Abendessen" }[type] || type;
+}
+
+function recLabel(rec) {
+  return { daily: "täglich", weekdays: "werktags", weekly: "wöchentlich", monthly: "monatlich" }[rec] || "";
+}
+function recSuffix(rec) {
+  return rec && rec !== "none" ? ` · 🔁 ${recLabel(rec)}` : "";
 }
 
 VIEWS.meals = async function () {
@@ -572,7 +589,9 @@ async function onViewSubmit(e) {
       toast("Aufgabe angelegt ✅");
     } else if (kind === "add-reminder") {
       if (!data.title) return;
-      await api("/api/reminders", { method: "POST", body: JSON.stringify({ title: data.title, priority: "info" }) });
+      const payload = { title: data.title, priority: "info", recurrence: data.recurrence || "none" };
+      if (data.due_at) payload.due_at = data.due_at; // datetime-local ist bereits lokale ISO-Zeit
+      await api("/api/reminders", { method: "POST", body: JSON.stringify(payload) });
       toast("Erinnerung gespeichert ⏰");
     } else if (kind === "add-recipe") {
       if (!data.title) return;
