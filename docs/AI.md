@@ -16,6 +16,18 @@ führt Aktionen über die Module wirklich aus (Function Calling). „Hermes" ist
 Im `none`-Modus „denkt" nichts im Hintergrund – der Chat ist reines
 Request/Response. Dauerhaft läuft nur der Erinnerungs-Scheduler.
 
+## Chat-Oberfläche
+
+Der Assistent ist als eigene Ansicht **„Assistent"** ins UI integriert
+(Sparkle-Button oben rechts): vollflächiger Verlauf, **Streaming**-Antworten
+(SSE via `/api/ai/stream`), Werkzeug-Badges, Sprach­eingabe und „Neuer Chat".
+Der **Gesprächsverlauf wird pro Nutzer serverseitig** gespeichert
+(`/api/ai/history`) und dient dem Modell als Kontext.
+
+Robustes Tool-Calling: neben den Standard-`tool_calls` (OpenAI/Ollama) parst der
+Agent auch die von manchen **Nous-Hermes**-Modellen als Text ausgegebenen
+`<tool_call>{...}</tool_call>`-Aufrufe.
+
 ## Nous Hermes lokal betreiben (empfohlen fürs Homelab)
 
 Mit dem optionalen Ollama-Dienst aus `docker-compose.yml`:
