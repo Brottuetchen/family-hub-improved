@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
@@ -82,24 +82,65 @@ async def _run_llm(message: str, ctx: ToolContext, history: List[Dict[str, str]]
     for _ in range(MAX_ITERATIONS):
         msg = await llm_client.chat(messages, tools=openai_tools(ctx.role))
         tool_calls = msg.get("tool_calls")
-        if not tool_calls:
-            return {"reply": msg.get("content", ""), "actions": executed, "used_llm": True}
 
-        messages.append(msg)
-        for tc in tool_calls:
-            fn = tc.get("function", {})
-            name = fn.get("name")
-            try:
-                args = json.loads(fn.get("arguments") or "{}")
-            except json.JSONDecodeError:
-                args = {}
-            result = await _execute_tool(name, ctx, args)
-            executed.append(name)
-            messages.append(
-                {"role": "tool", "tool_call_id": tc.get("id"), "content": result}
-            )
+        # 1) Standard OpenAI-/Ollama-Tool-Calls
+        if tool_calls:
+            messages.append(msg)
+            for tc in tool_calls:
+                fn = tc.get("function", {})
+                name = fn.get("name")
+                try:
+                    args = json.loads(fn.get("arguments") or "{}")
+                except (json.JSONDecodeError, TypeError):
+                    args = {}
+                result = await _execute_tool(name, ctx, args)
+                executed.append(name)
+                messages.append({"role": "tool", "tool_call_id": tc.get("id"), "content": result})
+            continue
+
+        # 2) Nous-Hermes-Variante: Tool-Calls als Text (<tool_call>{...}</tool_call>)
+        content = msg.get("content", "") or ""
+        text_calls = _parse_text_tool_calls(content)
+        if text_calls:
+            messages.append({"role": "assistant", "content": content})
+            for call in text_calls:
+                result = await _execute_tool(call["name"], ctx, call["arguments"])
+                executed.append(call["name"])
+                messages.append({"role": "user", "content": f"[Werkzeug {call['name']} Ergebnis]: {result}"})
+            continue
+
+        return {"reply": content, "actions": executed, "used_llm": True}
 
     return {"reply": "Ich konnte die Anfrage nicht abschließen.", "actions": executed, "used_llm": True}
+
+
+def _parse_text_tool_calls(content: str) -> List[Dict[str, Any]]:
+    """Extrahiert Tool-Calls, die manche Nous-Hermes-Modelle als Text ausgeben.
+
+    Unterstützt <tool_call>{...}</tool_call> sowie freistehende
+    {"name": ..., "arguments": {...}}-Objekte.
+    """
+    if not content:
+        return []
+    raw: List[str] = re.findall(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", content, re.DOTALL)
+    if not raw:
+        raw = re.findall(r"\{\s*\"name\"\s*:\s*\"[^\"]+\"\s*,\s*\"arguments\"\s*:\s*\{.*?\}\s*\}", content, re.DOTALL)
+    out: List[Dict[str, Any]] = []
+    for chunk in raw:
+        try:
+            obj = json.loads(chunk)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        name = obj.get("name")
+        args = obj.get("arguments", {})
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except (json.JSONDecodeError, TypeError):
+                args = {}
+        if name:
+            out.append({"name": name, "arguments": args or {}})
+    return out
 
 
 # === Regelbasierter Fallback ===
@@ -134,6 +175,17 @@ async def _run_rules(message: str, ctx: ToolContext) -> Dict[str, Any]:
     if reminder:
         reply = await _execute_tool("create_reminder", ctx, reminder)
         return _reply(reply, "create_reminder")
+
+    # Essen einplanen: "Plane Spaghetti für morgen"
+    mplan = re.search(
+        r"\bplane?\s+(.+?)\s+für\s+(heute|morgen|übermorgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b",
+        low,
+    )
+    if mplan:
+        start = low.index(mplan.group(1))
+        title = _clean(text[start:start + len(mplan.group(1))])
+        reply = await _execute_tool("add_meal", ctx, {"title": title, "date": _day_to_date(mplan.group(2))})
+        return _reply(reply, "add_meal")
 
     # Aufgabe / Planung
     task_title = _extract_task(text)
@@ -294,6 +346,20 @@ def _extract_task(text: str) -> Optional[str]:
     if m:
         return _clean(text[text.lower().index(m.group(2)):])
     return None
+
+
+def _day_to_date(word: str) -> str:
+    w = word.lower()
+    today = date.today()
+    if w == "heute":
+        return today.isoformat()
+    if w == "morgen":
+        return (today + timedelta(days=1)).isoformat()
+    if w == "übermorgen":
+        return (today + timedelta(days=2)).isoformat()
+    if w in WEEKDAYS_DE:
+        return next_weekday(WEEKDAYS_DE[w], 12, 0).date().isoformat()
+    return today.isoformat()
 
 
 def _extract_light_name(text: str) -> str:

@@ -34,6 +34,11 @@ def test_calendar_intent(client, auth):
     assert "get_calendar" in r.json()["actions"]
 
 
+def test_plan_meal_intent(client, auth):
+    r = client.post("/api/ai/chat", headers=auth, json={"message": "Plane Spaghetti für morgen"})
+    assert "add_meal" in r.json()["actions"]
+
+
 def _make_child_and_login(client, auth):
     client.post(
         "/api/auth/users",

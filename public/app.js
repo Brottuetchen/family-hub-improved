@@ -3,6 +3,7 @@
 const TOKEN_KEY = "hermes_token";
 const MODULES = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "assistant", label: "Assistent" },
   { id: "calendar", label: "Kalender" },
   { id: "tasks", label: "Aufgaben" },
   { id: "shopping", label: "Einkauf" },
@@ -115,14 +116,9 @@ function bindChrome() {
     if (b) navigate(b.dataset.nav);
   });
   $("#btn-theme").addEventListener("click", toggleTheme);
-  $("#btn-ai").addEventListener("click", openAI);
-  $("#ai-close").addEventListener("click", closeAI);
-  $("#overlay").addEventListener("click", closeAI);
+  $("#btn-ai").addEventListener("click", () => navigate("assistant"));
   $("#btn-search").addEventListener("click", () => navigate("search"));
   $("#btn-profile").addEventListener("click", profileMenu);
-  $("#ai-send").addEventListener("click", sendAI);
-  $("#ai-text").addEventListener("keydown", (e) => { if (e.key === "Enter") sendAI(); });
-  $("#ai-mic").addEventListener("click", startVoice);
 
   // Event delegation for view actions
   $("#view").addEventListener("click", onViewClick);
@@ -649,70 +645,145 @@ async function onViewSubmit(e) {
   } catch (err) { toast(err.message); }
 }
 
-/* ---------- AI Panel ---------- */
-let aiHistory = [];
-function openAI() {
-  $("#overlay").classList.add("show");
-  $("#ai-panel").classList.add("show");
-  if (!$("#ai-msgs").childElementCount) {
-    addAIMessage("bot", "Hallo! Ich bin Hermes 👋 Wie kann ich helfen?");
-    renderChips(["Was steht heute an?", "Bestell Milch", "Wie ist das Wetter?", "Erinnere mich heute Abend an den Müll"]);
-    api("/api/ai/status").then((s) => { $("#ai-mode").textContent = s.mode === "llm" ? "KI-Modell aktiv" : "Regelbasiert"; }).catch(() => {});
+/* ---------- Assistent (Chat mit Streaming) ---------- */
+let chatBusy = false;
+
+VIEWS.assistant = async function () {
+  const v = $("#view");
+  v.innerHTML = `
+    <div class="chat">
+      <div class="chat-head">
+        <div class="ttl"><span class="logo">☿</span> Hermes AI <span class="chat-mode" id="chat-mode"></span></div>
+        <button class="btn ghost" id="chat-new">Neuer Chat</button>
+      </div>
+      <div class="chat-msgs" id="chat-msgs"></div>
+      <div class="chips" id="chat-chips"></div>
+      <form class="chat-input" id="chat-form">
+        <button type="button" class="icon-btn" id="chat-mic" title="Sprache">🎤</button>
+        <input class="input" id="chat-text" placeholder="Frag Hermes … z.B. „Plane Spaghetti für morgen“" autocomplete="off">
+        <button class="icon-btn primary" type="submit">➤</button>
+      </form>
+    </div>`;
+
+  const box = $("#chat-msgs");
+  const hist = await api("/api/ai/history").catch(() => []);
+  if (!hist.length) {
+    appendChatMsg("bot", "Hallo! Ich bin Hermes 👋 Ich kann Termine, Aufgaben, Einkäufe, Erinnerungen, Smart Home, Medien und mehr für dich steuern – frag einfach.");
+    renderChatChips();
+  } else {
+    hist.forEach((m) => appendChatMsg(m.role === "user" ? "user" : "bot", m.content, m.actions));
   }
-  setTimeout(() => $("#ai-text").focus(), 250);
-}
-function closeAI() { $("#overlay").classList.remove("show"); $("#ai-panel").classList.remove("show"); }
+  api("/api/ai/status").then((s) => {
+    $("#chat-mode").textContent = s.mode === "llm" ? `· ${s.model}` : "· Regelbasiert";
+  }).catch(() => {});
 
-function renderChips(items) {
-  $("#ai-chips").innerHTML = items.map((c) => `<button class="chip">${esc(c)}</button>`).join("");
-  $("#ai-chips").querySelectorAll(".chip").forEach((el) => el.addEventListener("click", () => { $("#ai-text").value = el.textContent; sendAI(); }));
-}
+  $("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); sendChat(); });
+  $("#chat-mic").addEventListener("click", () => startVoice($("#chat-text"), sendChat));
+  $("#chat-new").addEventListener("click", async () => {
+    try { await api("/api/ai/history", { method: "DELETE" }); } catch (_) {}
+    navigate("assistant");
+  });
+  setTimeout(() => { const t = $("#chat-text"); if (t) t.focus(); }, 100);
+};
 
-function addAIMessage(role, text, actions) {
+function appendChatMsg(role, text, actions) {
+  const box = $("#chat-msgs");
+  if (!box) return null;
   const m = document.createElement("div");
   m.className = "msg " + (role === "user" ? "user" : "bot");
   m.textContent = text;
-  if (actions && actions.length) { const a = document.createElement("div"); a.className = "act"; a.textContent = "🔧 " + actions.join(", "); m.appendChild(a); }
-  $("#ai-msgs").appendChild(m);
-  $("#ai-msgs").scrollTop = $("#ai-msgs").scrollHeight;
+  if (actions && actions.length) addChatActions(m, actions);
+  box.appendChild(m);
+  box.scrollTop = box.scrollHeight;
   return m;
 }
 
-async function sendAI() {
-  const input = $("#ai-text");
+function addChatActions(el, actions) {
+  const a = document.createElement("div");
+  a.className = "act";
+  a.textContent = "🔧 " + actions.join(", ");
+  el.appendChild(a);
+}
+
+function renderChatChips() {
+  const chips = ["Was steht heute an?", "Plane Spaghetti für morgen", "Mach das Licht im Wohnzimmer an", "Erinnere mich jeden Dienstag 19 Uhr an den Müll", "Was läuft gerade?"];
+  const c = $("#chat-chips");
+  if (!c) return;
+  c.innerHTML = chips.map((x) => `<button class="chip">${esc(x)}</button>`).join("");
+  c.querySelectorAll(".chip").forEach((el) => el.addEventListener("click", () => { $("#chat-text").value = el.textContent; sendChat(); }));
+}
+
+async function sendChat() {
+  if (chatBusy) return;
+  const input = $("#chat-text");
   const text = input.value.trim();
   if (!text) return;
   input.value = "";
-  $("#ai-chips").innerHTML = "";
-  addAIMessage("user", text);
-  const thinking = addAIMessage("bot", "…");
+  const chips = $("#chat-chips"); if (chips) chips.innerHTML = "";
+  appendChatMsg("user", text);
+  const bot = appendChatMsg("bot", "");
+  bot.classList.add("typing");
+  chatBusy = true;
+
   try {
-    const res = await api("/api/ai/chat", { method: "POST", body: JSON.stringify({ message: text, history: aiHistory.slice(-6) }) });
-    thinking.textContent = res.reply || "(keine Antwort)";
-    if (res.actions && res.actions.length) { const a = document.createElement("div"); a.className = "act"; a.textContent = "🔧 " + res.actions.join(", "); thinking.appendChild(a); }
-    aiHistory.push({ role: "user", content: text }, { role: "assistant", content: res.reply || "" });
-    if (res.actions && res.actions.length && currentView === "dashboard") navigate("dashboard");
-  } catch (err) { thinking.textContent = "Fehler: " + err.message; }
+    const res = await fetch("/api/ai/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      credentials: "include",
+      body: JSON.stringify({ message: text }),
+    });
+    if (res.status === 401) {
+      if (await tryRefresh()) { chatBusy = false; input.value = text; return sendChat(); }
+      location.href = "/login.html"; return;
+    }
+    if (!res.ok || !res.body) {
+      // Fallback: nicht-gestreamt
+      const r = await api("/api/ai/chat", { method: "POST", body: JSON.stringify({ message: text }) });
+      bot.textContent = r.reply || "(keine Antwort)";
+      if (r.actions && r.actions.length) addChatActions(bot, r.actions);
+    } else {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "", full = "";
+      bot.textContent = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf("\n\n")) >= 0) {
+          const line = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx + 2);
+          if (!line.startsWith("data:")) continue;
+          let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch (_) { continue; }
+          if (ev.type === "delta") { full += ev.text; bot.textContent = full; $("#chat-msgs").scrollTop = 1e9; }
+          else if (ev.type === "done") { if (ev.actions && ev.actions.length) addChatActions(bot, ev.actions); }
+          else if (ev.type === "error") { bot.textContent = "Fehler: " + ev.message; }
+        }
+      }
+    }
+  } catch (err) {
+    bot.textContent = "Fehler: " + err.message;
+  } finally {
+    bot.classList.remove("typing");
+    chatBusy = false;
+  }
 }
 
 /* ---------- Voice (Web Speech API) ---------- */
-function startVoice() {
+function startVoice(targetInput, onDone) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { toast("Spracheingabe nicht unterstützt"); return; }
   const rec = new SR();
   rec.lang = "de-DE";
   rec.interimResults = false;
   rec.maxAlternatives = 1;
-  const mic = $("#ai-mic");
-  mic.textContent = "🔴";
   rec.onresult = (e) => {
-    const text = e.results[0][0].transcript;
-    $("#ai-text").value = text;
-    sendAI();
+    if (targetInput) targetInput.value = e.results[0][0].transcript;
+    if (onDone) onDone();
   };
   rec.onerror = () => toast("Spracheingabe fehlgeschlagen");
-  rec.onend = () => { mic.textContent = "🎤"; };
-  try { rec.start(); } catch (_) { mic.textContent = "🎤"; }
+  try { rec.start(); } catch (_) {}
 }
 
 /* ---------- Push ---------- */
