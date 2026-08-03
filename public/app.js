@@ -284,7 +284,7 @@ function card(title, navTo, inner, count) {
   const c = count != null ? `<span class="count">${count}</span>` : "";
   return `<div class="card">${navTo ? `<h3 data-nav="${navTo}" style="cursor:pointer">${title} ${c}</h3>` : `<h3>${title} ${c}</h3>`}${inner}</div>`;
 }
-function list(rows) { return `<div class="list">${rows}</div>`; }
+function list(rows) { return `<div class="list">${Array.isArray(rows) ? rows.join("") : rows}</div>`; }
 function empty(msg) { return `<div class="empty">${esc(msg)}</div>`; }
 function rowHTML({ lead, leadColor, t, s, trail }) {
   const leadEl = leadColor ? `<span class="dot" style="background:${esc(leadColor)}"></span>` : `<div class="lead">${esc(lead || "•")}</div>`;
