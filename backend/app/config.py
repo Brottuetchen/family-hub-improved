@@ -9,17 +9,22 @@ betreffende Baustein liefert leere/Beispiel-Daten statt einen Fehler zu werfen.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Repo-Wurzel (…/config.py -> app -> backend -> root), damit die .env unabhängig
+# vom Arbeitsverzeichnis gefunden wird (der Installer schreibt sie in die Wurzel).
+_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
     """Applikationsweite Einstellungen (env-driven)."""
 
     model_config = SettingsConfigDict(
-        env_file=(".env", "backend/.env"),
+        env_file=(str(_ROOT / ".env"), str(_ROOT / "backend" / ".env"), ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,

@@ -16,23 +16,29 @@ def _b64(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
-def main() -> int:
-    try:
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import ec
-    except ImportError:
-        print("Die 'cryptography'-Bibliothek wird benötigt (in requirements.txt enthalten).")
-        return 1
+def generate_keys() -> tuple[str, str]:
+    """Erzeugt (private, public) VAPID-Schlüssel als base64url-Strings."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
 
     key = ec.generate_private_key(ec.SECP256R1())
     private_value = key.private_numbers().private_value.to_bytes(32, "big")
     public_point = key.public_key().public_bytes(
         serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
     )
+    return _b64(private_value), _b64(public_point)
+
+
+def main() -> int:
+    try:
+        private, public = generate_keys()
+    except ImportError:
+        print("Die 'cryptography'-Bibliothek wird benötigt (in requirements.txt enthalten).")
+        return 1
 
     print("# In die .env eintragen:")
-    print("VAPID_PRIVATE_KEY=" + _b64(private_value))
-    print("VAPID_PUBLIC_KEY=" + _b64(public_point))
+    print("VAPID_PRIVATE_KEY=" + private)
+    print("VAPID_PUBLIC_KEY=" + public)
     return 0
 
 

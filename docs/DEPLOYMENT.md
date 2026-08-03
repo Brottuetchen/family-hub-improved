@@ -1,6 +1,17 @@
 # Deployment
 
-## Docker Compose (empfohlen)
+## Installer (empfohlen)
+
+Der geführte Installer fragt alle URLs/IPs, API-Keys und Zugangsdaten ab,
+erzeugt `SECRET_KEY` + VAPID-Schlüssel und schreibt die `.env`:
+
+```bash
+./install.sh                         # optional inkl. Docker-Start + Admin
+# oder nur der Assistent:
+python3 backend/scripts/setup.py
+```
+
+## Docker Compose (manuell)
 
 ```bash
 cp .env.example .env
