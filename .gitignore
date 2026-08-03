@@ -8,8 +8,6 @@ venv/
 env/
 .venv/
 .claude/
--
- --date=short
 *.egg-info/
 
 # Environment
@@ -35,10 +33,6 @@ Thumbs.db
 *.backup
 *.bak
 
-# Test files
-test_*.py
-*_test.py
-
 # Push Notifications - Secrets
 backend/vapid_keys.json
 backend/push_subscriptions.json
@@ -47,6 +41,13 @@ backend/push_subscriptions.json
 # Database
 backend/*.db
 backend/*.db-journal
+*.db
+*.db-journal
+hermes.db
+
+# Python venv
+backend/.venv/
+.venv/
 
 # Debug pages
 public/push-test-ios.html

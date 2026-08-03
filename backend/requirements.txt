@@ -1,42 +1,33 @@
-# Family Hub Backend Dependencies
+# Hermes Family OS – Backend Dependencies
 
-# FastAPI Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+# --- Web Framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
 
-# Push Notifications (fixes EC curve error)
+# --- Config & Validation ---
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# --- Auth / Security ---
+python-jose[cryptography]==3.3.0
+bcrypt==4.2.1
+cryptography==44.0.0
+
+# --- Database ---
+sqlalchemy==2.0.36
+# PostgreSQL-Treiber (für Produktion via docker-compose)
+psycopg2-binary==2.9.10
+
+# --- HTTP client (Connectors) ---
+httpx==0.28.1
+
+# --- Push Notifications ---
 pywebpush==2.0.0
 
-# HTTP Requests
-requests==2.31.0
+# --- Kalender (CalDAV/Nextcloud) ---
+caldav==1.4.0
+icalendar==6.1.0
 
-# Data Validation
-pydantic==2.5.0
-
-# Authentication & Security
-python-jose[cryptography]==3.3.0  # JWT tokens
-passlib[bcrypt]==1.7.4            # Password hashing
-python-multipart==0.0.6           # Form data
-bcrypt==4.1.2                     # Password hashing
-
-# Database
-sqlalchemy==2.0.23                # ORM
-alembic==1.13.1                   # Migrations
-
-# Rate Limiting
-slowapi==0.1.9                    # Rate limiting middleware
-
-# Optional: Database (für spätere Erweiterung)
-# sqlalchemy==2.0.23
-# alembic==1.12.1
-
-# Optional: Redis Cache (für spätere Erweiterung)
-# redis==5.0.1
-
-# Optional: Async HTTP Client (für bessere Performance)
-# httpx==0.25.2
-
-# Development Tools (optional)
-# pytest==7.4.3
-# black==23.11.0
-# flake8==6.1.0
+# --- Tests (optional) ---
+pytest==8.3.4
