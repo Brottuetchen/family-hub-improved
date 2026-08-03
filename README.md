@@ -87,7 +87,9 @@ erzeugt `SECRET_KEY` und VAPID-Schlüssel automatisch und schreibt die `.env`:
 ./install.sh
 # alternativ nur den Assistenten:  python3 backend/scripts/setup.py
 ```
-Auf Wunsch startet der Installer direkt Docker und legt den Admin an.
+Der Installer ist **one-shot**: du wählst *lokal* (Python-venv) oder *Docker*.
+Er installiert **alle** Abhängigkeiten, schreibt die `.env`, legt den Admin an und
+startet Hermes – lokal auf Wunsch als `systemd`-Dienst.
 
 ### Variante B – Docker manuell
 
@@ -104,19 +106,27 @@ docker compose exec hermes python -m scripts.seed_demo
 
 App: http://localhost:8000
 
-### Variante C – Lokal (Python 3.11+)
+### Variante C – Lokal (Python 3.11+, ohne Docker)
+
+Am einfachsten via `./install.sh` (Option **„Lokal"**) – er legt die venv an,
+installiert **alle** Abhängigkeiten und richtet optional einen `systemd`-Dienst ein.
+Manuell:
 
 ```bash
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python ../backend/scripts/setup.py   # oder: cp ../.env.example ../.env
+python scripts/setup.py              # .env schreiben (Ziel „lokal" -> SQLite)
 python -m scripts.create_admin       # Admin anlegen
 python -m scripts.seed_demo          # optional: Demo-Daten
 
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+> Lokal ist **SQLite** der Standard (`DATABASE_URL=sqlite:///./hermes.db`).
+> Der Host `db` in `DATABASE_URL` funktioniert **nur** in docker-compose – für
+> Postgres bare-metal die echte Host-Adresse eintragen.
 
 App: http://localhost:8000 · API-Docs: http://localhost:8000/docs
 

@@ -1,5 +1,9 @@
 """Tests für den Installer (Setup-Assistent)."""
 
+import builtins
+import getpass
+
+import scripts.setup as setup
 from scripts.setup import CONNECTORS, load_env, write_env
 
 
@@ -40,3 +44,29 @@ def test_connectors_cover_all_systems():
         "TEDDYCLOUD_URL", "OVERSEERR_API_KEY",
     }
     assert expected <= keys
+
+
+def _run_setup(monkeypatch, tmp_path, target):
+    """Führt den Assistenten mit Default-Antworten aus und liefert die .env-Werte."""
+    env_path = tmp_path / ".env"
+    monkeypatch.setattr(setup, "ENV_PATH", env_path)
+    monkeypatch.setenv("HERMES_INSTALL_TARGET", target)
+    # Alle Eingaben = Enter (Vorgaben übernehmen); VAPID überspringen.
+    monkeypatch.setattr(builtins, "input", lambda *a, **k: "")
+    monkeypatch.setattr(getpass, "getpass", lambda *a, **k: "")
+    monkeypatch.setattr(setup, "gen_vapid", lambda: ("", ""))
+    assert setup.main() == 0
+    return load_env(env_path)
+
+
+def test_local_install_uses_sqlite_not_docker_host(monkeypatch, tmp_path):
+    # Regression: lokal darf NICHT den Compose-Host 'db' verwenden.
+    env = _run_setup(monkeypatch, tmp_path, "local")
+    assert env["DATABASE_URL"] == "sqlite:///./hermes.db"
+    assert "@db:" not in env["DATABASE_URL"]
+
+
+def test_docker_install_defaults_to_sqlite(monkeypatch, tmp_path):
+    # Docker-Ziel ohne Postgres-Zusage -> ebenfalls SQLite (kein 'db'-Host).
+    env = _run_setup(monkeypatch, tmp_path, "docker")
+    assert env["DATABASE_URL"] == "sqlite:///./hermes.db"

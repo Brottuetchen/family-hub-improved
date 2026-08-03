@@ -208,19 +208,47 @@ def main() -> int:
     env["WEATHER_LATITUDE"] = ask("Breitengrad", env.get("WEATHER_LATITUDE", "52.52"))
     env["WEATHER_LONGITUDE"] = ask("Längengrad", env.get("WEATHER_LONGITUDE", "13.405"))
 
+    # Installations-Ziel (bestimmt v.a. den Datenbank-Host).
+    # install.sh setzt HERMES_INSTALL_TARGET; sonst interaktiv erfragen.
+    target = (os.environ.get("HERMES_INSTALL_TARGET") or "").strip().lower()
+    if target not in ("local", "docker"):
+        target = "docker" if ask_yesno(
+            "Läuft Hermes in Docker/Compose (nein = lokal auf diesem Host)?", True
+        ) else "local"
+
     # Datenbank
     head("Datenbank")
-    use_pg = ask_yesno("PostgreSQL nutzen (empfohlen, sonst SQLite)?", bool(env.get("POSTGRES_PASSWORD")))
-    if use_pg:
-        env["POSTGRES_USER"] = ask("Postgres-Benutzer", env.get("POSTGRES_USER", "hermes"))
-        env["POSTGRES_PASSWORD"] = ask_secret("Postgres-Passwort", env.get("POSTGRES_PASSWORD", "")) or secrets.token_urlsafe(16)
-        env["POSTGRES_DB"] = ask("Postgres-Datenbank", env.get("POSTGRES_DB", "hermes"))
-        # Für docker-compose baut compose die DATABASE_URL selbst; für Nicht-Docker hier setzen:
-        env["DATABASE_URL"] = (
-            f"postgresql+psycopg2://{env['POSTGRES_USER']}:{env['POSTGRES_PASSWORD']}@db:5432/{env['POSTGRES_DB']}"
+    if target == "docker":
+        use_pg = ask_yesno(
+            "PostgreSQL nutzen (empfohlen, sonst SQLite)?",
+            env.get("DATABASE_URL", "").startswith("postgres") or bool(env.get("POSTGRES_PASSWORD")),
         )
-    else:
-        env["DATABASE_URL"] = "sqlite:///./hermes.db"
+        if use_pg:
+            env["POSTGRES_USER"] = ask("Postgres-Benutzer", env.get("POSTGRES_USER", "hermes"))
+            env["POSTGRES_PASSWORD"] = ask_secret("Postgres-Passwort", env.get("POSTGRES_PASSWORD", "")) or secrets.token_urlsafe(16)
+            env["POSTGRES_DB"] = ask("Postgres-Datenbank", env.get("POSTGRES_DB", "hermes"))
+            # Im Compose-Netz ist der DB-Host der Service-Name 'db'.
+            env["DATABASE_URL"] = (
+                f"postgresql+psycopg2://{env['POSTGRES_USER']}:{env['POSTGRES_PASSWORD']}@db:5432/{env['POSTGRES_DB']}"
+            )
+        else:
+            env["DATABASE_URL"] = "sqlite:///./hermes.db"
+    else:  # local / bare-metal
+        print("  Lokal ist SQLite ohne Zusatzdienst am einfachsten (empfohlen).")
+        use_pg = ask_yesno(
+            "Externe PostgreSQL-DB nutzen (sonst SQLite)?",
+            env.get("DATABASE_URL", "").startswith("postgres"),
+        )
+        if use_pg:
+            # WICHTIG: echte Host-Adresse, NICHT 'db' (das gibt es nur in Docker).
+            host = ask("Postgres-Host (echte Adresse, nicht 'db')", "localhost")
+            port = ask("Postgres-Port", "5432")
+            user = ask("Postgres-Benutzer", env.get("POSTGRES_USER", "hermes"))
+            pw = ask_secret("Postgres-Passwort", env.get("POSTGRES_PASSWORD", ""))
+            dbname = ask("Postgres-Datenbank", env.get("POSTGRES_DB", "hermes"))
+            env["DATABASE_URL"] = f"postgresql+psycopg2://{user}:{pw}@{host}:{port}/{dbname}"
+        else:
+            env["DATABASE_URL"] = "sqlite:///./hermes.db"
 
     # KI-Modus
     head("Hermes AI")
@@ -281,12 +309,19 @@ def main() -> int:
 
     # Nächste Schritte
     head("Nächste Schritte")
-    print("  Mit Docker starten:")
-    print(_c("    docker compose up -d --build", "1"))
-    print(_c("    docker compose exec hermes python -m scripts.create_admin", "1"))
-    print("\n  Oder lokal (Python):")
-    print(_c("    cd backend && uvicorn app.main:app", "1"))
-    print("\n  App danach unter http://localhost:8000\n")
+    port = env.get("PORT", "8000")
+    if target == "docker":
+        print("  Mit Docker starten:")
+        print(_c("    docker compose up -d --build", "1"))
+        print(_c("    docker compose exec hermes python -m scripts.create_admin", "1"))
+        print(f"\n  App danach unter http://localhost:{port}\n")
+    else:
+        print("  Lokal starten (venv):")
+        print(_c("    cd backend && source .venv/bin/activate", "1"))
+        print(_c("    python -m scripts.create_admin", "1"))
+        print(_c(f"    uvicorn app.main:app --host 0.0.0.0 --port {port}", "1"))
+        print(_c("\n  Tipp: ./install.sh erledigt venv, Abhängigkeiten, Admin und Dienst automatisch.", "33"))
+        print(f"\n  App danach unter http://<server-ip>:{port}\n")
     return 0
 
 
