@@ -78,7 +78,18 @@ Fahrplan der weiteren Phasen: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Schnellstart
 
-### Variante A – Docker (empfohlen)
+### Variante A – Installer (am einfachsten)
+
+Der geführte Installer fragt alle URLs/IPs, API-Keys und Zugangsdaten ab,
+erzeugt `SECRET_KEY` und VAPID-Schlüssel automatisch und schreibt die `.env`:
+
+```bash
+./install.sh
+# alternativ nur den Assistenten:  python3 backend/scripts/setup.py
+```
+Auf Wunsch startet der Installer direkt Docker und legt den Admin an.
+
+### Variante B – Docker manuell
 
 ```bash
 cp .env.example .env
@@ -93,16 +104,16 @@ docker compose exec hermes python -m scripts.seed_demo
 
 App: http://localhost:8000
 
-### Variante B – Lokal (Python 3.11+)
+### Variante C – Lokal (Python 3.11+)
 
 ```bash
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-cp ../.env.example ../.env          # SECRET_KEY setzen
-python -m scripts.create_admin      # Admin anlegen
-python -m scripts.seed_demo         # optional: Demo-Daten
+python ../backend/scripts/setup.py   # oder: cp ../.env.example ../.env
+python -m scripts.create_admin       # Admin anlegen
+python -m scripts.seed_demo          # optional: Demo-Daten
 
 uvicorn app.main:app --reload
 ```
@@ -122,10 +133,10 @@ der Rest funktioniert normal.
 VIKUNJA_URL=https://vikunja.example.com
 VIKUNJA_TOKEN=xxxxx
 
-# Beispiel: KI (lokal via Ollama)
-AI_PROVIDER=local
-AI_BASE_URL=http://localhost:11434/v1
-AI_MODEL=qwen2.5
+# Beispiel: KI (Cloud, OpenAI-kompatibel)
+AI_PROVIDER=openai
+AI_API_KEY=sk-...
+AI_MODEL=gpt-4o-mini
 ```
 
 Vollständige Liste: [`.env.example`](.env.example) · Connector-Doku: [`docs/CONNECTORS.md`](docs/CONNECTORS.md)

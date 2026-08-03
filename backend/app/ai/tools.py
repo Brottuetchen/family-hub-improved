@@ -14,7 +14,11 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.connectors.registry import registry
+from app.core.security import ROLE_LEVEL
+from app.models.family import FamilyMember
 from app.models.finance import RecurringExpense
+from app.models.maintenance import MaintenanceTask
+from app.models.package import Package
 from app.models.recipe import MealPlanEntry, Recipe
 from app.models.reminder import Reminder
 
@@ -23,6 +27,12 @@ from app.models.reminder import Reminder
 class ToolContext:
     db: Session
     user_id: Optional[int] = None
+    # Rolle des aktuellen Nutzers – steuert, welche Werkzeuge erlaubt sind.
+    role: str = "partner"
+
+
+def is_allowed(min_role: str, user_role: str) -> bool:
+    return ROLE_LEVEL.get(user_role, 0) >= ROLE_LEVEL.get(min_role, 0)
 
 
 @dataclass
@@ -31,6 +41,8 @@ class Tool:
     description: str
     parameters: Dict[str, Any]
     handler: Callable[..., Awaitable[str]]
+    # Mindest-Rolle, um dieses Werkzeug zu nutzen (guest < child < partner < admin).
+    min_role: str = "guest"
 
     def openai_schema(self) -> Dict[str, Any]:
         return {
@@ -233,6 +245,143 @@ async def _search(ctx: ToolContext, query: str) -> str:
     return "\n".join(lines)
 
 
+async def _get_calendar(ctx: ToolContext) -> str:
+    cal = registry.get("caldav")
+    if not cal or not cal.is_configured:
+        return "Kalender (CalDAV) ist nicht konfiguriert."
+    events = await cal.get_events(days_ahead=7)  # type: ignore[attr-defined]
+    if not events:
+        return "Keine Termine in den nächsten 7 Tagen."
+    lines = ["📅 Termine:"]
+    for e in events[:8]:
+        lines.append(f"   • {e.get('title')} ({e.get('start', '')})")
+    return "\n".join(lines)
+
+
+async def _get_smart_home(ctx: ToolContext) -> str:
+    ha = registry.get("homeassistant")
+    if not ha or not ha.is_configured:
+        return "Smart Home (Home Assistant) ist nicht konfiguriert."
+    ov = await ha.get_overview()  # type: ignore[attr-defined]
+    return f"🏠 {ov.get('lights_on', 0)} Lichter an, {ov.get('doors_windows_open', 0)} Türen/Fenster offen."
+
+
+async def _control_light(ctx: ToolContext, name: str, action: str = "on") -> str:
+    ha = registry.get("homeassistant")
+    if not ha or not ha.is_configured:
+        return "Smart Home (Home Assistant) ist nicht konfiguriert."
+    svc = "turn_on" if str(action).lower() in ("on", "an", "ein", "einschalten", "anmachen", "turn_on", "true") else "turn_off"
+    states = await ha.get_states()  # type: ignore[attr-defined]
+    cand = [
+        s for s in states
+        if s["entity_id"].split(".")[0] in ("light", "switch") and name.lower() in (s.get("name") or "").lower()
+    ]
+    if not cand:
+        return f"Kein schaltbares Gerät '{name}' gefunden."
+    ent = cand[0]["entity_id"]
+    ok = await ha.call_service(ent.split(".")[0], svc, ent)  # type: ignore[attr-defined]
+    verb = "eingeschaltet" if svc == "turn_on" else "ausgeschaltet"
+    return f"{cand[0]['name']} {verb}. 💡" if ok else "Konnte das Gerät nicht schalten."
+
+
+async def _add_package(ctx: ToolContext, description: str, tracking_number: Optional[str] = None, carrier: str = "auto") -> str:
+    from app.services.tracking import detect_carrier
+
+    c = detect_carrier(tracking_number) if (not carrier or carrier == "auto") else carrier
+    ctx.db.add(Package(carrier=c, tracking_number=tracking_number, description=description, status="in_transit"))
+    ctx.db.commit()
+    return f"Paket '{description}' ({c.upper()}) wird jetzt verfolgt. 📦"
+
+
+async def _list_packages(ctx: ToolContext) -> str:
+    pkgs = ctx.db.query(Package).filter(Package.status != "delivered").all()
+    if not pkgs:
+        return "Keine offenen Pakete."
+    return "📦 Pakete:\n" + "\n".join(
+        f"   • {p.carrier.upper()}: {p.description or p.tracking_number or 'Paket'} ({p.status})" for p in pkgs
+    )
+
+
+async def _add_expense(ctx: ToolContext, name: str, amount: float, interval: str = "monthly", category: str = "other") -> str:
+    try:
+        amt = float(amount)
+    except (TypeError, ValueError):
+        amt = 0.0
+    interval = interval if interval in {"weekly", "monthly", "quarterly", "yearly"} else "monthly"
+    ctx.db.add(RecurringExpense(name=name, amount=amt, interval=interval, category=category))
+    ctx.db.commit()
+    return f"Kostenposten '{name}' ({amt:.2f} €, {interval}) gespeichert. 💶"
+
+
+async def _get_maintenance(ctx: ToolContext) -> str:
+    from datetime import date, timedelta
+
+    tasks = (
+        ctx.db.query(MaintenanceTask)
+        .filter(MaintenanceTask.next_due != None)  # noqa: E711
+        .filter(MaintenanceTask.next_due <= date.today() + timedelta(days=30))
+        .all()
+    )
+    if not tasks:
+        return "Keine anstehenden Wartungen."
+    return "🔧 Wartung:\n" + "\n".join(f"   • {t.title} (fällig {t.next_due.strftime('%d.%m.')})" for t in tasks)
+
+
+async def _complete_maintenance(ctx: ToolContext, title: str) -> str:
+    from datetime import date, timedelta
+
+    t = ctx.db.query(MaintenanceTask).filter(MaintenanceTask.title.ilike(f"%{title}%")).first()
+    if not t:
+        return f"Keine Wartung '{title}' gefunden."
+    t.last_done = date.today()
+    if t.interval_days:
+        t.next_due = date.today() + timedelta(days=t.interval_days)
+    ctx.db.commit()
+    return f"'{t.title}' als erledigt markiert. ✅"
+
+
+async def _add_meal(ctx: ToolContext, title: str, date: Optional[str] = None, meal_type: str = "dinner") -> str:
+    from datetime import date as date_cls
+
+    day = date or date_cls.today().isoformat()
+    recipe = ctx.db.query(Recipe).filter(Recipe.title.ilike(f"%{title}%")).first()
+    ctx.db.add(MealPlanEntry(date=day, meal_type=meal_type, recipe_id=recipe.id if recipe else None, custom_title=None if recipe else title))
+    ctx.db.commit()
+    return f"'{title}' für {day} eingeplant. 🍽️"
+
+
+async def _generate_shopping_list(ctx: ToolContext, days: int = 7) -> str:
+    from app.routers.meals import _collect_ingredients
+
+    ingredients = _collect_ingredients(ctx.db, days)
+    if not ingredients:
+        return "Keine Rezepte im Zeitraum geplant."
+    shopping = registry.get("kitchenowl")
+    added = 0
+    if shopping and shopping.is_configured:
+        for ing in ingredients:
+            if await shopping.add_item(ing):  # type: ignore[attr-defined]
+                added += 1
+    return f"{len(ingredients)} Zutaten gesammelt" + (f", {added} zu KitchenOwl hinzugefügt." if added else ".")
+
+
+async def _list_family(ctx: ToolContext) -> str:
+    members = ctx.db.query(FamilyMember).all()
+    if not members:
+        return "Keine Familienmitglieder angelegt."
+    return "👪 Familie:\n" + "\n".join(f"   • {m.name} ({m.role})" for m in members)
+
+
+async def _get_requests(ctx: ToolContext) -> str:
+    ov = registry.get("overseerr")
+    if not ov or not ov.is_configured:
+        return "Overseerr ist nicht konfiguriert."
+    reqs = await ov.get_pending_requests()  # type: ignore[attr-defined]
+    if not reqs:
+        return "Keine offenen Media-Anfragen."
+    return "🎞️ Offene Anfragen:\n" + "\n".join(f"   • {r['title']} (von {r['requested_by']})" for r in reqs)
+
+
 # === Registry ===
 
 TOOLS: Dict[str, Tool] = {
@@ -330,8 +479,117 @@ TOOLS: Dict[str, Tool] = {
         parameters={"type": "object", "properties": {}},
         handler=_get_now_playing,
     ),
+    "get_calendar": Tool(
+        name="get_calendar",
+        description="Zeigt die Termine der nächsten 7 Tage.",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_calendar,
+    ),
+    "get_smart_home": Tool(
+        name="get_smart_home",
+        description="Zeigt den Smart-Home-Status (Lichter an, offene Türen/Fenster).",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_smart_home,
+        min_role="child",
+    ),
+    "control_light": Tool(
+        name="control_light",
+        description="Schaltet ein Licht/einen Schalter an oder aus (nach Gerätename).",
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Name/Raum des Geräts, z.B. 'Wohnzimmer'"},
+                "action": {"type": "string", "enum": ["on", "off"]},
+            },
+            "required": ["name", "action"],
+        },
+        handler=_control_light,
+        min_role="partner",
+    ),
+    "add_package": Tool(
+        name="add_package",
+        description="Fügt ein zu verfolgendes Paket hinzu (Carrier wird ggf. erkannt).",
+        parameters={
+            "type": "object",
+            "properties": {
+                "description": {"type": "string"},
+                "tracking_number": {"type": "string"},
+            },
+            "required": ["description"],
+        },
+        handler=_add_package,
+    ),
+    "list_packages": Tool(
+        name="list_packages",
+        description="Listet offene Pakete auf.",
+        parameters={"type": "object", "properties": {}},
+        handler=_list_packages,
+    ),
+    "add_expense": Tool(
+        name="add_expense",
+        description="Legt eine wiederkehrende Ausgabe an (Versicherung/Abo/Miete …).",
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "amount": {"type": "number"},
+                "interval": {"type": "string", "enum": ["weekly", "monthly", "quarterly", "yearly"]},
+                "category": {"type": "string"},
+            },
+            "required": ["name", "amount"],
+        },
+        handler=_add_expense,
+        min_role="partner",
+    ),
+    "get_maintenance": Tool(
+        name="get_maintenance",
+        description="Zeigt anstehende Wartungen (nächste 30 Tage).",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_maintenance,
+        min_role="child",
+    ),
+    "complete_maintenance": Tool(
+        name="complete_maintenance",
+        description="Markiert eine Wartung als erledigt und plant die nächste.",
+        parameters={"type": "object", "properties": {"title": {"type": "string"}}, "required": ["title"]},
+        handler=_complete_maintenance,
+        min_role="partner",
+    ),
+    "add_meal": Tool(
+        name="add_meal",
+        description="Plant eine Mahlzeit (Rezept oder freier Text) für ein Datum ein.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "date": {"type": "string", "description": "YYYY-MM-DD (optional, Standard heute)"},
+                "meal_type": {"type": "string", "enum": ["breakfast", "lunch", "dinner"]},
+            },
+            "required": ["title"],
+        },
+        handler=_add_meal,
+    ),
+    "generate_shopping_list": Tool(
+        name="generate_shopping_list",
+        description="Erzeugt aus dem Essensplan eine Einkaufsliste (fügt sie KitchenOwl hinzu).",
+        parameters={"type": "object", "properties": {"days": {"type": "integer"}}},
+        handler=_generate_shopping_list,
+    ),
+    "list_family": Tool(
+        name="list_family",
+        description="Listet die Familienmitglieder auf.",
+        parameters={"type": "object", "properties": {}},
+        handler=_list_family,
+    ),
+    "get_requests": Tool(
+        name="get_requests",
+        description="Zeigt offene Media-Anfragen (Overseerr).",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_requests,
+    ),
 }
 
 
-def openai_tools() -> List[Dict[str, Any]]:
-    return [t.openai_schema() for t in TOOLS.values()]
+def openai_tools(role: str = "admin") -> List[Dict[str, Any]]:
+    """Tool-Schemas – gefiltert nach der Rolle des Nutzers."""
+    return [t.openai_schema() for t in TOOLS.values() if is_allowed(t.min_role, role)]

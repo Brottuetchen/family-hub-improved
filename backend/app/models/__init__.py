@@ -1,5 +1,6 @@
 """SQLAlchemy-Modelle für Hermes Family OS."""
 
+from app.models.chat import ChatMessage
 from app.models.family import FamilyMember
 from app.models.finance import RecurringExpense
 from app.models.maintenance import MaintenanceTask
@@ -21,4 +22,5 @@ __all__ = [
     "MealPlanEntry",
     "RecurringExpense",
     "MaintenanceTask",
+    "ChatMessage",
 ]
