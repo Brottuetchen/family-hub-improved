@@ -13,6 +13,7 @@ const MODULES = [
   { id: "inventory", label: "Inventar" },
   { id: "maintenance", label: "Wartung" },
   { id: "smarthome", label: "Smart Home" },
+  { id: "media", label: "Medien" },
   { id: "family", label: "Familie" },
   { id: "system", label: "System" },
 ];
@@ -302,6 +303,12 @@ function dashboardHTML(d) {
       `<div class="weather-now"><div><div class="temp">${d.finance.monthly_total.toFixed(2)} €</div><div class="desc">pro Monat · ${d.finance.count} Posten</div></div></div>`));
   }
 
+  // Now playing (media)
+  if (d.now_playing && d.now_playing.length) {
+    parts.push(card("▶️ Läuft gerade", "media",
+      list(d.now_playing.map((s) => rowHTML({ lead: s.icon || "▶️", t: s.title, s: [s.subtitle, s.user].filter(Boolean).join(" · ") })))));
+  }
+
   // Smart home
   const sh = d.smarthome;
   if (sh && (sh.lights_on != null)) {
@@ -399,6 +406,31 @@ VIEWS.smarthome = async function () {
       html += `<div class="card" style="margin-top:14px"><h3>💡 Lichter</h3>` + lights.map((l) => `
         <div class="row"><div class="lead">💡</div><div class="body"><div class="t">${esc(l.name)}</div></div>
         <button class="btn ghost" data-action="toggle-light" data-entity="${esc(l.entity_id)}" data-state="${esc(l.state)}">${l.state === "on" ? "Aus" : "An"}</button></div>`).join("") + `</div>`;
+    }
+    v.innerHTML = html;
+  } catch (e) { v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; }
+};
+
+VIEWS.media = async function () {
+  const v = $("#view"); v.innerHTML = loading();
+  try {
+    const [np, reqs, recent] = await Promise.all([
+      api("/api/media/now-playing"),
+      api("/api/media/requests").catch(() => []),
+      api("/api/media/recent?limit=6").catch(() => []),
+    ]);
+    let html = `<div class="card"><h3>▶️ Läuft gerade <span class="count">${np.count}</span></h3>`;
+    html += np.streams.length
+      ? list(np.streams.map((s) => rowHTML({ lead: s.icon || "▶️", t: s.title, s: [s.subtitle, s.user].filter(Boolean).join(" · ") })))
+      : empty("Gerade läuft nichts (oder Medien-Connectoren nicht konfiguriert)");
+    html += `</div>`;
+    if (reqs.length) {
+      html += `<div class="card" style="margin-top:14px"><h3>🎞️ Offene Anfragen <span class="count">${reqs.length}</span></h3>` +
+        list(reqs.map((r) => rowHTML({ lead: r.type === "tv" ? "📺" : "🎬", t: r.title, s: "von " + r.requested_by }))) + `</div>`;
+    }
+    if (recent.length) {
+      html += `<div class="card" style="margin-top:14px"><h3>🆕 Neu bei Plex</h3>` +
+        list(recent.map((r) => rowHTML({ lead: "🎬", t: r.title, s: r.year ? String(r.year) : "" }))) + `</div>`;
     }
     v.innerHTML = html;
   } catch (e) { v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; }

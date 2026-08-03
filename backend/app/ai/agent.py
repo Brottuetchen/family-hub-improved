@@ -144,6 +144,11 @@ async def _run_rules(message: str, ctx: ToolContext) -> Dict[str, Any]:
         reply = await _execute_tool("get_meal_plan", ctx, {})
         return _reply(reply, "get_meal_plan")
 
+    # Medien: was läuft gerade
+    if re.search(r"was läuft|läuft gerade|was hören|was schau|was guck|tonie|hörbuch|plex", low):
+        reply = await _execute_tool("get_now_playing", ctx, {})
+        return _reply(reply, "get_now_playing")
+
     # Suche
     q = _extract_search(text)
     if q:

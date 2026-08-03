@@ -183,6 +183,25 @@ async def _get_finance_overview(ctx: ToolContext) -> str:
     return f"Monatliche Fixkosten: {monthly:.2f} € ({len(expenses)} Posten, {monthly * 12:.2f} €/Jahr)."
 
 
+async def _get_now_playing(ctx: ToolContext) -> str:
+    parts: List[str] = []
+    plex = registry.get("plex")
+    if plex and plex.is_configured:
+        for s in await plex.get_active_streams():  # type: ignore[attr-defined]
+            parts.append(f"🎬 {s.get('title')} ({s.get('user')})")
+    absc = registry.get("audiobookshelf")
+    if absc and absc.is_configured:
+        for s in await absc.get_active_sessions():  # type: ignore[attr-defined]
+            parts.append(f"📚 {s.get('title')} ({s.get('user')})")
+    teddy = registry.get("teddycloud")
+    if teddy and teddy.is_configured:
+        for s in await teddy.get_active_tonies():  # type: ignore[attr-defined]
+            parts.append(f"🧸 {s.get('title')} ({s.get('user')})")
+    if not parts:
+        return "Gerade läuft nichts (oder Medien-Connectoren sind nicht konfiguriert)."
+    return "▶️ Läuft gerade:\n" + "\n".join(f"   {p}" for p in parts)
+
+
 async def _get_meal_plan(ctx: ToolContext) -> str:
     from datetime import date, timedelta
 
@@ -304,6 +323,12 @@ TOOLS: Dict[str, Tool] = {
         description="Zeigt den Essensplan der Woche.",
         parameters={"type": "object", "properties": {}},
         handler=_get_meal_plan,
+    ),
+    "get_now_playing": Tool(
+        name="get_now_playing",
+        description="Zeigt, was gerade in der Familie läuft: Plex-Streams, Hörbücher, Tonies.",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_now_playing,
     ),
 }
 

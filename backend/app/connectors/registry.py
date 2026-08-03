@@ -9,13 +9,16 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict, List, Optional
 
+from app.connectors.audiobookshelf_connector import AudiobookshelfConnector
 from app.connectors.base import BaseConnector
 from app.connectors.caldav_connector import CalDAVConnector
 from app.connectors.homeassistant_connector import HomeAssistantConnector
 from app.connectors.homebox_connector import HomeboxConnector
 from app.connectors.kitchenowl_connector import KitchenOwlConnector
+from app.connectors.overseerr_connector import OverseerrConnector
 from app.connectors.paperless_connector import PaperlessConnector
 from app.connectors.plex_connector import PlexConnector
+from app.connectors.teddycloud_connector import TeddyCloudConnector
 from app.connectors.vikunja_connector import VikunjaConnector
 from app.connectors.weather_connector import WeatherConnector
 
@@ -32,6 +35,9 @@ class ConnectorRegistry:
             HomeboxConnector,
             HomeAssistantConnector,
             PlexConnector,
+            AudiobookshelfConnector,
+            TeddyCloudConnector,
+            OverseerrConnector,
         ):
             instance = connector_cls()
             self._connectors[instance.name] = instance

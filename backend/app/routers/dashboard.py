@@ -93,6 +93,19 @@ async def get_dashboard(db: Session = Depends(get_db), current_user: User = Depe
     expenses = db.query(RecurringExpense).filter(RecurringExpense.active == True).all()  # noqa: E712
     monthly_total = sum((e.amount or 0.0) * _MONTHLY_FACTOR.get(e.interval, 1.0) for e in expenses)
 
+    # Medien: was läuft gerade (nur konfigurierte Quellen)
+    now_playing: list = []
+    plex_c = registry.get("plex")
+    if plex_c and plex_c.is_configured:
+        for s in await _safe(plex_c.get_active_streams(), []):
+            now_playing.append({"source": "plex", "icon": "🎬", "title": s.get("title"), "subtitle": s.get("show", ""), "user": s.get("user")})
+    abs_c = registry.get("audiobookshelf")
+    if abs_c and abs_c.is_configured:
+        now_playing += await _safe(abs_c.get_active_sessions(), [])
+    teddy_c = registry.get("teddycloud")
+    if teddy_c and teddy_c.is_configured:
+        now_playing += await _safe(teddy_c.get_active_tonies(), [])
+
     return {
         "greeting": _greeting(current_user.full_name or current_user.username),
         "date": date.today().isoformat(),
@@ -130,6 +143,7 @@ async def get_dashboard(db: Session = Depends(get_db), current_user: User = Depe
             {"title": t.title, "next_due": t.next_due.isoformat(), "category": t.category}
             for t in maintenance_due
         ],
+        "now_playing": now_playing,
         "insights": insights,
     }
 
