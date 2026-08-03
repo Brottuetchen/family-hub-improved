@@ -1,22 +1,4 @@
-"""Tests für Chat-Verlauf, Streaming und den Hermes-Tool-Call-Parser."""
-
-from app.ai.agent import _parse_text_tool_calls
-
-
-def test_text_tool_call_parser_tags():
-    content = 'Klar. <tool_call>{"name": "add_shopping_item", "arguments": {"name": "Milch"}}</tool_call>'
-    calls = _parse_text_tool_calls(content)
-    assert calls == [{"name": "add_shopping_item", "arguments": {"name": "Milch"}}]
-
-
-def test_text_tool_call_parser_bare_json():
-    content = '{"name": "get_weather", "arguments": {}}'
-    calls = _parse_text_tool_calls(content)
-    assert calls and calls[0]["name"] == "get_weather"
-
-
-def test_text_tool_call_parser_none():
-    assert _parse_text_tool_calls("Einfach nur Text ohne Werkzeug.") == []
+"""Tests für Chat-Verlauf und Streaming (reiner hermes-agent-Relay)."""
 
 
 def test_chat_history_persists(client, auth):

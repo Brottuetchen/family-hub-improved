@@ -1,14 +1,13 @@
-"""LLM-Client (OpenAI-kompatibel) mit drei Betriebsmodi.
+"""LLM-Transport (OpenAI-kompatibel) – Relay zum hermes-agent-Sidecar.
 
-* ``openai`` / ``local`` – direktes OpenAI-kompatibles Modell; unser Agent führt
-  die Tool-Schleife selbst (Function-Calling).
-* ``hermes_agent`` – der echte NousResearch/hermes-agent läuft als Sidecar und
-  ist selbst der Agent. Wir **relayen** nur Chat/Streaming an seinen
-  OpenAI-kompatiblen API-Server und injizieren KEINE eigenen Tool-Schemas
-  (Tools/Skills/Memory macht der Sidecar).
+Der ``Assistent"-Chat spricht ausschließlich den echten NousResearch/hermes-agent
+an (``AI_PROVIDER=hermes_agent``): Er ist selbst der Agent (Tools/Skills/Memory)
+und steuert unsere Module via MCP. Wir **relayen** nur Chat/Streaming/Voice an
+seinen OpenAI-kompatiblen API-Server und injizieren **keine** eigenen
+Tool-Schemas.
 
-Ist nichts konfiguriert, meldet ``is_configured=False`` und der Agent nutzt den
-regelbasierten Fallback.
+Ist kein Sidecar konfiguriert, meldet ``is_configured=False`` und der Chat gibt
+einen klaren „nicht verbunden"-Hinweis (kein Wort-Matcher, kein eigener Agent).
 """
 
 from __future__ import annotations

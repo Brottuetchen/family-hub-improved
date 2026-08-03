@@ -1,79 +1,63 @@
 # Hermes AI
 
-Der Assistent ist **werkzeugbasiert**: Er beantwortet nicht nur Fragen, sondern
-führt Aktionen über die Module wirklich aus (Function Calling). „Hermes" ist der
-**Name des Assistenten** – nicht zwingend das Modell. Welches Modell (falls
-überhaupt) rechnet, bestimmt `AI_PROVIDER`.
+Das **„Assistent"**-Chatfenster ist ein **dünner Client** zum echten
+[NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent), der
+**separat als Sidecar** läuft. hermes ist der Agent – er bringt Skills,
+Selbstlernen, Memory, 40+ Tools, Subagents, Cron und Voice mit und nutzt deine
+**Abo-Logins** (Codex „Sign in with ChatGPT", Nous Portal). Wir **relayen** nur
+Chat/Streaming/Voice und **betten** sein Voll-Dashboard ein.
 
-## Betriebsmodi (`AI_PROVIDER`)
+> Es gibt in dieser App **keinen** eigenen Agenten und **keinen** Wort-Matcher.
+> Ist kein Sidecar verbunden, sagt der Chat das klar – er erfindet keine Antwort.
 
-| Modus          | Was passiert | Voraussetzung |
-|----------------|--------------|---------------|
-| `hermes_agent` | **Empfohlen.** Der komplette [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) als Sidecar ist der Agent (Skills, Memory, Tools, Voice, Abo-Login inkl. Codex/ChatGPT). Wir relayen nur. Siehe **[docs/HERMES_AGENT.md](HERMES_AGENT.md)**. | Sidecar-Dienst |
-| `none`         | **Kein LLM.** Deutscher Regel-/Intent-Parser ordnet Sätze den Werkzeugen zu. Offline, sofort, deterministisch. | – |
-| `local`        | Lokales, OpenAI-kompatibles Modell (Ollama, LM Studio, vLLM). Privat, kein Cloud-Traffic. | lokaler LLM-Server |
-| `openai`       | OpenAI-kompatibles Cloud-Modell. | API-Key |
+## Einrichten (`AI_PROVIDER`)
 
-Im `none`-Modus „denkt" nichts im Hintergrund – der Chat ist reines
-Request/Response. Dauerhaft läuft nur der Erinnerungs-Scheduler.
+Nur zwei sinnvolle Werte:
+
+| Wert            | Verhalten |
+|-----------------|-----------|
+| `hermes_agent`  | **Empfohlen.** Chat/Voice sprechen den Sidecar an; er ist der Agent. |
+| `none` / leer   | Chat inaktiv – klarer „nicht verbunden"-Hinweis statt Fake-Antwort. |
+
+```env
+AI_PROVIDER=hermes_agent
+HERMES_AGENT_URL=http://hermes-agent:8890/v1
+HERMES_AGENT_DASHBOARD_URL=http://hermes-agent:9119
+HERMES_AGENT_MODEL=default
+```
+Am einfachsten über den Installer (`./install.sh` → „hermes-agent verbinden").
+Starten & einloggen: **[docs/HERMES_AGENT.md](HERMES_AGENT.md)**.
 
 ## Chat-Oberfläche
 
-Der Assistent ist als eigene Ansicht **„Assistent"** ins UI integriert
-(Sparkle-Button oben rechts): vollflächiger Verlauf, **Streaming**-Antworten
-(SSE via `/api/ai/stream`), Werkzeug-Badges, Sprach­eingabe und „Neuer Chat".
-Der **Gesprächsverlauf wird pro Nutzer serverseitig** gespeichert
-(`/api/ai/history`) und dient dem Modell als Kontext.
+Zwei Einstiegspunkte in unserem UI:
+- **„Assistent"** – nativer Chat mit **Streaming** (SSE `/api/ai/stream`) und
+  **Voice-Messages** (🎙 → `/api/ai/voice` → Transkription über den Sidecar).
+  Der Verlauf wird **pro Nutzer serverseitig** gespeichert (`/api/ai/history`).
+- **„Hermes Agent"** – sein **komplettes Web-Dashboard**, hinter unserem Login
+  eingebettet (`/agent/*`): alle übrigen Funktionen (Skills, Memory, Subagents,
+  Tool-/MCP-Verwaltung, Cron …).
 
-Robustes Tool-Calling: neben den Standard-`tool_calls` (OpenAI/Ollama) parst der
-Agent auch die von manchen **Nous-Hermes**-Modellen als Text ausgegebenen
-`<tool_call>{...}</tool_call>`-Aufrufe.
+## Unsere Module steuern (MCP)
 
-## Nous Hermes lokal betreiben (empfohlen fürs Homelab)
+Damit hermes **unsere** Familien-Module bedienen kann (Einkauf, Kalender, Licht,
+Finanzen, Wartung, Essensplan …), läuft der Dienst **`hermes-mcp`** und exponiert
+unsere Haushalts-Werkzeuge als **MCP-Server** (`http://hermes-mcp:8765/mcp`).
+`docker compose --profile agent up -d` startet ihn mit.
 
-Mit dem optionalen Ollama-Dienst aus `docker-compose.yml`:
+- `/api/ai/tools` zeigt, welche Werkzeuge für deine Rolle steuerbar sind.
+- Die Rolle, mit der der Agent handelt, setzt `MCP_ROLE` (Standard `partner`;
+  `guest < child < partner < admin`) – dieselbe rollenbasierte Rechteprüfung.
 
-```bash
-docker compose --profile ai up -d          # startet Ollama mit
-docker compose exec ollama ollama pull hermes3   # Nous Hermes 3 laden
-```
+Einrichtung des MCP-Servers in hermes-agent: **[docs/HERMES_AGENT.md](HERMES_AGENT.md)**.
 
-`.env`:
-```env
-AI_PROVIDER=local
-AI_BASE_URL=http://ollama:11434/v1
-AI_MODEL=hermes3
-```
-Neustart: `docker compose up -d`. Alternativen zu `hermes3`: `qwen2.5`, `llama3.1`
-– alle mit Tool-/Function-Calling.
-
-## Nutzerbezogen & rollenbasiert
-
-- Der Assistent kennt den **angemeldeten Nutzer** (Name + Rolle) und personalisiert
-  Antworten; neu erstellte Einträge (Erinnerungen etc.) gehören dieser Person.
-- **Rollen-Rechte:** Jedes Werkzeug hat eine Mindest-Rolle
-  (`guest < child < partner < admin`). Kinder können z.B. Einkäufe/Erinnerungen
-  anlegen, aber **nicht** das Smart Home steuern oder Finanzen ändern. Die
-  erlaubten Werkzeuge werden dem Modell rollenabhängig angeboten **und** bei der
-  Ausführung serverseitig geprüft (`/api/ai/tools` zeigt die für dich erlaubten).
-
-## Werkzeuge (Auszug)
-
-Lesen: `get_daily_overview`, `get_weather`, `get_calendar`, `list_tasks`,
-`get_shopping_list`, `get_finance_overview`, `get_meal_plan`, `get_now_playing`,
-`get_maintenance`, `list_family`, `list_packages`, `get_requests`, `search`.
-
-Steuern: `add_shopping_item`, `create_task`, `create_reminder` (inkl.
-Wiederholung), `add_package`, `add_meal`, `generate_shopping_list`
-(child+); `control_light`, `add_expense`, `complete_maintenance` (partner+).
-
-## Beispiele
+## Beispiele (werden von hermes ausgeführt)
 
 ```
-„Was steht heute an?"                      → Tagesübersicht
-„Bestell Milch"                            → Einkaufsliste
-„Erinnere mich jeden Dienstag 19 Uhr an den Müll" → wiederkehrende Erinnerung
-„Mach das Licht im Wohnzimmer an"          → Smart Home (ab Rolle partner)
-„Was läuft gerade?"                        → Plex/Hörbücher/Tonies
-„Plane Spaghetti für morgen"               → Essensplan
+„Setz Milch auf die Liste und mach das Wohnzimmerlicht an"
+„Erinnere mich jeden Dienstag 19 Uhr an den Müll"
+„Plane Spaghetti für morgen und erzeuge die Einkaufsliste"
+„Was steht heute an?"
 ```
+Was möglich ist, bestimmt der hermes-agent (seine Tools + unsere MCP-Werkzeuge),
+nicht diese App.

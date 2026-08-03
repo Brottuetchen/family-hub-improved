@@ -1,4 +1,9 @@
-"""Tests für die erweiterte, nutzer-/rollenbasierte KI-Steuerung."""
+"""Tests für die rollenbasierten Haushalts-Werkzeuge (via MCP an hermes-agent).
+
+Der Chat selbst ist ein reiner hermes-agent-Relay (kein Wort-Matcher, kein
+eigener Agent) – die eigentliche Ausführung/Steuerung läuft über die Tool-
+Registry (MCP). Rollen-Gating wird in test_mcp.py end-to-end geprüft.
+"""
 
 from app.ai.tools import TOOLS, is_allowed
 
@@ -24,21 +29,6 @@ def test_ai_status_is_role_aware(client, auth):
     assert s["tool_count"] >= 15  # Admin sieht alle Werkzeuge
 
 
-def test_packages_intent(client, auth):
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Zeig mir meine Pakete"})
-    assert "list_packages" in r.json()["actions"]
-
-
-def test_calendar_intent(client, auth):
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Welche Termine habe ich?"})
-    assert "get_calendar" in r.json()["actions"]
-
-
-def test_plan_meal_intent(client, auth):
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Plane Spaghetti für morgen"})
-    assert "add_meal" in r.json()["actions"]
-
-
 def _make_child_and_login(client, auth):
     client.post(
         "/api/auth/users",
@@ -46,26 +36,6 @@ def _make_child_and_login(client, auth):
         json={"username": "kind1", "email": "kind1@test.de", "password": "kids1234", "role": "child"},
     )
     return client.post("/api/auth/login", json={"username": "kind1", "password": "kids1234"}).json()["access_token"]
-
-
-def test_child_cannot_control_light(client, auth):
-    token = _make_child_and_login(client, auth)
-    r = client.post(
-        "/api/ai/chat",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"message": "Mach das Licht im Wohnzimmer an"},
-    )
-    body = r.json()
-    assert "control_light" in body["actions"]
-    assert "child" in body["reply"].lower() or "darf" in body["reply"].lower()
-
-
-def test_partner_passes_role_gate_for_light(client, auth):
-    # Admin darf steuern -> Rolle passiert; scheitert nur an fehlender HA-Konfiguration.
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Mach das Licht im Wohnzimmer an"})
-    body = r.json()
-    assert "control_light" in body["actions"]
-    assert "konfiguriert" in body["reply"].lower()
 
 
 def test_child_tool_list_smaller(client, auth):

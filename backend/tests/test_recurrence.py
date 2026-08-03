@@ -47,16 +47,3 @@ def test_completing_recurring_rolls_forward(client, auth):
     assert patched["completed"] is False
     new_due = datetime.fromisoformat(patched["due_at"])
     assert (new_due - due).days == 7
-
-
-def test_ai_recurring_intent(client, auth):
-    r = client.post(
-        "/api/ai/chat",
-        headers=auth,
-        json={"message": "Erinnere mich jeden Dienstag um 19 Uhr an den Müll"},
-    )
-    assert r.status_code == 200
-    assert "create_reminder" in r.json()["actions"]
-    # Erinnerung mit Wochen-Wiederholung sollte existieren
-    reminders = client.get("/api/reminders", headers=auth).json()
-    assert any(rem["recurrence"] == "weekly" and "Müll" in rem["title"] for rem in reminders)

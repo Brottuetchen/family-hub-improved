@@ -72,18 +72,6 @@ def test_holidays_endpoint(client, auth):
     assert "Neujahr" in names or "1. Weihnachtstag" in names
 
 
-def test_ai_finance_intent(client, auth):
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Wie hoch sind unsere Fixkosten?"})
-    assert r.status_code == 200
-    assert "get_finance_overview" in r.json()["actions"]
-
-
-def test_ai_meal_intent(client, auth):
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Was gibts diese Woche zu essen?"})
-    assert r.status_code == 200
-    assert "get_meal_plan" in r.json()["actions"]
-
-
 def test_dashboard_has_new_sections(client, auth):
     d = client.get("/api/dashboard", headers=auth).json()
     for key in ("holidays", "meals_today", "finance", "maintenance_due"):

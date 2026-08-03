@@ -108,18 +108,19 @@ class Settings(BaseSettings):
     overseerr_api_key: Optional[str] = None
 
     # --- Hermes AI ---
+    # Der Chat ist ein reiner Client zum hermes-agent-Sidecar. Sinnvolle Werte:
+    #   hermes_agent = mit dem Sidecar verbunden (er ist der Agent; wir relayen nur)
+    #   none         = Chat inaktiv (klarer Hinweis, kein Wort-Matcher/eigener Agent)
     ai_enabled: bool = True
-    # openai | local | hermes_agent | none
-    #   openai/local  = direktes OpenAI-kompatibles Modell (eigene Tool-Schleife)
-    #   hermes_agent  = der echte NousResearch/hermes-agent als Sidecar (er ist
-    #                   selbst der Agent; wir relayen nur und injizieren KEINE Tools)
     ai_provider: str = "none"
+    ai_max_tokens: int = 1024
+    # Modell für Sprach-Transkription (OpenAI-/Whisper-kompatibel, via Sidecar)
+    ai_transcribe_model: str = "whisper-1"
+    # Vestigiale Direktmodell-Felder (nicht mehr für den Chat genutzt; nur als
+    # optionaler Transkriptions-Endpoint, falls kein Sidecar transkribiert).
     ai_base_url: str = "https://api.openai.com/v1"
     ai_api_key: Optional[str] = None
     ai_model: str = "gpt-4o-mini"
-    ai_max_tokens: int = 1024
-    # Modell für Sprach-Transkription (OpenAI-/Whisper-kompatibel, via Backend)
-    ai_transcribe_model: str = "whisper-1"
 
     # --- NousResearch/hermes-agent (Sidecar) ---
     # OpenAI-kompatibler API-Server des Sidecars (…/v1), z.B. http://hermes-agent:8890/v1
