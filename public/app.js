@@ -99,6 +99,7 @@ async function boot() {
   bindChrome();
   navigate("dashboard");
   registerServiceWorker();
+  maybeIOSHint();
 }
 
 function renderNav() {
@@ -147,19 +148,52 @@ function toggleTheme() {
   localStorage.setItem("hermes_theme", next);
 }
 
-/* ---------- Profile ---------- */
-async function profileMenu() {
-  const action = prompt(
-    `Angemeldet als ${currentUser.username} (${currentUser.role}).\n\n` +
-    `Tippe eine Aktion:\n- "logout" zum Abmelden\n- "push" für Benachrichtigungen`
-  );
-  if (action === "logout") {
-    try { await api("/api/auth/logout", { method: "POST" }); } catch (_) {}
-    localStorage.removeItem(TOKEN_KEY);
-    location.href = "/login.html";
-  } else if (action === "push") {
-    enablePush();
-  }
+/* ---------- Profile menu (Dropdown) ---------- */
+function profileMenu() {
+  const existing = document.getElementById("profile-menu");
+  if (existing) { existing.remove(); return; }
+  const menu = document.createElement("div");
+  menu.id = "profile-menu";
+  menu.className = "menu";
+  menu.innerHTML =
+    `<div class="mhead">${esc(currentUser.full_name || currentUser.username)} · ${esc(currentUser.role)}</div>` +
+    `<button data-m="push">🔔 Benachrichtigungen aktivieren</button>` +
+    `<button data-m="theme">🌓 Design wechseln</button>` +
+    `<button data-m="logout" class="danger">↩︎ Abmelden</button>`;
+  document.body.appendChild(menu);
+  menu.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-m]");
+    if (!b) return;
+    const m = b.dataset.m;
+    menu.remove();
+    if (m === "push") enablePush();
+    else if (m === "theme") toggleTheme();
+    else if (m === "logout") {
+      try { await api("/api/auth/logout", { method: "POST" }); } catch (_) {}
+      localStorage.removeItem(TOKEN_KEY);
+      location.href = "/login.html";
+    }
+  });
+  setTimeout(() => {
+    document.addEventListener("click", function close(ev) {
+      if (!menu.contains(ev.target) && ev.target.id !== "btn-profile") {
+        menu.remove();
+        document.removeEventListener("click", close);
+      }
+    });
+  }, 0);
+}
+
+/* iOS: Hinweis zum Installieren als App (nötig für Push auf iPhone) */
+function maybeIOSHint() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const standalone = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+  if (!isIOS || standalone || localStorage.getItem("hermes_ios_hint")) return;
+  const b = document.createElement("div");
+  b.className = "ios-hint";
+  b.innerHTML = `📲 Für App-Feeling &amp; Push: <b>Teilen</b> → <b>Zum Home-Bildschirm</b> <button title="Ausblenden">✕</button>`;
+  document.querySelector(".app").insertBefore(b, document.querySelector(".greeting"));
+  b.querySelector("button").addEventListener("click", () => { b.remove(); localStorage.setItem("hermes_ios_hint", "1"); });
 }
 
 /* ---------- Views ---------- */

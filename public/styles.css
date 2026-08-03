@@ -58,12 +58,12 @@ a { color: var(--primary-strong); text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
 
 /* --- Layout --- */
-.app { max-width: 1080px; margin: 0 auto; padding: 0 16px 96px; }
+.app { max-width: 1080px; margin: 0 auto; padding: 0 16px calc(96px + env(safe-area-inset-bottom, 0px)); }
 
 .topbar {
   position: sticky; top: 0; z-index: 40;
   display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; margin: 0 -16px 4px;
+  padding: max(14px, env(safe-area-inset-top, 0px)) 16px 14px; margin: 0 -16px 4px;
   background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: saturate(180%) blur(14px);
   border-bottom: 1px solid var(--border);
@@ -214,3 +214,19 @@ button { font-family: inherit; cursor: pointer; }
 .field label { display: block; font-size: 13px; font-weight: 600; color: var(--text-soft); margin-bottom: 6px; }
 .error-msg { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); padding: 10px 14px; border-radius: 12px; font-size: 13.5px; margin-bottom: 14px; display: none; }
 .error-msg.show { display: block; }
+
+/* Profil-Dropdown */
+.menu { position: fixed; top: calc(58px + env(safe-area-inset-top, 0px)); right: 16px; z-index: 85;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
+  padding: 6px; min-width: 240px; animation: pop .15s; }
+.menu .mhead { padding: 10px 12px 8px; color: var(--text-faint); font-size: 12.5px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.menu button { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; background: transparent; border: none;
+  padding: 11px 12px; border-radius: 11px; color: var(--text); font-size: 14.5px; }
+.menu button:hover { background: var(--bg-soft); }
+.menu button.danger { color: var(--red); }
+
+/* iOS-Installationshinweis */
+.ios-hint { display: flex; align-items: center; gap: 10px; background: var(--primary-soft); color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin: 6px 0 2px; font-size: 13.5px; }
+.ios-hint b { white-space: nowrap; }
+.ios-hint button { margin-left: auto; background: transparent; border: none; color: var(--text-soft); font-size: 16px; }
