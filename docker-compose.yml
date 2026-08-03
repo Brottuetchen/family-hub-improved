@@ -93,6 +93,28 @@ services:
       - "8890"   # OpenAI-kompatibler API-Server (Port ggf. anpassen)
     # command: ["hermes", "dashboard", "--host", "0.0.0.0", "--no-open"]  # per gepinnter Version
 
+  # MCP-Server: gibt hermes-agent Zugriff auf unsere Haushalts-Werkzeuge
+  # (Einkauf, Kalender, Licht, Finanzen, Wartung, Essensplan …).
+  # In hermes-agent einen MCP-Server hinzufügen, der auf
+  #   http://hermes-mcp:8765/mcp   (Streamable HTTP) zeigt.  Siehe docs/HERMES_AGENT.md
+  hermes-mcp:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    profiles: ["agent"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-hermes}:${POSTGRES_PASSWORD:-hermes}@db:5432/${POSTGRES_DB:-hermes}
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8765"
+    command: ["python", "-m", "app.mcp.server"]
+    expose:
+      - "8765"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   hermes_pgdata:
   hermes_redis:

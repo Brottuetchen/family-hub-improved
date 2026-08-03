@@ -17,8 +17,9 @@ PWA ─ „Assistent" (Chat/Voice) ─┐
                                  ▼
       unser FastAPI  ── relay /v1 + SSE ─▶  hermes-agent (Sidecar)
           │  /agent/* Reverse-Proxy (Auth)     • OpenAI-kompat. API + Dashboard
-          └  Haushalts-Tools via MCP (später)  • Login: Codex/ChatGPT, Nous Portal
-                                                • Volume ~/.hermes (persistent)
+          │                                    • Login: Codex/ChatGPT, Nous Portal
+   hermes-mcp (MCP-Server) ◀── Tools ──────────┘  • Volume ~/.hermes (persistent)
+     Einkauf/Kalender/Licht/Finanzen/…
 ```
 
 ## Einrichten (Docker)
@@ -56,6 +57,25 @@ zeigt sein volles Dashboard.
 ## Voice-Messages
 🎙 im „Assistent" nimmt Audio auf → `POST /api/ai/voice` → Transkription über den
 Sidecar/`AI_TRANSCRIBE_MODEL` → der Text läuft als normale Nachricht in den Chat.
+
+## Haushalts-Werkzeuge steuern (MCP)
+Damit hermes-agent **unsere Familien-Module** direkt bedienen kann (Einkauf,
+Kalender, Smart Home, Finanzen, Wartung, Essensplan …), läuft der Dienst
+**`hermes-mcp`** (`docker compose --profile agent up -d` startet ihn mit) und
+exponiert unsere 23 Werkzeuge als **MCP-Server** (Streamable HTTP) unter
+`http://hermes-mcp:8765/mcp`.
+
+In hermes-agent einen MCP-Server hinzufügen, der dorthin zeigt, z.B.:
+```bash
+docker compose exec hermes-agent hermes mcp add hermes-family \
+  --transport streamable-http --url http://hermes-mcp:8765/mcp
+```
+(exakter Befehl je nach gepinnter hermes-agent-Version – siehe dessen `hermes mcp`-Hilfe).
+
+- Der Agent handelt mit der Rolle **`MCP_ROLE`** (Standard `partner`): dieselbe
+  rollenbasierte Rechteprüfung wie im Chat (Kinder-Rolle darf z.B. kein Smart Home).
+- Danach kann der Assistent Sätze wie „Setz Milch auf die Liste und mach das
+  Licht im Wohnzimmer an" wirklich ausführen – über **unsere** Connectoren.
 
 ## Ehrliche Grenzen / Watch-outs
 - **Schwergewicht** (~610 MB) + eigener Dienst; **Version pinnen**.

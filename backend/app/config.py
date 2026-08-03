@@ -131,6 +131,14 @@ class Settings(BaseSettings):
     # Optionaler Shared-Secret/Token für den API-Server (falls konfiguriert)
     hermes_agent_token: Optional[str] = None
 
+    # --- MCP-Server (Haushalts-Werkzeuge an hermes-agent) ---
+    # Exponiert unsere Tools als MCP-Server, damit hermes-agent Einkauf/Kalender/
+    # Licht/Finanzen … steuern kann. Als eigener Dienst: python -m app.mcp.server
+    mcp_host: str = "0.0.0.0"
+    mcp_port: int = 8765
+    # Rolle, mit der der Familien-Agent handelt (guest<child<partner<admin).
+    mcp_role: str = "partner"
+
     @property
     def cors_origin_list(self) -> List[str]:
         """CORS Origins als Liste (kommasepariert in der ENV)."""

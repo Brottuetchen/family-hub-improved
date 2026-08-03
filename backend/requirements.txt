@@ -22,6 +22,9 @@ psycopg2-binary==2.9.10
 # --- HTTP client (Connectors) ---
 httpx==0.28.1
 
+# --- MCP-Server (Haushalts-Werkzeuge an hermes-agent) ---
+mcp>=1.9,<2
+
 # --- Push Notifications ---
 pywebpush==2.0.0
 
