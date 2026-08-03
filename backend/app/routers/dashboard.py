@@ -7,7 +7,7 @@ und proaktive Hinweise in einer einzigen, ausfallsicheren Antwort.
 from __future__ import annotations
 
 import asyncio
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends
@@ -16,10 +16,16 @@ from sqlalchemy.orm import Session
 from app.connectors.registry import registry
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.models.finance import RecurringExpense
+from app.models.maintenance import MaintenanceTask
 from app.models.package import Package
+from app.models.recipe import MealPlanEntry, Recipe
 from app.models.reminder import Reminder
 from app.models.user import User
+from app.services.holidays import holiday_on, upcoming_holidays
 from app.services.insights import generate_insights
+
+_MONTHLY_FACTOR = {"weekly": 52 / 12, "monthly": 1.0, "quarterly": 1 / 3, "yearly": 1 / 12}
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -69,6 +75,24 @@ async def get_dashboard(db: Session = Depends(get_db), current_user: User = Depe
     )
     packages = db.query(Package).filter(Package.status != "delivered").all()
 
+    # Essensplan heute
+    today_iso = date.today().isoformat()
+    meals_today = db.query(MealPlanEntry).filter(MealPlanEntry.date == today_iso).all()
+    recipe_titles = {r.id: r.title for r in db.query(Recipe).all()} if meals_today else {}
+
+    # Wartung fällig (nächste 14 Tage)
+    maintenance_due = (
+        db.query(MaintenanceTask)
+        .filter(MaintenanceTask.next_due != None)  # noqa: E711
+        .filter(MaintenanceTask.next_due <= date.today() + timedelta(days=14))
+        .order_by(MaintenanceTask.next_due.asc())
+        .all()
+    )
+
+    # Finanzen (monatliche Fixkosten)
+    expenses = db.query(RecurringExpense).filter(RecurringExpense.active == True).all()  # noqa: E712
+    monthly_total = sum((e.amount or 0.0) * _MONTHLY_FACTOR.get(e.interval, 1.0) for e in expenses)
+
     return {
         "greeting": _greeting(current_user.full_name or current_user.username),
         "date": date.today().isoformat(),
@@ -95,6 +119,16 @@ async def get_dashboard(db: Session = Depends(get_db), current_user: User = Depe
             for r in reminders
         ],
         "smarthome": smart_overview,
+        "holidays": {"today": holiday_on(date.today()), "upcoming": upcoming_holidays(days=30)[:3]},
+        "meals_today": [
+            {"meal_type": m.meal_type, "title": m.custom_title or recipe_titles.get(m.recipe_id, "Mahlzeit")}
+            for m in meals_today
+        ],
+        "finance": {"monthly_total": round(monthly_total, 2), "currency": "EUR", "count": len(expenses)},
+        "maintenance_due": [
+            {"title": t.title, "next_due": t.next_due.isoformat(), "category": t.category}
+            for t in maintenance_due
+        ],
         "insights": insights,
     }
 

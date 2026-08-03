@@ -14,6 +14,8 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.connectors.registry import registry
+from app.models.finance import RecurringExpense
+from app.models.recipe import MealPlanEntry, Recipe
 from app.models.reminder import Reminder
 
 
@@ -162,6 +164,36 @@ async def _create_reminder(
     return f"Erinnerung '{title}'{when} wurde gespeichert. ⏰"
 
 
+async def _get_finance_overview(ctx: ToolContext) -> str:
+    factor = {"weekly": 52 / 12, "monthly": 1.0, "quarterly": 1 / 3, "yearly": 1 / 12}
+    expenses = ctx.db.query(RecurringExpense).filter(RecurringExpense.active == True).all()  # noqa: E712
+    if not expenses:
+        return "Keine wiederkehrenden Kosten hinterlegt."
+    monthly = sum((e.amount or 0.0) * factor.get(e.interval, 1.0) for e in expenses)
+    return f"Monatliche Fixkosten: {monthly:.2f} € ({len(expenses)} Posten, {monthly * 12:.2f} €/Jahr)."
+
+
+async def _get_meal_plan(ctx: ToolContext) -> str:
+    from datetime import date, timedelta
+
+    today = date.today()
+    end = today + timedelta(days=7)
+    entries = (
+        ctx.db.query(MealPlanEntry)
+        .filter(MealPlanEntry.date >= today.isoformat(), MealPlanEntry.date <= end.isoformat())
+        .order_by(MealPlanEntry.date.asc())
+        .all()
+    )
+    if not entries:
+        return "Für diese Woche ist noch nichts geplant."
+    recipes = {r.id: r.title for r in ctx.db.query(Recipe).all()}
+    lines = ["🍽️ Essensplan:"]
+    for e in entries:
+        title = e.custom_title or recipes.get(e.recipe_id, "Mahlzeit")
+        lines.append(f"   • {e.date}: {title}")
+    return "\n".join(lines)
+
+
 async def _search(ctx: ToolContext, query: str) -> str:
     results = await registry.search_all(query)
     if not results:
@@ -245,6 +277,18 @@ TOOLS: Dict[str, Tool] = {
             "required": ["query"],
         },
         handler=_search,
+    ),
+    "get_finance_overview": Tool(
+        name="get_finance_overview",
+        description="Zeigt die monatlichen Fixkosten / wiederkehrenden Ausgaben.",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_finance_overview,
+    ),
+    "get_meal_plan": Tool(
+        name="get_meal_plan",
+        description="Zeigt den Essensplan der Woche.",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_meal_plan,
     ),
 }
 

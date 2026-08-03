@@ -54,20 +54,23 @@ Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 |------------------|-------------------------|--------|
 | Dashboard        | aggregiert alle Module  | ✅ funktionsfähig |
 | Kalender         | CalDAV / Nextcloud      | ✅ (Connector) |
+| Feiertage        | Hermes (berechnet)      | ✅ deutsche, bundesweit |
 | Aufgaben         | Vikunja                 | ✅ (lesen + anlegen) |
 | Einkauf          | KitchenOwl              | ✅ (lesen + hinzufügen) |
-| Erinnerungen     | Hermes (eigen)          | ✅ voll |
-| Pakete           | Hermes (eigen)          | ✅ voll |
-| Dokumente        | Paperless-ngx           | ✅ (lesen + Suche) |
+| Essensplanung    | Hermes (eigen)          | ✅ Wochenplan → Einkaufsliste |
+| Erinnerungen     | Hermes (eigen)          | ✅ voll + Auto-Push bei Fälligkeit |
+| Pakete           | Hermes (eigen)          | ✅ Carrier-Erkennung + Tracking-Links |
+| Dokumente        | Paperless-ngx           | ✅ lesen + Suche + Fristerkennung |
+| Finanzen         | Hermes (eigen)          | ✅ Daueraufträge + Fixkosten |
 | Inventar         | Homebox                 | ✅ (lesen + Suche) |
+| Wartung          | Hermes (eigen)          | ✅ Pläne + Fälligkeits-Reschedule |
 | Smart Home       | Home Assistant          | ✅ (Übersicht + Steuerung) |
 | Wetter           | Open-Meteo (kein Key)   | ✅ voll |
 | Medien           | Plex                    | ✅ optional |
 | Familie & Rollen | Hermes (eigen)          | ✅ admin/partner/kind/gast |
 | Globale Suche    | alle Connectors         | ✅ |
-| Hermes AI        | OpenAI-kompatibel/lokal | ✅ Tools + Fallback |
-| Push             | Web Push (VAPID)        | ✅ |
-| Finanzen         | (Phase 2)               | 🚧 Grundgerüst |
+| Hermes AI        | OpenAI-kompatibel/lokal | ✅ Tools + Fallback + Spracheingabe |
+| Push             | Web Push (VAPID)        | ✅ inkl. Hintergrund-Scheduler |
 
 Fahrplan der weiteren Phasen: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
@@ -133,11 +136,13 @@ Vollständige Liste: [`.env.example`](.env.example) · Connector-Doku: [`docs/CO
 
 Der Assistent besitzt **Werkzeuge** (Tools) und führt Aktionen wirklich aus:
 `get_daily_overview`, `add_shopping_item`, `create_task`, `create_reminder`,
-`get_weather`, `list_tasks`, `get_shopping_list`, `search`.
+`get_weather`, `list_tasks`, `get_shopping_list`, `get_finance_overview`,
+`get_meal_plan`, `search`.
 
 - **Mit LLM** (`AI_PROVIDER=openai|local`): echtes Function-Calling.
 - **Ohne LLM**: regelbasierter Fallback für die wichtigsten deutschen Kommandos –
   d.h. „Bestell Milch" oder „Was steht heute an?" funktionieren **auch ohne API-Key**.
+- **Spracheingabe**: Mikrofon-Button im AI-Panel (Web Speech API, de-DE).
 
 ---
 

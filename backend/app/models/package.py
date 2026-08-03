@@ -22,3 +22,10 @@ class Package(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def tracking_url(self) -> str | None:
+        """Zusteller-Sendungsverfolgungs-Link (falls Trackingnummer vorhanden)."""
+        from app.services.tracking import tracking_url
+
+        return tracking_url(self.carrier, self.tracking_number)

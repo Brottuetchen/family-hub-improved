@@ -6,9 +6,12 @@ const MODULES = [
   { id: "calendar", label: "Kalender" },
   { id: "tasks", label: "Aufgaben" },
   { id: "shopping", label: "Einkauf" },
+  { id: "meals", label: "Essen" },
   { id: "reminders", label: "Erinnerungen" },
   { id: "documents", label: "Dokumente" },
+  { id: "finance", label: "Finanzen" },
   { id: "inventory", label: "Inventar" },
+  { id: "maintenance", label: "Wartung" },
   { id: "smarthome", label: "Smart Home" },
   { id: "family", label: "Familie" },
   { id: "system", label: "System" },
@@ -117,6 +120,7 @@ function bindChrome() {
   $("#btn-profile").addEventListener("click", profileMenu);
   $("#ai-send").addEventListener("click", sendAI);
   $("#ai-text").addEventListener("keydown", (e) => { if (e.key === "Enter") sendAI(); });
+  $("#ai-mic").addEventListener("click", startVoice);
 
   // Event delegation for view actions
   $("#view").addEventListener("click", onViewClick);
@@ -177,6 +181,12 @@ VIEWS.dashboard = async function () {
 
 function dashboardHTML(d) {
   const parts = [];
+
+  // Holiday banner (full width, above grid)
+  if (d.holidays && d.holidays.today) {
+    parts.push(`<div class="card span-2" style="margin-bottom:14px;background:linear-gradient(135deg,var(--primary-soft),var(--bg-elev))"><div class="insight"><div class="ic">🎉</div><div><div class="t">Feiertag: ${esc(d.holidays.today)}</div><div class="m">Heute ist frei.</div></div></div></div>`);
+  }
+
   parts.push(`<div class="grid">`);
 
   // Insights (full width)
@@ -238,6 +248,24 @@ function dashboardHTML(d) {
   if (d.packages && d.packages.length) {
     parts.push(card("📦 Pakete", "dashboard",
       list(d.packages.map((p) => rowHTML({ lead: "📦", t: (p.carrier || "").toUpperCase() + (p.description ? " – " + p.description : ""), s: p.status, trail: p.expected_at ? fmtDate(p.expected_at) : "" })))));
+  }
+
+  // Meals today
+  if (d.meals_today && d.meals_today.length) {
+    parts.push(card("🍽️ Essen heute", "meals",
+      list(d.meals_today.map((m) => rowHTML({ lead: "🍽️", t: m.title, s: mealLabel(m.meal_type) })))));
+  }
+
+  // Maintenance due
+  if (d.maintenance_due && d.maintenance_due.length) {
+    parts.push(card("🔧 Wartung fällig", "maintenance",
+      list(d.maintenance_due.map((m) => rowHTML({ lead: "🔧", t: m.title, s: m.category, trail: fmtDate(m.next_due) })))));
+  }
+
+  // Finance summary
+  if (d.finance && d.finance.count > 0) {
+    parts.push(card("💶 Fixkosten", "finance",
+      `<div class="weather-now"><div><div class="temp">${d.finance.monthly_total.toFixed(2)} €</div><div class="desc">pro Monat · ${d.finance.count} Posten</div></div></div>`));
   }
 
   // Smart home
@@ -338,6 +366,75 @@ VIEWS.family = simpleView("👪 Familie", async () => {
     <div class="lead">${esc(m.avatar || "👤")}</div><div class="body"><div class="t">${esc(m.name)}</div><div class="s">${esc(m.role)}${m.birthday ? " · 🎂 " + esc(m.birthday) : ""}</div></div></div>`)) : empty("Noch keine Familienmitglieder angelegt");
 });
 
+function mealLabel(type) {
+  return { breakfast: "Frühstück", lunch: "Mittagessen", dinner: "Abendessen" }[type] || type;
+}
+
+VIEWS.meals = async function () {
+  const v = $("#view"); v.innerHTML = loading();
+  try {
+    const [plan, recipes] = await Promise.all([api("/api/meals/plan?days=7"), api("/api/recipes")]);
+    let html = `<div class="card"><h3>🍽️ Wochenplan <span class="count">${plan.length}</span></h3>`;
+    html += plan.length ? list(plan.map((e) => `<div class="row"><div class="lead">🍽️</div>
+      <div class="body"><div class="t">${esc(e.title)}</div><div class="s">${esc(fmtDate(e.date))} · ${esc(mealLabel(e.meal_type))}</div></div>
+      <button class="icon-btn" data-action="del-meal" data-id="${e.id}">✕</button></div>`)) : empty("Nichts geplant");
+    html += `<button class="btn block" style="margin-top:12px" data-action="gen-shopping">🛒 Einkaufsliste aus Plan erzeugen</button></div>`;
+
+    html += `<div class="card" style="margin-top:14px"><h3>📖 Rezepte <span class="count">${recipes.length}</span></h3>`;
+    html += recipes.length ? list(recipes.map((r) => `<div class="row"><div class="lead">📖</div>
+      <div class="body"><div class="t">${esc(r.title)}</div><div class="s">${(r.ingredients || []).length} Zutaten · ${r.servings} Port.</div></div>
+      <button class="btn ghost" data-action="plan-today" data-recipe="${r.id}">Heute</button></div>`)) : empty("Keine Rezepte");
+    html += `<form class="add-row" data-form="add-recipe" style="flex-wrap:wrap">
+      <input class="input" name="title" placeholder="Rezeptname" style="flex:1 1 100%">
+      <input class="input" name="ingredients" placeholder="Zutaten, komma, getrennt" style="flex:1 1 100%">
+      <button class="btn block">Rezept speichern</button></form></div>`;
+    v.innerHTML = html;
+  } catch (e) { v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; }
+};
+
+VIEWS.finance = async function () {
+  const v = $("#view"); v.innerHTML = loading();
+  try {
+    const [ov, expenses] = await Promise.all([api("/api/finance/overview"), api("/api/finance/expenses")]);
+    let html = `<div class="card"><h3>💶 Übersicht</h3>
+      <div class="weather-now"><div><div class="temp">${ov.monthly_total.toFixed(2)} €</div><div class="desc">pro Monat · ${ov.yearly_total.toFixed(2)} € / Jahr</div></div></div>`;
+    const cats = Object.entries(ov.by_category || {});
+    if (cats.length) html += `<div class="forecast">${cats.map(([c, val]) => `<div class="day"><div class="d">${esc(c)}</div><div>${val.toFixed(0)}€</div></div>`).join("")}</div>`;
+    html += `</div>`;
+
+    html += `<div class="card" style="margin-top:14px"><h3>🔁 Wiederkehrende Kosten <span class="count">${expenses.length}</span></h3>`;
+    html += expenses.length ? list(expenses.map((e) => `<div class="row"><div class="lead">💶</div>
+      <div class="body"><div class="t">${esc(e.name)}</div><div class="s">${esc(e.category)} · ${esc(e.interval)}</div></div>
+      <div class="trail">${e.amount.toFixed(2)} €</div>
+      <button class="icon-btn" data-action="del-expense" data-id="${e.id}">✕</button></div>`)) : empty("Noch nichts erfasst");
+    html += `<form class="add-row" data-form="add-expense" style="flex-wrap:wrap">
+      <input class="input" name="name" placeholder="Name (z.B. Haftpflicht)" style="flex:1 1 100%">
+      <input class="input" name="amount" type="number" step="0.01" placeholder="Betrag €" style="flex:1 1 46%">
+      <select class="input" name="interval" style="flex:1 1 46%"><option value="monthly">monatlich</option><option value="yearly">jährlich</option><option value="quarterly">quartal</option><option value="weekly">wöchentl.</option></select>
+      <select class="input" name="category" style="flex:1 1 100%"><option value="insurance">Versicherung</option><option value="subscription">Abo</option><option value="rent">Miete</option><option value="utility">Nebenkosten</option><option value="loan">Kredit</option><option value="other">Sonstiges</option></select>
+      <button class="btn block">Hinzufügen</button></form></div>`;
+    v.innerHTML = html;
+  } catch (e) { v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; }
+};
+
+VIEWS.maintenance = async function () {
+  const v = $("#view"); v.innerHTML = loading();
+  try {
+    const tasks = await api("/api/maintenance");
+    let html = `<div class="card"><h3>🔧 Wartungspläne <span class="count">${tasks.length}</span></h3>`;
+    html += tasks.length ? list(tasks.map((t) => `<div class="row"><div class="lead">🔧</div>
+      <div class="body"><div class="t">${esc(t.title)}</div><div class="s">${esc(t.category)}${t.next_due ? " · fällig " + fmtDate(t.next_due) : ""}${t.interval_days ? " · alle " + t.interval_days + "T" : ""}</div></div>
+      <button class="btn ghost" data-action="maint-done" data-id="${t.id}">Erledigt</button>
+      <button class="icon-btn" data-action="del-maint" data-id="${t.id}">✕</button></div>`)) : empty("Keine Wartungen geplant");
+    html += `<form class="add-row" data-form="add-maintenance" style="flex-wrap:wrap">
+      <input class="input" name="title" placeholder="Was? (z.B. Rauchmelder testen)" style="flex:1 1 100%">
+      <select class="input" name="category" style="flex:1 1 46%"><option value="home">Haus</option><option value="car">Auto</option><option value="garden">Garten</option><option value="appliance">Gerät</option><option value="other">Sonstiges</option></select>
+      <input class="input" name="interval_days" type="number" placeholder="Intervall (Tage)" style="flex:1 1 46%">
+      <button class="btn block">Plan anlegen</button></form></div>`;
+    v.innerHTML = html;
+  } catch (e) { v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; }
+};
+
 VIEWS.system = async function () {
   const v = $("#view"); v.innerHTML = loading();
   try {
@@ -406,6 +503,20 @@ async function onViewClick(e) {
     } catch (err) { toast(err.message); }
   } else if (action === "enable-push") {
     enablePush();
+  } else if (action === "gen-shopping") {
+    try { const r = await api("/api/meals/shopping-list?days=7", { method: "POST" }); toast(r.message); }
+    catch (err) { toast(err.message); }
+  } else if (action === "plan-today") {
+    try { await api("/api/meals/plan", { method: "POST", body: JSON.stringify({ date: new Date().toISOString().slice(0, 10), recipe_id: Number(act.dataset.recipe) }) }); toast("Für heute eingeplant 🍽️"); navigate("meals"); }
+    catch (err) { toast(err.message); }
+  } else if (action === "del-meal") {
+    try { await api(`/api/meals/plan/${act.dataset.id}`, { method: "DELETE" }); navigate("meals"); } catch (err) { toast(err.message); }
+  } else if (action === "del-expense") {
+    try { await api(`/api/finance/expenses/${act.dataset.id}`, { method: "DELETE" }); navigate("finance"); } catch (err) { toast(err.message); }
+  } else if (action === "maint-done") {
+    try { await api(`/api/maintenance/${act.dataset.id}/done`, { method: "POST" }); toast("Als erledigt markiert ✓"); navigate("maintenance"); } catch (err) { toast(err.message); }
+  } else if (action === "del-maint") {
+    try { await api(`/api/maintenance/${act.dataset.id}`, { method: "DELETE" }); navigate("maintenance"); } catch (err) { toast(err.message); }
   }
 }
 
@@ -429,6 +540,19 @@ async function onViewSubmit(e) {
       if (!data.title) return;
       await api("/api/reminders", { method: "POST", body: JSON.stringify({ title: data.title, priority: "info" }) });
       toast("Erinnerung gespeichert ⏰");
+    } else if (kind === "add-recipe") {
+      if (!data.title) return;
+      const ingredients = (data.ingredients || "").split(",").map((s) => s.trim()).filter(Boolean);
+      await api("/api/recipes", { method: "POST", body: JSON.stringify({ title: data.title, ingredients }) });
+      toast("Rezept gespeichert 📖");
+    } else if (kind === "add-expense") {
+      if (!data.name) return;
+      await api("/api/finance/expenses", { method: "POST", body: JSON.stringify({ name: data.name, amount: parseFloat(data.amount) || 0, interval: data.interval, category: data.category }) });
+      toast("Kostenposten hinzugefügt 💶");
+    } else if (kind === "add-maintenance") {
+      if (!data.title) return;
+      await api("/api/maintenance", { method: "POST", body: JSON.stringify({ title: data.title, category: data.category, interval_days: data.interval_days ? parseInt(data.interval_days, 10) : null }) });
+      toast("Wartungsplan angelegt 🔧");
     } else if (kind === "search") {
       const res = await api("/api/search?q=" + encodeURIComponent(data.q));
       $("#search-results").innerHTML = res.results.length
@@ -484,6 +608,26 @@ async function sendAI() {
     aiHistory.push({ role: "user", content: text }, { role: "assistant", content: res.reply || "" });
     if (res.actions && res.actions.length && currentView === "dashboard") navigate("dashboard");
   } catch (err) { thinking.textContent = "Fehler: " + err.message; }
+}
+
+/* ---------- Voice (Web Speech API) ---------- */
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast("Spracheingabe nicht unterstützt"); return; }
+  const rec = new SR();
+  rec.lang = "de-DE";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  const mic = $("#ai-mic");
+  mic.textContent = "🔴";
+  rec.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    $("#ai-text").value = text;
+    sendAI();
+  };
+  rec.onerror = () => toast("Spracheingabe fehlgeschlagen");
+  rec.onend = () => { mic.textContent = "🎤"; };
+  try { rec.start(); } catch (_) { mic.textContent = "🎤"; }
 }
 
 /* ---------- Push ---------- */

@@ -5,6 +5,7 @@ Assembliert alle Router, Middleware und das statische Frontend (PWA).
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from app import __version__
 from app.config import settings
 from app.core.database import init_db
 from app.core.logging_config import get_logger, setup_logging
+from app.services.scheduler import run_scheduler
 from app.routers import (
     ai,
     auth,
@@ -27,9 +29,12 @@ from app.routers import (
     finance,
     health,
     inventory,
+    maintenance,
+    meals,
     media,
     notifications,
     packages,
+    recipes,
     reminders,
     search,
     shopping,
@@ -52,7 +57,17 @@ async def lifespan(app: FastAPI):
         logger.warning("SECRET_KEY is default – set a strong SECRET_KEY in production!")
     logger.info("Tip: create the first admin with 'python -m scripts.create_admin'")
     logger.info("=" * 60)
-    yield
+
+    # Hintergrund-Scheduler (fällige Erinnerungen -> Push)
+    scheduler_task = asyncio.create_task(run_scheduler())
+    try:
+        yield
+    finally:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -89,6 +104,9 @@ for module in (
     reminders,
     finance,
     family,
+    recipes,
+    meals,
+    maintenance,
     search,
     ai,
     notifications,

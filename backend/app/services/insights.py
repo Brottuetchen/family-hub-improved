@@ -18,8 +18,11 @@ from sqlalchemy.orm import Session
 from app.connectors.registry import registry
 from app.core.logging_config import get_logger
 from app.models.family import FamilyMember
+from app.models.finance import RecurringExpense
+from app.models.maintenance import MaintenanceTask
 from app.models.package import Package
 from app.models.reminder import Reminder
+from app.services.holidays import holiday_on
 
 logger = get_logger("service.insights")
 
@@ -29,7 +32,11 @@ async def generate_insights(db: Session) -> List[Dict[str, Any]]:
     insights.extend(_reminder_insights(db))
     insights.extend(_package_insights(db))
     insights.extend(_birthday_insights(db))
+    insights.extend(_maintenance_insights(db))
+    insights.extend(_finance_insights(db))
+    insights.extend(_holiday_insights())
     insights.extend(await _weather_insights())
+    insights.extend(await _document_deadline_insights())
 
     priority_rank = {"critical": 0, "important": 1, "info": 2}
     insights.sort(key=lambda i: priority_rank.get(i.get("priority", "info"), 3))
@@ -109,6 +116,87 @@ def _birthday_insights(db: Session) -> List[Dict[str, Any]]:
             }
         )
     return out
+
+
+def _maintenance_insights(db: Session) -> List[Dict[str, Any]]:
+    today = date.today()
+    soon = today + timedelta(days=7)
+    tasks = (
+        db.query(MaintenanceTask)
+        .filter(MaintenanceTask.next_due != None)  # noqa: E711
+        .filter(MaintenanceTask.next_due <= soon)
+        .all()
+    )
+    out = []
+    for t in tasks:
+        overdue = t.next_due < today
+        out.append(
+            {
+                "type": "maintenance",
+                "priority": "important" if overdue else "info",
+                "title": "Wartung fällig" if not overdue else "Wartung überfällig",
+                "message": f"{t.title} ({t.next_due.strftime('%d.%m.')})",
+                "icon": "🔧",
+                "action": None,
+            }
+        )
+    return out
+
+
+def _finance_insights(db: Session) -> List[Dict[str, Any]]:
+    today = date.today()
+    expenses = (
+        db.query(RecurringExpense)
+        .filter(RecurringExpense.active == True, RecurringExpense.due_day != None)  # noqa: E711,E712
+        .all()
+    )
+    out = []
+    for e in expenses:
+        # Fällig in den nächsten 3 Tagen (nach Tag im Monat)?
+        delta = (e.due_day - today.day) % 31
+        if 0 <= delta <= 3:
+            out.append(
+                {
+                    "type": "finance",
+                    "priority": "info",
+                    "title": "Zahlung steht an",
+                    "message": f"{e.name}: {e.amount:.2f} {e.currency} (~{e.due_day}.)",
+                    "icon": "💶",
+                    "action": None,
+                }
+            )
+    return out
+
+
+def _holiday_insights() -> List[Dict[str, Any]]:
+    name = holiday_on(date.today())
+    if not name:
+        return []
+    return [
+        {"type": "holiday", "priority": "info", "title": "Feiertag", "message": f"Heute ist {name}.", "icon": "🎉", "action": None}
+    ]
+
+
+async def _document_deadline_insights() -> List[Dict[str, Any]]:
+    paperless = registry.get("paperless")
+    if not paperless or not paperless.is_configured:
+        return []
+    try:
+        docs = await paperless.get_deadlines(limit=5)  # type: ignore[attr-defined]
+        return [
+            {
+                "type": "document",
+                "priority": "info",
+                "title": "Dokument prüfen",
+                "message": f"{d.get('title')} – evtl. Frist/Kündigung beachten",
+                "icon": "📄",
+                "action": None,
+            }
+            for d in docs
+        ]
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("document deadline insight failed: %s", exc)
+        return []
 
 
 async def _weather_insights() -> List[Dict[str, Any]]:

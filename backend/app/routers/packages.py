@@ -13,12 +13,14 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.package import Package
 from app.models.user import User
+from app.services.tracking import detect_carrier
 
 router = APIRouter(prefix="/api/packages", tags=["packages"])
 
 
 class PackageRequest(BaseModel):
-    carrier: str
+    # "auto" oder leer => Carrier wird aus der Trackingnummer erkannt
+    carrier: str = "auto"
     tracking_number: Optional[str] = None
     description: Optional[str] = None
     status: str = "in_transit"
@@ -32,8 +34,15 @@ class PackageResponse(BaseModel):
     description: Optional[str] = None
     status: str
     expected_at: Optional[datetime] = None
+    tracking_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+def _resolve_carrier(carrier: str, tracking_number: Optional[str]) -> str:
+    if not carrier or carrier == "auto":
+        return detect_carrier(tracking_number)
+    return carrier
 
 
 @router.get("", response_model=list[PackageResponse])
@@ -46,7 +55,9 @@ async def list_packages(include_delivered: bool = False, db: Session = Depends(g
 
 @router.post("", response_model=PackageResponse)
 async def create_package(data: PackageRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    package = Package(**data.model_dump())
+    payload = data.model_dump()
+    payload["carrier"] = _resolve_carrier(payload.get("carrier"), payload.get("tracking_number"))
+    package = Package(**payload)
     db.add(package)
     db.commit()
     db.refresh(package)

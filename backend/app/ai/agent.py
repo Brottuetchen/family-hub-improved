@@ -133,6 +133,16 @@ async def _run_rules(message: str, ctx: ToolContext) -> Dict[str, Any]:
         reply = await _execute_tool("list_tasks", ctx, {})
         return _reply(reply, "list_tasks")
 
+    # Finanzen
+    if re.search(r"fixkosten|finanzen|ausgaben|was\s+kostet|monatliche?\s+kosten", low):
+        reply = await _execute_tool("get_finance_overview", ctx, {})
+        return _reply(reply, "get_finance_overview")
+
+    # Essensplan
+    if re.search(r"essensplan|men[üu]plan|koch|essen.*woche|woche.*essen|gibt.?s?.*essen|was.*zu\s+essen", low):
+        reply = await _execute_tool("get_meal_plan", ctx, {})
+        return _reply(reply, "get_meal_plan")
+
     # Suche
     q = _extract_search(text)
     if q:

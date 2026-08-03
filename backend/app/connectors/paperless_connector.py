@@ -52,6 +52,21 @@ class PaperlessConnector(BaseConnector):
             self.logger.warning("paperless get_recent failed: %s", exc)
             return []
 
+    # Schlüsselwörter, die auf Fristen/Kündigungstermine hindeuten.
+    DEADLINE_KEYWORDS = ("kündigung", "frist", "ablauf", "vertrag", "versicherung", "garantie", "police")
+
+    async def get_deadlines(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Best-effort-Erkennung fristrelevanter Dokumente (per Titel-Schlüsselwörtern)."""
+        if not self.is_configured:
+            return []
+        docs = await self.get_recent(limit=50)
+        out = []
+        for d in docs:
+            title = (d.get("title") or "").lower()
+            if any(k in title for k in self.DEADLINE_KEYWORDS):
+                out.append(d)
+        return out[:limit]
+
     async def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         if not self.is_configured:
             return []
