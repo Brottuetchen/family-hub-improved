@@ -4,6 +4,7 @@ const TOKEN_KEY = "hermes_token";
 const MODULES = [
   { id: "dashboard", label: "Dashboard" },
   { id: "assistant", label: "Assistent" },
+  { id: "agent", label: "Hermes Agent" },
   { id: "calendar", label: "Kalender" },
   { id: "tasks", label: "Aufgaben" },
   { id: "shopping", label: "Einkauf" },
@@ -442,6 +443,20 @@ function mealLabel(type) {
   return { breakfast: "Frühstück", lunch: "Mittagessen", dinner: "Abendessen" }[type] || type;
 }
 
+VIEWS.agent = async function () {
+  const v = $("#view"); v.innerHTML = loading();
+  try {
+    const st = await api("/api/ai/status");
+    if (!st.dashboard) {
+      v.innerHTML = `<div class="card"><h3>🧠 Hermes Agent</h3><div class="empty">Der hermes-agent-Dienst ist (noch) nicht konfiguriert.<br>Setze <code>HERMES_AGENT_DASHBOARD_URL</code> und starte den Sidecar – siehe <b>docs/HERMES_AGENT.md</b>.</div></div>`;
+      return;
+    }
+    v.innerHTML = `<iframe class="agent-frame" src="/agent/" title="Hermes Agent"></iframe>`;
+  } catch (e) {
+    v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`;
+  }
+};
+
 function recLabel(rec) {
   return { daily: "täglich", weekdays: "werktags", weekly: "wöchentlich", monthly: "monatlich" }[rec] || "";
 }
@@ -678,7 +693,7 @@ VIEWS.assistant = async function () {
   }).catch(() => {});
 
   $("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); sendChat(); });
-  $("#chat-mic").addEventListener("click", () => startVoice($("#chat-text"), sendChat));
+  $("#chat-mic").addEventListener("click", () => toggleVoiceRecording($("#chat-mic")));
   $("#chat-new").addEventListener("click", async () => {
     try { await api("/api/ai/history", { method: "DELETE" }); } catch (_) {}
     navigate("assistant");
@@ -770,7 +785,62 @@ async function sendChat() {
   }
 }
 
-/* ---------- Voice (Web Speech API) ---------- */
+/* ---------- Voice-Messages (Aufnahme -> hermes-agent Transkription) ---------- */
+let _mediaRecorder = null;
+let _audioChunks = [];
+
+async function toggleVoiceRecording(micBtn) {
+  if (_mediaRecorder && _mediaRecorder.state === "recording") {
+    _mediaRecorder.stop();
+    return;
+  }
+  // Fallback: kein MediaRecorder -> Browser-Spracherkennung
+  if (!navigator.mediaDevices || !window.MediaRecorder) {
+    startVoice($("#chat-text"), sendChat);
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _audioChunks = [];
+    _mediaRecorder = new MediaRecorder(stream);
+    _mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) _audioChunks.push(e.data); };
+    _mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      micBtn.textContent = "🎤";
+      const blob = new Blob(_audioChunks, { type: (_mediaRecorder && _mediaRecorder.mimeType) || "audio/webm" });
+      await uploadVoice(blob);
+    };
+    _mediaRecorder.start();
+    micBtn.textContent = "⏹";
+    toast("Aufnahme läuft … 🎙 erneut tippen zum Senden");
+  } catch (err) {
+    toast("Mikrofon nicht verfügbar");
+  }
+}
+
+async function uploadVoice(blob, _retried) {
+  const fd = new FormData();
+  fd.append("audio", blob, "voice.webm");
+  try {
+    const res = await fetch("/api/ai/voice", { method: "POST", headers: { ...authHeader() }, credentials: "include", body: fd });
+    if (res.status === 401 && !_retried) {
+      if (await tryRefresh()) return uploadVoice(blob, true);
+      location.href = "/login.html"; return;
+    }
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      toast(e.detail || "Transkription fehlgeschlagen");
+      return;
+    }
+    const { text } = await res.json();
+    if (text) { $("#chat-text").value = text; sendChat(); }
+    else toast("Nichts erkannt");
+  } catch (err) {
+    toast("Voice-Fehler: " + err.message);
+  }
+}
+
+/* ---------- Voice (Web Speech API, Fallback) ---------- */
 function startVoice(targetInput, onDone) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { toast("Spracheingabe nicht unterstützt"); return; }

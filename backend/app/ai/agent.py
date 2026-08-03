@@ -34,6 +34,21 @@ SYSTEM_PROMPT = (
 MAX_ITERATIONS = 5
 
 
+def build_agentic_messages(
+    message: str, history: Optional[List[Dict[str, str]]], user_name: str = "jemand", role: str = "partner"
+) -> List[Dict[str, Any]]:
+    """Nachrichten für den Relay-/Agentic-Modus (hermes-agent ist der Agent).
+
+    Es werden KEINE Tool-Schemas injiziert – der Sidecar bringt seine eigenen
+    Tools/Skills/Memory mit. Ein kurzer System-Hinweis personalisiert nur.
+    """
+    system = f"Du unterstützt {user_name} (Rolle: {role}) über Hermes Family OS."
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": system}]
+    messages.extend(history or [])
+    messages.append({"role": "user", "content": message})
+    return messages
+
+
 async def run_agent(
     message: str,
     db: Session,
@@ -45,12 +60,29 @@ async def run_agent(
     name = (user.full_name or user.username) if user else "jemand"
     ctx = ToolContext(db=db, user_id=user_id, role=role)
 
+    # 1) Externer hermes-agent als Gehirn (Relay, kein eigener Tool-Loop)
+    if llm_client.is_agentic:
+        try:
+            return await _run_relay(message, history or [], name, role)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("hermes-agent relay failed, falling back to rules: %s", exc)
+        return await _run_rules(message, ctx)
+
+    # 2) Direktes Modell mit eigener Tool-Schleife
     if llm_client.is_configured:
         try:
             return await _run_llm(message, ctx, history or [], name)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM agent failed, falling back to rules: %s", exc)
+
+    # 3) Regelbasierter Fallback
     return await _run_rules(message, ctx)
+
+
+async def _run_relay(message: str, history: List[Dict[str, str]], user_name: str, role: str) -> Dict[str, Any]:
+    messages = build_agentic_messages(message, history, user_name, role)
+    msg = await llm_client.chat(messages)  # ohne Tools – der Sidecar ist der Agent
+    return {"reply": msg.get("content", "") or "", "actions": [], "used_llm": True}
 
 
 async def _execute_tool(name: str, ctx: ToolContext, args: Dict[str, Any]) -> str:
