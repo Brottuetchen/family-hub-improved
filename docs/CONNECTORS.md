@@ -84,4 +84,8 @@ class MyServiceConnector(BaseConnector):
 ## Vorhandene Connectors
 
 `weather` (Open-Meteo), `caldav` (Nextcloud/CalDAV), `vikunja`, `kitchenowl`,
-`paperless`, `homebox`, `homeassistant`, `plex`.
+`paperless`, `homebox`, `homeassistant`, `plex`, `audiobookshelf`,
+`teddycloud` (Tonies), `overseerr` (Media-Requests).
+
+Die Medien-Connectoren speisen den vereinten `/api/media/now-playing`-Endpunkt
+(„Läuft gerade": Plex-Streams + Hörbücher + Tonies) und das Dashboard-Widget.

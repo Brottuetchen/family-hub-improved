@@ -14,6 +14,7 @@ from app.core.database import SessionLocal
 from app.core.logging_config import get_logger
 from app.models.reminder import Reminder
 from app.services.notifications import notification_service
+from app.services.recurrence import advance
 
 logger = get_logger("service.scheduler")
 
@@ -49,7 +50,14 @@ async def _tick() -> None:
                     "/assets/icons/app-icon-192.png",
                     reminder.priority or "info",
                 )
-            reminder.notified = True
+            # Wiederkehrende Erinnerung: nächste Fälligkeit planen statt abschließen.
+            next_due = advance(reminder.due_at, reminder.recurrence)
+            if next_due:
+                reminder.due_at = next_due
+                reminder.notified = False
+                reminder.completed = False
+            else:
+                reminder.notified = True
         db.commit()
         logger.info("scheduler: notified %d due reminder(s)", len(due))
     except Exception as exc:  # noqa: BLE001

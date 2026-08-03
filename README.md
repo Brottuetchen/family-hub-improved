@@ -66,7 +66,7 @@ Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 | Wartung          | Hermes (eigen)          | ✅ Pläne + Fälligkeits-Reschedule |
 | Smart Home       | Home Assistant          | ✅ (Übersicht + Steuerung) |
 | Wetter           | Open-Meteo (kein Key)   | ✅ voll |
-| Medien           | Plex                    | ✅ optional |
+| Medien / Audio   | Plex · Audiobookshelf · TeddyCloud · Overseerr | ✅ „Läuft gerade" + Requests |
 | Familie & Rollen | Hermes (eigen)          | ✅ admin/partner/kind/gast |
 | Globale Suche    | alle Connectors         | ✅ |
 | Hermes AI        | OpenAI-kompatibel/lokal | ✅ Tools + Fallback + Spracheingabe |

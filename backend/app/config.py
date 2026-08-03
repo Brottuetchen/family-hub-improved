@@ -91,6 +91,17 @@ class Settings(BaseSettings):
     plex_url: Optional[str] = None
     plex_token: Optional[str] = None
 
+    # --- Connector: Hörbücher (Audiobookshelf) ---
+    audiobookshelf_url: Optional[str] = None
+    audiobookshelf_token: Optional[str] = None
+
+    # --- Connector: Tonies (TeddyCloud, ohne Auth) ---
+    teddycloud_url: Optional[str] = None
+
+    # --- Connector: Media-Requests (Overseerr) ---
+    overseerr_url: Optional[str] = None
+    overseerr_api_key: Optional[str] = None
+
     # --- Hermes AI ---
     ai_enabled: bool = True
     # OpenAI-kompatibler Endpoint. Für lokale Modelle (Ollama, LM Studio, vLLM)

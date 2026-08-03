@@ -10,6 +10,7 @@ inklusive Connector-Architektur und Hermes AI.
 - [x] Aufgaben (Vikunja: lesen + anlegen)
 - [x] Einkauf (KitchenOwl: lesen + hinzufügen)
 - [x] Erinnerungen & Pakete (Hermes-eigen)
+- [x] Wiederkehrende Erinnerungen (täglich/werktags/wöchentlich/monatlich) mit Auto-Push
 - [x] Wetter (Open-Meteo)
 - [x] Push (Web Push / VAPID)
 - [x] Hermes AI (Tools + Fallback)

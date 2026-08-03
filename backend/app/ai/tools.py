@@ -143,25 +143,35 @@ async def _list_tasks(ctx: ToolContext) -> str:
 
 
 async def _create_reminder(
-    ctx: ToolContext, title: str, due_at: Optional[str] = None, priority: str = "info"
+    ctx: ToolContext,
+    title: str,
+    due_at: Optional[str] = None,
+    priority: str = "info",
+    recurrence: str = "none",
 ) -> str:
+    from app.services.recurrence import VALID_RECURRENCE, label
+
     parsed_due = None
     if due_at:
         try:
             parsed_due = datetime.fromisoformat(due_at.replace("Z", "+00:00")).replace(tzinfo=None)
         except ValueError:
             parsed_due = None
+    if recurrence not in VALID_RECURRENCE:
+        recurrence = "none"
     reminder = Reminder(
         title=title,
         due_at=parsed_due,
         priority=priority if priority in {"critical", "important", "info"} else "info",
+        recurrence=recurrence,
         source="ai",
         created_by=ctx.user_id,
     )
     ctx.db.add(reminder)
     ctx.db.commit()
     when = f" (fällig {parsed_due.strftime('%d.%m. %H:%M')})" if parsed_due else ""
-    return f"Erinnerung '{title}'{when} wurde gespeichert. ⏰"
+    rec = f", {label(recurrence)}" if recurrence != "none" else ""
+    return f"Erinnerung '{title}'{when}{rec} wurde gespeichert. ⏰"
 
 
 async def _get_finance_overview(ctx: ToolContext) -> str:
@@ -171,6 +181,25 @@ async def _get_finance_overview(ctx: ToolContext) -> str:
         return "Keine wiederkehrenden Kosten hinterlegt."
     monthly = sum((e.amount or 0.0) * factor.get(e.interval, 1.0) for e in expenses)
     return f"Monatliche Fixkosten: {monthly:.2f} € ({len(expenses)} Posten, {monthly * 12:.2f} €/Jahr)."
+
+
+async def _get_now_playing(ctx: ToolContext) -> str:
+    parts: List[str] = []
+    plex = registry.get("plex")
+    if plex and plex.is_configured:
+        for s in await plex.get_active_streams():  # type: ignore[attr-defined]
+            parts.append(f"🎬 {s.get('title')} ({s.get('user')})")
+    absc = registry.get("audiobookshelf")
+    if absc and absc.is_configured:
+        for s in await absc.get_active_sessions():  # type: ignore[attr-defined]
+            parts.append(f"📚 {s.get('title')} ({s.get('user')})")
+    teddy = registry.get("teddycloud")
+    if teddy and teddy.is_configured:
+        for s in await teddy.get_active_tonies():  # type: ignore[attr-defined]
+            parts.append(f"🧸 {s.get('title')} ({s.get('user')})")
+    if not parts:
+        return "Gerade läuft nichts (oder Medien-Connectoren sind nicht konfiguriert)."
+    return "▶️ Läuft gerade:\n" + "\n".join(f"   {p}" for p in parts)
 
 
 async def _get_meal_plan(ctx: ToolContext) -> str:
@@ -256,13 +285,18 @@ TOOLS: Dict[str, Tool] = {
     ),
     "create_reminder": Tool(
         name="create_reminder",
-        description="Erstellt eine Erinnerung, z.B. 'Heute Abend an den Müll denken'.",
+        description="Erstellt eine Erinnerung, z.B. 'Heute Abend an den Müll denken' oder wiederkehrend 'jeden Dienstag 19 Uhr Müll'.",
         parameters={
             "type": "object",
             "properties": {
                 "title": {"type": "string"},
                 "due_at": {"type": "string", "description": "Zeitpunkt ISO 8601 (optional)"},
                 "priority": {"type": "string", "enum": ["critical", "important", "info"]},
+                "recurrence": {
+                    "type": "string",
+                    "enum": ["none", "daily", "weekdays", "weekly", "monthly"],
+                    "description": "Wiederholung (optional)",
+                },
             },
             "required": ["title"],
         },
@@ -289,6 +323,12 @@ TOOLS: Dict[str, Tool] = {
         description="Zeigt den Essensplan der Woche.",
         parameters={"type": "object", "properties": {}},
         handler=_get_meal_plan,
+    ),
+    "get_now_playing": Tool(
+        name="get_now_playing",
+        description="Zeigt, was gerade in der Familie läuft: Plex-Streams, Hörbücher, Tonies.",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_now_playing,
     ),
 }
 
