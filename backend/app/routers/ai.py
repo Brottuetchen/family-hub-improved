@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.ai.agent import run_agent
 from app.ai.llm import llm_client
-from app.ai.tools import TOOLS
+from app.ai.tools import TOOLS, is_allowed
+from app.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
@@ -25,18 +26,22 @@ class ChatRequest(BaseModel):
 
 @router.get("/status")
 async def status(current_user: User = Depends(get_current_user)):
+    available = [t for t in TOOLS.values() if is_allowed(t.min_role, current_user.role)]
     return {
         "llm_configured": llm_client.is_configured,
         "mode": "llm" if llm_client.is_configured else "rule-based",
-        "tool_count": len(TOOLS),
+        "model": settings.ai_model if llm_client.is_configured else None,
+        "role": current_user.role,
+        "tool_count": len(available),
     }
 
 
 @router.get("/tools")
 async def tools(current_user: User = Depends(get_current_user)):
     return [
-        {"name": t.name, "description": t.description}
+        {"name": t.name, "description": t.description, "min_role": t.min_role}
         for t in TOOLS.values()
+        if is_allowed(t.min_role, current_user.role)
     ]
 
 

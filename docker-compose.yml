@@ -42,6 +42,29 @@ services:
     volumes:
       - hermes_redis:/data
 
+  # Optionaler lokaler LLM-Server für Hermes AI (Nous Hermes u.a.).
+  # Aktivieren mit:  docker compose --profile ai up -d
+  # Danach Modell laden:  docker compose exec ollama ollama pull hermes3
+  # In der .env setzen:
+  #   AI_PROVIDER=local
+  #   AI_BASE_URL=http://ollama:11434/v1
+  #   AI_MODEL=hermes3
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes:
+      - hermes_ollama:/root/.ollama
+    # Für NVIDIA-GPU zusätzlich (Host mit nvidia-container-toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: ["gpu"]
+
 volumes:
   hermes_pgdata:
   hermes_redis:
+  hermes_ollama:

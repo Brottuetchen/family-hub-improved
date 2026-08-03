@@ -17,8 +17,9 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.ai.llm import llm_client
-from app.ai.tools import TOOLS, ToolContext, openai_tools
+from app.ai.tools import TOOLS, ToolContext, is_allowed, openai_tools
 from app.core.logging_config import get_logger
+from app.models.user import User
 from app.services.recurrence import WEEKDAYS_DE, next_at, next_weekday
 
 logger = get_logger("ai.agent")
@@ -39,10 +40,14 @@ async def run_agent(
     user_id: Optional[int] = None,
     history: Optional[List[Dict[str, str]]] = None,
 ) -> Dict[str, Any]:
-    ctx = ToolContext(db=db, user_id=user_id)
+    user = db.query(User).filter(User.id == user_id).first() if user_id else None
+    role = (user.role if user else None) or "partner"
+    name = (user.full_name or user.username) if user else "jemand"
+    ctx = ToolContext(db=db, user_id=user_id, role=role)
+
     if llm_client.is_configured:
         try:
-            return await _run_llm(message, ctx, history or [])
+            return await _run_llm(message, ctx, history or [], name)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM agent failed, falling back to rules: %s", exc)
     return await _run_rules(message, ctx)
@@ -52,6 +57,8 @@ async def _execute_tool(name: str, ctx: ToolContext, args: Dict[str, Any]) -> st
     tool = TOOLS.get(name)
     if not tool:
         return f"Unbekanntes Werkzeug: {name}"
+    if not is_allowed(tool.min_role, ctx.role):
+        return f"Das darf deine Rolle ({ctx.role}) nicht. Frag ein Elternteil/Admin."
     try:
         return await tool.handler(ctx, **args)
     except TypeError as exc:
@@ -61,14 +68,19 @@ async def _execute_tool(name: str, ctx: ToolContext, args: Dict[str, Any]) -> st
         return f"Fehler bei {name}: {exc}"
 
 
-async def _run_llm(message: str, ctx: ToolContext, history: List[Dict[str, str]]) -> Dict[str, Any]:
-    messages: List[Dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+async def _run_llm(message: str, ctx: ToolContext, history: List[Dict[str, str]], user_name: str) -> Dict[str, Any]:
+    system = (
+        f"{SYSTEM_PROMPT}\n\nDu sprichst gerade mit {user_name} (Rolle: {ctx.role}). "
+        "Neu erstellte Einträge gehören dieser Person. "
+        "Führe nur Aktionen aus, die dieser Rolle erlaubt sind."
+    )
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": system}]
     messages.extend(history)
     messages.append({"role": "user", "content": message})
 
     executed: List[str] = []
     for _ in range(MAX_ITERATIONS):
-        msg = await llm_client.chat(messages, tools=openai_tools())
+        msg = await llm_client.chat(messages, tools=openai_tools(ctx.role))
         tool_calls = msg.get("tool_calls")
         if not tool_calls:
             return {"reply": msg.get("content", ""), "actions": executed, "used_llm": True}
@@ -148,6 +160,29 @@ async def _run_rules(message: str, ctx: ToolContext) -> Dict[str, Any]:
     if re.search(r"was läuft|läuft gerade|was hören|was schau|was guck|tonie|hörbuch|plex", low):
         reply = await _execute_tool("get_now_playing", ctx, {})
         return _reply(reply, "get_now_playing")
+
+    # Smart Home: Licht schalten
+    if re.search(r"\b(licht|lampe|lampen|beleuchtung)\b", low) and re.search(
+        r"\b(an|aus|ein|anmachen|ausmachen|einschalten|ausschalten)\b", low
+    ):
+        action = "on" if re.search(r"\b(an|ein|anmachen|einschalten)\b", low) else "off"
+        reply = await _execute_tool("control_light", ctx, {"name": _extract_light_name(text), "action": action})
+        return _reply(reply, "control_light")
+
+    # Kalender / Termine
+    if re.search(r"\btermin(e)?\b|\bkalender\b", low):
+        reply = await _execute_tool("get_calendar", ctx, {})
+        return _reply(reply, "get_calendar")
+
+    # Pakete
+    if re.search(r"\bpaket|lieferung|sendung", low):
+        reply = await _execute_tool("list_packages", ctx, {})
+        return _reply(reply, "list_packages")
+
+    # Familie
+    if re.search(r"\bfamilie\b|mitglieder|wer gehört", low):
+        reply = await _execute_tool("list_family", ctx, {})
+        return _reply(reply, "list_family")
 
     # Suche
     q = _extract_search(text)
@@ -259,6 +294,18 @@ def _extract_task(text: str) -> Optional[str]:
     if m:
         return _clean(text[text.lower().index(m.group(2)):])
     return None
+
+
+def _extract_light_name(text: str) -> str:
+    t = re.sub(
+        r"\b(mach|schalte?|bitte|kannst du|das|die|der|den|im|in|licht|lampe|lampen|beleuchtung|"
+        r"an|aus|ein|anmachen|ausmachen|einschalten|ausschalten)\b",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    t = re.sub(r"\s{2,}", " ", t).strip(" ,.")
+    return t or "Licht"
 
 
 def _extract_search(text: str) -> Optional[str]:
