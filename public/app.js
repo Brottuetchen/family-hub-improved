@@ -542,7 +542,7 @@ VIEWS.system = async function () {
 
     const aiLabel = aiStatus.connected
       ? `Hermes Agent verbunden${aiStatus.model ? " · " + esc(aiStatus.model) : ""}`
-      : "nicht verbunden";
+      : (aiStatus.configured ? "konfiguriert, nicht erreichbar" : "nicht verbunden");
     html += `<div class="card" style="margin-top:14px"><h3>✨ Hermes AI</h3>
       <div class="row"><div class="lead">🧠</div><div class="body"><div class="t">${aiLabel}</div><div class="s">${aiStatus.tool_count} Haushalts-Werkzeuge über MCP steuerbar</div></div></div></div>`;
 
@@ -692,7 +692,9 @@ VIEWS.assistant = async function () {
     hist.forEach((m) => appendChatMsg(m.role === "user" ? "user" : "bot", m.content, m.actions));
   }
   api("/api/ai/status").then((s) => {
-    $("#chat-mode").textContent = s.connected ? `· ${s.model || "Nous Hermes Agent"}` : "· nicht verbunden";
+    $("#chat-mode").textContent = s.connected
+      ? `· ${s.model || "Nous Hermes Agent"}`
+      : (s.configured ? "· nicht erreichbar" : "· nicht verbunden");
   }).catch(() => {});
 
   $("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); sendChat(); });

@@ -29,17 +29,47 @@ bring_up_agent() {
     say "  Später:  docker compose --profile agent up -d --build"
     return 0
   fi
-  say "  Baue & starte hermes-agent + hermes-mcp … (das kann dauern)"
+  say "  Baue & starte hermes-agent + hermes-mcp … (Build kann dauern)"
   docker compose --profile agent up -d --build
-  c "32" "  ✅ Sidecar läuft."; say ""
+  c "32" "  ✅ Container gebaut/gestartet."; say ""
+
+  # Einmalige Einrichtung: Login + API-Plattform (der OpenAI-API-Server ist eine
+  # Gateway-Plattform -> muss aktiviert werden).
   a=""
-  read -r -p "Jetzt einrichten/einloggen (hermes setup, interaktiv)? [J/n]: " a || true
+  read -r -p "Jetzt einrichten/einloggen (interaktiv)? [J/n]: " a || true
   if [[ ! "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
-    say "  Folge den Anweisungen (Codex/ChatGPT-Abo oder Nous Portal):"
+    say "  1) Login (Codex/ChatGPT-Abo oder Nous Portal):"
     docker compose exec hermes-agent hermes setup || true
+    say "  2) API-Plattform aktivieren (OpenAI-API auf :8642):"
+    docker compose exec hermes-agent hermes gateway setup || true
+    docker compose restart hermes-agent || true
   fi
-  say "  Haushalts-Tools mit hermes verbinden (einmalig):"
-  c "1" "    docker compose exec hermes-agent hermes mcp add hermes-family --transport streamable-http --url http://hermes-mcp:8765/mcp"; say ""
+
+  # Auf Health warten (API :8642 muss auf /v1/models antworten).
+  say "  Warte auf hermes-agent (API :8642) …"
+  local cid ok=0 st
+  cid="$(docker compose ps -q hermes-agent 2>/dev/null || true)"
+  for _ in $(seq 1 36); do
+    st="$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || true)"
+    [ "$st" = "healthy" ] && { ok=1; break; }
+    sleep 5
+  done
+  if [ "$ok" = "1" ]; then
+    c "32" "  ✅ hermes-agent ist healthy – die API antwortet."; say ""
+  else
+    c "33" "  ⚠ hermes-agent noch nicht healthy (Status: ${st:-unbekannt})."; say ""
+    say "    Logs:            docker compose logs -f hermes-agent"
+    say "    API-Plattform:   docker compose exec hermes-agent hermes gateway setup"
+    say "    Danach:          docker compose restart hermes-agent"
+  fi
+
+  # Haushalts-Tools (MCP) mit hermes verbinden.
+  a=""
+  read -r -p "Haushalts-Tools (MCP) jetzt mit hermes verbinden? [J/n]: " a || true
+  if [[ ! "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
+    docker compose exec hermes-agent hermes mcp add hermes-family \
+      --transport streamable-http --url http://hermes-mcp:8765/mcp || true
+  fi
 }
 
 say ""

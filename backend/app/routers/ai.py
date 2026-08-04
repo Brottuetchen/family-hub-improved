@@ -32,15 +32,18 @@ class ChatRequest(BaseModel):
 
 @router.get("/status")
 async def status(current_user: User = Depends(get_current_user)):
-    # Der Chat ist ein reiner hermes-agent-Client: verbunden oder offline.
-    connected = llm_client.is_agentic and llm_client.is_configured
+    # Der Chat ist ein reiner hermes-agent-Client. 'configured' = laut .env,
+    # 'connected' = der Sidecar antwortet wirklich (Live-Ping auf /v1/models).
+    configured = llm_client.is_agentic and llm_client.is_configured
+    connected = await llm_client.ping() if configured else False
     available = [t for t in TOOLS.values() if is_allowed(t.min_role, current_user.role)]
     return {
         "connected": connected,
-        "mode": "hermes-agent" if connected else "offline",
+        "configured": configured,
+        "mode": "hermes-agent" if configured else "offline",
         "provider": settings.ai_provider,
         "agentic": llm_client.is_agentic,
-        "model": llm_client.model if connected else None,
+        "model": llm_client.model if configured else None,
         "dashboard": bool(settings.hermes_agent_dashboard_url),
         "role": current_user.role,
         "tool_count": len(available),

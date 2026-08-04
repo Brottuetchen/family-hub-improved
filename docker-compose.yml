@@ -55,24 +55,26 @@ services:
   # Version PINNEN (das Repo ist sehr aktiv). Der Build ist groß (~610 MB).
   #
   # Bestätigt aus dem Upstream-Repo:
-  #  * OpenAI-kompatibler API-Server (gateway/platforms/api_server.py):
+  #  * Der OpenAI-kompatible API-Server (gateway/platforms/api_server.py) ist eine
+  #    GATEWAY-PLATTFORM (APIServerAdapter) -> Start über 'hermes gateway', NICHT 'serve'.
   #      POST /v1/chat/completions (SSE), /v1/models …  – Default 127.0.0.1:8642
   #      -> API_SERVER_HOST=0.0.0.0, API_SERVER_PORT=8642, Bearer=API_SERVER_KEY
+  #    Die 'api'-Plattform muss aktiv sein (einmalig via 'hermes gateway setup',
+  #    persistiert im Volume). Prüfe am gepinnten Stand: 'hermes gateway --help'.
   #  * Daten/Config-Volume: /opt/data (HERMES_HOME)
   #  * Setup/Login (einmalig, interaktiv):
-  #      docker compose exec -it hermes-agent hermes setup            # Wizard (Codex/ChatGPT)
-  #      docker compose exec -it hermes-agent hermes setup --portal   # Nous Portal
-  #      docker compose exec -it hermes-agent hermes model            # Provider/Modell
-  #      docker compose exec -it hermes-agent hermes mcp add hermes-family \
+  #      docker compose exec hermes-agent hermes setup            # Wizard (Codex/ChatGPT-Abo)
+  #      docker compose exec hermes-agent hermes setup --portal   # Nous Portal
+  #      docker compose exec hermes-agent hermes gateway setup    # 'api'-Plattform aktivieren
+  #      docker compose exec hermes-agent hermes mcp add hermes-family \
   #        --transport streamable-http --url http://hermes-mcp:8765/mcp
   #  * Web-Dashboard: 'hermes dashboard' (Port/Existenz je nach Version prüfen).
-  # HINWEIS: Der Start-Befehl für den API-Server ('command') ist versionsabhängig
-  # ('serve' vs. 'gateway'); ggf. anpassen. Details: docs/HERMES_AGENT.md
   hermes-agent:
     image: hermes-agent-local:pinned
     build:
-      # Git-Ref PINNEN! (z.B. #v1.2.3 oder #<commit-sha>) statt #main.
-      context: "https://github.com/NousResearch/hermes-agent.git#main"
+      # Git-Ref auf einen festen Commit GEPINNT (Repo ist sehr aktiv). Zum Wechseln
+      # den SHA/Tag hinter '#' ändern und mit '--build' neu bauen.
+      context: "https://github.com/NousResearch/hermes-agent.git#4075c8fd5ade673c93f757903b003ddc52603577"
     profiles: ["agent"]
     restart: unless-stopped
     env_file: .env
@@ -85,7 +87,15 @@ services:
       - hermes_agent_home:/opt/data   # Config + Credential-Pool (Login) – persistent
     expose:
       - "8642"   # OpenAI-kompatibler API-Server (unser Relay: HERMES_AGENT_URL=…:8642/v1)
-    command: ["serve"]   # startet den API-Server; je nach Version ggf. ["gateway"]
+    # Startet den Gateway-Runner (hostet die 'api'-Plattform = OpenAI-API auf 8642).
+    command: ["gateway"]
+    # Health = API-Server antwortet auf /v1/models (python ist im Image vorhanden).
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import os,urllib.request as u; k=os.environ.get('API_SERVER_KEY') or ''; h={'Authorization':'Bearer '+k} if k else {}; u.urlopen(u.Request('http://127.0.0.1:8642/v1/models', headers=h), timeout=3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   # MCP-Server: gibt hermes-agent Zugriff auf unsere Haushalts-Werkzeuge
   # (Einkauf, Kalender, Licht, Finanzen, Wartung, Essensplan …).

@@ -13,6 +13,7 @@ einen klaren „nicht verbunden"-Hinweis (kein Wort-Matcher, kein eigener Agent)
 from __future__ import annotations
 
 import json
+import time
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
@@ -24,6 +25,10 @@ logger = get_logger("ai.llm")
 
 
 class LLMClient:
+    def __init__(self) -> None:
+        self._ping_ts: float = 0.0
+        self._ping_ok: bool = False
+
     # --- Modus/Backend ---
 
     @property
@@ -63,6 +68,31 @@ class LLMClient:
         elif settings.ai_api_key:
             headers["Authorization"] = f"Bearer {settings.ai_api_key}"
         return headers
+
+    async def ping(self, ttl: float = 5.0) -> bool:
+        """Kurzer Reachability-Check gegen den Sidecar (GET /models), gecacht.
+
+        Liefert True nur, wenn der API-Server wirklich antwortet – damit der
+        Status „verbunden" die echte Erreichbarkeit zeigt, nicht nur die Config.
+        """
+        if not self.is_configured:
+            return False
+        now = time.monotonic()
+        if now - self._ping_ts < ttl:
+            return self._ping_ok
+        headers = {}
+        auth = self._headers().get("Authorization")
+        if auth:
+            headers["Authorization"] = auth
+        ok = False
+        try:
+            async with httpx.AsyncClient(timeout=2.0, verify=settings.verify_tls) as client:
+                resp = await client.get(f"{self._base_url()}/models", headers=headers)
+                ok = resp.status_code < 400
+        except Exception:  # noqa: BLE001
+            ok = False
+        self._ping_ts, self._ping_ok = now, ok
+        return ok
 
     def _payload(self, messages: List[Dict[str, Any]], tools, tool_choice, stream: bool) -> Dict[str, Any]:
         payload: Dict[str, Any] = {
