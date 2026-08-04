@@ -3,8 +3,7 @@
 const TOKEN_KEY = "hermes_token";
 const MODULES = [
   { id: "dashboard", label: "Dashboard" },
-  { id: "assistant", label: "Assistent" },
-  { id: "agent", label: "Hermes Agent" },
+  { id: "assistant", label: "Hermes" },
   { id: "calendar", label: "Kalender" },
   { id: "tasks", label: "Aufgaben" },
   { id: "shopping", label: "Einkauf" },
@@ -461,20 +460,6 @@ VIEWS.family = simpleView("👪 Familie", async () => {
 function mealLabel(type) {
   return { breakfast: "Frühstück", lunch: "Mittagessen", dinner: "Abendessen" }[type] || type;
 }
-
-VIEWS.agent = async function () {
-  const v = $("#view"); v.innerHTML = loading();
-  try {
-    const st = await api("/api/ai/status");
-    if (!st.dashboard) {
-      v.innerHTML = `<div class="card"><h3>🧠 Hermes Agent</h3><div class="empty">Der hermes-agent-Dienst ist (noch) nicht konfiguriert.<br>Setze <code>HERMES_AGENT_DASHBOARD_URL</code> und starte den Sidecar – siehe <b>docs/HERMES_AGENT.md</b>.</div></div>`;
-      return;
-    }
-    v.innerHTML = `<iframe class="agent-frame" src="/agent/" title="Hermes Agent"></iframe>`;
-  } catch (e) {
-    v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`;
-  }
-};
 
 function recLabel(rec) {
   return { daily: "täglich", weekdays: "werktags", weekly: "wöchentlich", monthly: "monatlich" }[rec] || "";
