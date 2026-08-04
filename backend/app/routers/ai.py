@@ -11,14 +11,17 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.ai.agent import run_agent
+from app.ai.agent import NOT_CONNECTED, build_agentic_messages, run_agent
 from app.ai.llm import llm_client
 from app.ai.tools import TOOLS, is_allowed
 from app.config import settings
 from app.core.database import get_db
+from app.core.logging_config import get_logger
 from app.core.security import get_current_user
 from app.models.user import User
 from app.services import chat_history
+
+logger = get_logger("ai.router")
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -29,27 +32,29 @@ class ChatRequest(BaseModel):
 
 @router.get("/status")
 async def status(current_user: User = Depends(get_current_user)):
+    # Der Chat ist ein reiner hermes-agent-Client. 'configured' = laut .env,
+    # 'connected' = der Sidecar antwortet wirklich (Live-Ping auf /v1/models).
+    configured = llm_client.is_agentic and llm_client.is_configured
+    connected = await llm_client.ping() if configured else False
     available = [t for t in TOOLS.values() if is_allowed(t.min_role, current_user.role)]
-    if llm_client.is_agentic:
-        mode = "hermes-agent"
-    elif llm_client.is_configured:
-        mode = "llm"
-    else:
-        mode = "rule-based"
     return {
-        "llm_configured": llm_client.is_configured,
-        "mode": mode,
+        "connected": connected,
+        "configured": configured,
+        "mode": "hermes-agent" if configured else "offline",
         "provider": settings.ai_provider,
         "agentic": llm_client.is_agentic,
-        "model": llm_client.model if llm_client.is_configured else None,
+        "model": llm_client.model if configured else None,
         "dashboard": bool(settings.hermes_agent_dashboard_url),
         "role": current_user.role,
         "tool_count": len(available),
+        # Rückwärtskompatibel:
+        "llm_configured": llm_client.is_configured,
     }
 
 
 @router.get("/tools")
 async def tools(current_user: User = Depends(get_current_user)):
+    """Haushalts-Werkzeuge, die hermes-agent für diese Rolle über MCP steuern kann."""
     return [
         {"name": t.name, "description": t.description, "min_role": t.min_role}
         for t in TOOLS.values()
@@ -93,10 +98,9 @@ async def stream(data: ChatRequest, db: Session = Depends(get_db), current_user:
         yield _sse({"type": "done", "actions": actions})
 
     async def event_gen():
-        # 1) hermes-agent (Relay): echtes Token-Streaming vom Sidecar
-        if llm_client.is_agentic:
-            from app.ai.agent import build_agentic_messages
-
+        connected = llm_client.is_agentic and llm_client.is_configured
+        # Verbunden: echtes Token-Streaming vom hermes-agent-Sidecar.
+        if connected:
             messages = build_agentic_messages(data.message, hist, user_name, current_user.role)
             full = ""
             try:
@@ -107,19 +111,13 @@ async def stream(data: ChatRequest, db: Session = Depends(get_db), current_user:
                 yield _sse({"type": "done", "actions": []})
                 return
             except Exception as exc:  # noqa: BLE001
-                # Sidecar nicht erreichbar -> regelbasierter Fallback
-                result = await run_agent(data.message, db=db, user_id=current_user.id, history=hist)
-                async for ev in _chunked(result.get("reply", "") or "", result.get("actions", [])):
+                logger.warning("hermes-agent stream failed: %s", exc)
+                async for ev in _chunked(f"Der Hermes-Agent ist gerade nicht erreichbar ({exc}).", []):
                     yield ev
                 return
 
-        # 2) Direktes Modell / Regel-Fallback: Antwort berechnen und gechunkt streamen
-        try:
-            result = await run_agent(data.message, db=db, user_id=current_user.id, history=hist)
-        except Exception as exc:  # noqa: BLE001
-            yield _sse({"type": "error", "message": str(exc)})
-            return
-        async for ev in _chunked(result.get("reply", "") or "", result.get("actions", [])):
+        # Nicht verbunden: klaren Hinweis streamen (kein Wort-Matcher, keine Fake-Antwort).
+        async for ev in _chunked(NOT_CONNECTED, []):
             yield ev
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")

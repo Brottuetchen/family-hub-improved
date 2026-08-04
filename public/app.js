@@ -540,8 +540,11 @@ VIEWS.system = async function () {
       <div class="body"><div class="t">${esc(c.display_name)}</div><div class="s">${c.configured ? "konfiguriert" : "nicht konfiguriert"}</div></div>
       <span class="status-dot ${esc(c.status)}" title="${esc(c.status)}"></span></div>`).join("") + `</div>`;
 
+    const aiLabel = aiStatus.connected
+      ? `Hermes Agent verbunden${aiStatus.model ? " · " + esc(aiStatus.model) : ""}`
+      : (aiStatus.configured ? "konfiguriert, nicht erreichbar" : "nicht verbunden");
     html += `<div class="card" style="margin-top:14px"><h3>✨ Hermes AI</h3>
-      <div class="row"><div class="lead">🧠</div><div class="body"><div class="t">Modus: ${esc(aiStatus.mode)}</div><div class="s">${aiStatus.tool_count} Werkzeuge verfügbar</div></div></div></div>`;
+      <div class="row"><div class="lead">🧠</div><div class="body"><div class="t">${aiLabel}</div><div class="s">${aiStatus.tool_count} Haushalts-Werkzeuge über MCP steuerbar</div></div></div></div>`;
 
     html += `<div class="card" style="margin-top:14px"><h3>🔔 Benachrichtigungen</h3>
       <div class="row"><div class="body"><div class="t">Push ${health.features.push ? "aktiv" : "nicht konfiguriert"}</div>
@@ -689,7 +692,9 @@ VIEWS.assistant = async function () {
     hist.forEach((m) => appendChatMsg(m.role === "user" ? "user" : "bot", m.content, m.actions));
   }
   api("/api/ai/status").then((s) => {
-    $("#chat-mode").textContent = s.mode === "llm" ? `· ${s.model}` : "· Regelbasiert";
+    $("#chat-mode").textContent = s.connected
+      ? `· ${s.model || "Nous Hermes Agent"}`
+      : (s.configured ? "· nicht erreichbar" : "· nicht verbunden");
   }).catch(() => {});
 
   $("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); sendChat(); });

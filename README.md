@@ -155,20 +155,22 @@ Vollständige Liste: [`.env.example`](.env.example) · Connector-Doku: [`docs/CO
 
 ## Hermes AI
 
-Vier Betriebsmodi (`AI_PROVIDER`):
+Der **„Assistent"** ist ein **dünner Chat-Client** zum echten
+[NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent), der
+**separat als Sidecar** läuft und das eigentliche Gehirn ist (Skills/Selbstlernen,
+Memory, 40+ Tools, Subagents, **Voice**, **Abo-Login inkl. Codex/ChatGPT & Nous
+Portal**). **Kein** eigener Agent, **kein** Wort-Matcher – wir relayen nur.
 
-- **`hermes_agent` (empfohlen):** der komplette [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
-  läuft als **Sidecar** und ist das eigentliche Gehirn (Skills/Selbstlernen, Memory,
-  40+ Tools, Subagents, **Voice**, **Abo-Login inkl. Codex/ChatGPT & Nous Portal**).
-  Nutzung über unsere Oberfläche: **„Assistent"** (Chat + Voice-Messages) und
-  **„Hermes Agent"** (sein volles Dashboard, eingebettet hinter unserem Login).
-  → **[docs/HERMES_AGENT.md](docs/HERMES_AGENT.md)**
-- **`openai` / `local`:** eigenes OpenAI-kompatibles Modell; unser Agent führt die
-  Tool-Schleife selbst (23 Werkzeuge: Einkauf, Kalender, Smart Home, Finanzen …).
-- **`none`:** regelbasierter Fallback – „Bestell Milch" / „Was steht heute an?"
-  funktionieren **auch ohne Modell**, offline.
+- **`AI_PROVIDER=hermes_agent`:** verbunden. Chat + **Voice-Messages** nativ in
+  unserer UI; unsere Familien-Module steuert hermes über den **MCP-Server**
+  (`hermes-mcp`). Optional sein Web-Dashboard eingebettet unter `/agent/*`.
+- **`AI_PROVIDER=none`:** Chat inaktiv – klarer „nicht verbunden"-Hinweis (keine
+  Fake-Antwort). Der Rest der App bleibt voll nutzbar.
 
-**Voice-Messages:** 🎙 im „Assistent" nimmt auf → Transkription → normaler Chat.
+Der Installer baut/startet den Sidecar und stößt `hermes setup` (Login) an.
+→ **[docs/HERMES_AGENT.md](docs/HERMES_AGENT.md)** · **[docs/AI.md](docs/AI.md)**
+
+**Voice-Messages:** 🎙 im „Assistent" nimmt auf → Transkription über den Sidecar → normaler Chat.
 
 ---
 

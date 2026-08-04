@@ -250,37 +250,31 @@ def main() -> int:
         else:
             env["DATABASE_URL"] = "sqlite:///./hermes.db"
 
-    # KI-Modus
-    head("Hermes AI")
-    print("  (1) agent  = kompletter NousResearch/hermes-agent als Sidecar (empfohlen)")
-    print("  (2) cloud  = OpenAI-kompatibles Cloud-Modell (API-Key)")
-    print("  (3) none   = regelbasiert (ohne externes Modell)")
-    current = "agent" if env.get("AI_PROVIDER") == "hermes_agent" else ("cloud" if env.get("AI_PROVIDER") in ("openai", "local") else "none")
-    mode = ask("KI-Modus (agent/cloud/none)", current).lower()
-    env["AI_ENABLED"] = "true"
+    # KI: der echte NousResearch/hermes-agent ist das Gehirn.
+    # Das Chatfenster ist NUR ein Client dazu (kein eigener Agent, kein Wort-Matcher).
+    head("Hermes AI (NousResearch/hermes-agent)")
+    print("  Der Chat spricht ausschließlich den hermes-agent-Sidecar an:")
+    print("  seine Tools/Skills/Memory/Voice + Steuerung unserer Module via MCP.")
     env["AI_MAX_TOKENS"] = env.get("AI_MAX_TOKENS", "1024")
-
-    if mode == "agent":
+    if ask_yesno("hermes-agent verbinden (empfohlen)?", env.get("AI_PROVIDER") == "hermes_agent"):
+        env["AI_ENABLED"] = "true"
         env["AI_PROVIDER"] = "hermes_agent"
-        env["HERMES_AGENT_URL"] = ask("hermes-agent API-URL (…/v1)", env.get("HERMES_AGENT_URL", "http://hermes-agent:8890/v1"))
-        env["HERMES_AGENT_DASHBOARD_URL"] = ask("hermes-agent Dashboard-URL", env.get("HERMES_AGENT_DASHBOARD_URL", "http://hermes-agent:9119"))
+        # OpenAI-kompatibler API-Server des Sidecars, Default-Port 8642.
+        env["HERMES_AGENT_URL"] = ask("hermes-agent API-URL (…/v1)", env.get("HERMES_AGENT_URL", "http://hermes-agent:8642/v1"))
+        env["HERMES_AGENT_DASHBOARD_URL"] = ask("Dashboard-URL (optional, leer = keins)", env.get("HERMES_AGENT_DASHBOARD_URL", ""))
         env["HERMES_AGENT_MODEL"] = ask("Modell (im Sidecar)", env.get("HERMES_AGENT_MODEL", "default"))
-        env["HERMES_AGENT_IMAGE"] = ask("Docker-Image (gepinnt!)", env.get("HERMES_AGENT_IMAGE", "nousresearch/hermes-agent:latest"))
-        print(_c("  Start:  docker compose --profile agent up -d", "36"))
-        print(_c("  Login (einmalig, interaktiv):", "36"))
-        print(_c("    docker compose exec hermes-agent hermes auth add openai --type device-code   # Codex/ChatGPT-Abo", "1"))
-        print(_c("    docker compose exec hermes-agent hermes setup --portal                        # Nous Portal", "1"))
+        # Bearer-Token = API_SERVER_KEY des Sidecars; automatisch erzeugen, wenn leer.
+        env["HERMES_AGENT_TOKEN"] = env.get("HERMES_AGENT_TOKEN") or secrets.token_urlsafe(32)
+        env["AI_TRANSCRIBE_MODEL"] = ask("Transkriptions-Modell (Voice)", env.get("AI_TRANSCRIBE_MODEL", "whisper-1"))
+        print(_c("  Der Installer kann den Sidecar bauen/starten und den Login anstoßen (Docker nötig).", "36"))
+        print(_c("  Setup/Login (einmalig, interaktiv):", "36"))
+        print(_c("    docker compose exec -it hermes-agent hermes setup            # Wizard (Codex/ChatGPT-Abo)", "1"))
+        print(_c("    docker compose exec -it hermes-agent hermes setup --portal   # Nous Portal", "1"))
         print(_c("  Details: docs/HERMES_AGENT.md", "33"))
-    elif mode == "cloud":
-        provider = ask("Provider (openai / custom)", env.get("AI_PROVIDER", "openai") if env.get("AI_PROVIDER") in ("openai", "custom") else "openai")
-        env["AI_PROVIDER"] = "openai"  # OpenAI-kompatibler Codepfad
-        env["AI_BASE_URL"] = ("https://api.openai.com/v1" if provider != "custom"
-                              else ask("Base-URL (…/v1)", env.get("AI_BASE_URL", "https://api.openai.com/v1")))
-        env["AI_API_KEY"] = ask_secret("API-Key", env.get("AI_API_KEY", ""))
-        env["AI_MODEL"] = ask("Modell", env.get("AI_MODEL", "gpt-4o-mini"))
     else:
+        env["AI_ENABLED"] = "false"
         env["AI_PROVIDER"] = "none"
-        print(_c("  KI läuft im regelbasierten Modus (ohne externes Modell).", "33"))
+        print(_c("  Ohne hermes-agent bleibt das Chatfenster inaktiv (klarer Hinweis statt Fake-Antwort).", "33"))
 
     # Push
     head("Push-Benachrichtigungen (VAPID)")

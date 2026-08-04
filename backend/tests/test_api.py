@@ -42,19 +42,14 @@ def test_reminder_crud(client, auth):
     assert done.status_code == 200 and done.json()["completed"] is True
 
 
-def test_ai_rule_based_reminder(client, auth):
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Erinnere mich heute Abend an den Müll"})
+def test_ai_chat_not_connected_without_agent(client, auth):
+    # Ohne hermes-agent: klarer Hinweis, KEIN Wort-Matcher, keine Aktionen.
+    r = client.post("/api/ai/chat", headers=auth, json={"message": "Bestell Milch"})
     assert r.status_code == 200
     body = r.json()
     assert body["used_llm"] is False
-    assert "create_reminder" in body["actions"]
-
-
-def test_ai_rule_based_shopping_intent(client, auth):
-    # KitchenOwl nicht konfiguriert -> Tool wird gewählt, meldet aber sauber "nicht konfiguriert"
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Bestell Milch"})
-    assert r.status_code == 200
-    assert "add_shopping_item" in r.json()["actions"]
+    assert body["actions"] == []
+    assert "nicht verbunden" in body["reply"].lower()
 
 
 def test_search_empty(client, auth):

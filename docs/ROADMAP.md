@@ -45,8 +45,8 @@ inklusive Connector-Architektur und Hermes AI.
 
 ## Technische To-dos
 - [x] Hintergrund-Scheduler für fällige Erinnerungen → automatischer Push
-- [x] Test-Suite (pytest, 17 Tests)
-- [ ] Alembic-Migrationen (statt `create_all`)
-- [ ] CI-Pipeline
+- [x] Test-Suite (pytest, 49 Tests)
+- [x] Alembic-Migrationen (statt `create_all`, mit Bestandsschutz für bestehende DBs)
+- [x] CI-Pipeline (GitHub Actions: Tests + Ruff)
 - [ ] Optional: Authentik/OAuth2 & Passkeys statt lokalem Login
 - [ ] Optional: Next.js/React-Frontend gegen die bestehende API

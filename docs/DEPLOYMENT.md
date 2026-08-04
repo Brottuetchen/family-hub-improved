@@ -71,8 +71,10 @@ git pull
 docker compose up -d --build
 ```
 
-Das Schema wird beim Start via `create_all` idempotent aktualisiert. Für
-Breaking-Changes ist mittelfristig Alembic vorgesehen (siehe ROADMAP).
+Das Schema wird beim Start automatisch per **Alembic** auf den neuesten Stand
+gebracht (`upgrade head`). Bestehende Datenbanken, die früher via `create_all`
+entstanden sind, werden dabei zuerst auf die Baseline **gestampt** – es gehen
+keine Daten verloren. Manuell (z.B. lokal): `cd backend && alembic upgrade head`.
 
 ## Ohne Docker (systemd)
 

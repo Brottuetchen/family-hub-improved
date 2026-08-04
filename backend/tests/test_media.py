@@ -21,7 +21,3 @@ def test_dashboard_now_playing_field(client, auth):
     assert "now_playing" in d and isinstance(d["now_playing"], list)
 
 
-def test_ai_now_playing_intent(client, auth):
-    r = client.post("/api/ai/chat", headers=auth, json={"message": "Was läuft gerade?"})
-    assert r.status_code == 200
-    assert "get_now_playing" in r.json()["actions"]

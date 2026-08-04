@@ -1,76 +1,88 @@
 # NousResearch/hermes-agent als KI-Gehirn
 
-Hermes Family OS kann den **kompletten** [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent)
-als eigentliches KI-Gehirn nutzen — mit **allen** seinen Funktionen (Skills/Selbstlernen,
+Hermes Family OS nutzt den **echten** [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent)
+als eigentliches KI-Gehirn – mit **allen** seinen Funktionen (Skills/Selbstlernen,
 Memory, 40+ Tools, Subagents, Cron, Voice) und dessen **Abo-Logins** (u.a.
 OpenAI **Codex „Sign in with ChatGPT"** und **Nous Portal**).
 
 hermes-agent läuft **separat als Sidecar** und wird **über unser Interface** genutzt:
-- **„Assistent"** (nativ, unsere UI): Chat mit Streaming + **Voice-Messages**.
-- **„Hermes Agent"** (eingebettet): sein komplettes Web-Dashboard hinter unserem
-  Login (`/agent/*`) — für alle übrigen Funktionen.
+- **„Assistent"** (unsere UI): dünner Chat-Client mit Streaming + **Voice-Messages**,
+  der ausschließlich den Sidecar anspricht. **Kein** eigener Agent, **kein**
+  Wort-Matcher – ist kein Sidecar da, sagt der Chat das klar.
+- **„Hermes Agent"** (eingebettet, optional): sein Web-Dashboard hinter unserem
+  Login (`/agent/*`) – **falls** die gepinnte Version ein Dashboard mitbringt.
+
+## Bestätigte Fakten (Upstream `main`)
+- **OpenAI-kompatibler API-Server** (`gateway/platforms/api_server.py`):
+  `POST /v1/chat/completions` (SSE-Streaming), `/v1/models`, `/v1/responses`, Sessions.
+  Default **`127.0.0.1:8642`** → im Container `API_SERVER_HOST=0.0.0.0`,
+  `API_SERVER_PORT=8642`; **Bearer-Auth** via `API_SERVER_KEY`.
+- **Kein offizielles Docker-Image**, aber ein **Dockerfile** → wir **bauen aus dem Repo**.
+  Daten/Config-Volume: **`/opt/data`** (`HERMES_HOME`), non-root User.
+- **CLI**: `hermes setup` (Wizard), `hermes setup --portal` (Nous Portal),
+  `hermes model` (Provider/Modell), `hermes mcp add …`, `hermes dashboard` (Web-UI).
+- Der genaue **Server-Start-Befehl** ist versionsabhängig (`serve` vs. `gateway`) –
+  im `docker-compose.yml` als `command:` gesetzt, ggf. anpassen.
 
 ## Architektur
 ```
 PWA ─ „Assistent" (Chat/Voice) ─┐
-    └ „Hermes Agent" (iframe) ───┤
+    └ „Hermes Agent" (iframe) ───┤  (optional, falls Dashboard vorhanden)
                                  ▼
-      unser FastAPI  ── relay /v1 + SSE ─▶  hermes-agent (Sidecar)
-          │  /agent/* Reverse-Proxy (Auth)     • OpenAI-kompat. API + Dashboard
+      unser FastAPI  ── relay /v1 + SSE ─▶  hermes-agent (Sidecar, :8642)
+          │  /agent/* Reverse-Proxy (Auth)     • OpenAI-kompat. API (/v1/chat/completions)
           │                                    • Login: Codex/ChatGPT, Nous Portal
-   hermes-mcp (MCP-Server) ◀── Tools ──────────┘  • Volume ~/.hermes (persistent)
+   hermes-mcp (MCP-Server) ◀── Tools ──────────┘  • Volume /opt/data (persistent)
      Einkauf/Kalender/Licht/Finanzen/…
 ```
 
 ## Einrichten (Docker)
 
-1. **Konfigurieren** (Installer oder `.env`):
+**Am einfachsten:** `./install.sh` → „hermes-agent verbinden" **ja**. Der Installer
+baut/startet den Sidecar und stößt `hermes setup` an. Manuell:
+
+1. **Konfigurieren** (`.env`):
    ```env
    AI_PROVIDER=hermes_agent
-   HERMES_AGENT_URL=http://hermes-agent:8890/v1
-   HERMES_AGENT_DASHBOARD_URL=http://hermes-agent:9119
-   HERMES_AGENT_MODEL=default
-   HERMES_AGENT_IMAGE=nousresearch/hermes-agent:<GEPINNTE_VERSION>
+   HERMES_AGENT_URL=http://hermes-agent:8642/v1
+   HERMES_AGENT_TOKEN=<gleicher Wert wie API_SERVER_KEY>
+   # HERMES_AGENT_DASHBOARD_URL=   # nur wenn die Version ein Web-Dashboard hat
    ```
-   > **Pinne eine feste Version!** hermes-agent ist groß (~610 MB) und sehr aktiv.
-   > Prüfe Image-Name, Start-Befehl und Ports gegen die von dir gepinnte Release
-   > (`docker-compose.yml` enthält dazu Kommentare; ggf. `image:` durch `build:` ersetzen).
 
-2. **Starten:**
+2. **Version pinnen** in `docker-compose.yml` (Service `hermes-agent`):
+   den Git-Ref `…hermes-agent.git#main` auf eine feste Version/Commit setzen.
+
+3. **Bauen & starten** (großer Build, ~610 MB):
    ```bash
-   docker compose --profile agent up -d
+   docker compose --profile agent up -d --build
    ```
 
-3. **Login (einmalig, interaktiv)** — deine Subskription:
+4. **Login/Setup (einmalig, interaktiv)** — deine Subskription:
    ```bash
-   # OpenAI Codex / „Sign in with ChatGPT" (Abo)
-   docker compose exec hermes-agent hermes auth add openai --type device-code
-   # ODER Nous Portal (1 Abo, 300+ Modelle)
-   docker compose exec hermes-agent hermes setup --portal
-   # ODER vorhandenes Codex-Login importieren: ~/.codex/auth.json in das Volume legen
+   docker compose exec hermes-agent hermes setup            # Wizard (Codex/ChatGPT-Abo)
+   docker compose exec hermes-agent hermes setup --portal   # ODER Nous Portal
+   docker compose exec hermes-agent hermes model            # Provider/Modell wählen
    ```
-   Die Anmeldung wird im Volume `hermes_agent_home` (`~/.hermes/auth.json`) persistiert.
+   Die Anmeldung wird im Volume `hermes_agent_home` (`/opt/data`) persistiert.
 
-Danach: **„Assistent"** nutzt hermes-agent (Chat + Voice), **„Hermes Agent"**
-zeigt sein volles Dashboard.
+Danach: **„Assistent"** nutzt hermes-agent (Chat + Voice).
 
 ## Voice-Messages
 🎙 im „Assistent" nimmt Audio auf → `POST /api/ai/voice` → Transkription über den
-Sidecar/`AI_TRANSCRIBE_MODEL` → der Text läuft als normale Nachricht in den Chat.
+Sidecar (`AI_TRANSCRIBE_MODEL`) → der Text läuft als normale Nachricht in den Chat.
 
 ## Haushalts-Werkzeuge steuern (MCP)
 Damit hermes-agent **unsere Familien-Module** direkt bedienen kann (Einkauf,
 Kalender, Smart Home, Finanzen, Wartung, Essensplan …), läuft der Dienst
 **`hermes-mcp`** (`docker compose --profile agent up -d` startet ihn mit) und
-exponiert unsere 23 Werkzeuge als **MCP-Server** (Streamable HTTP) unter
+exponiert unsere Werkzeuge als **MCP-Server** (Streamable HTTP) unter
 `http://hermes-mcp:8765/mcp`.
 
-In hermes-agent einen MCP-Server hinzufügen, der dorthin zeigt, z.B.:
+In hermes-agent registrieren (einmalig):
 ```bash
 docker compose exec hermes-agent hermes mcp add hermes-family \
   --transport streamable-http --url http://hermes-mcp:8765/mcp
 ```
-(exakter Befehl je nach gepinnter hermes-agent-Version – siehe dessen `hermes mcp`-Hilfe).
 
 - Der Agent handelt mit der Rolle **`MCP_ROLE`** (Standard `partner`): dieselbe
   rollenbasierte Rechteprüfung wie im Chat (Kinder-Rolle darf z.B. kein Smart Home).
@@ -78,16 +90,17 @@ docker compose exec hermes-agent hermes mcp add hermes-family \
   Licht im Wohnzimmer an" wirklich ausführen – über **unsere** Connectoren.
 
 ## Ehrliche Grenzen / Watch-outs
-- **Schwergewicht** (~610 MB) + eigener Dienst; **Version pinnen**.
-- **Login ist einmalig manuell** (Device-Code/OAuth) — nicht vollständig headless.
-- **Single-Profile:** zunächst ein gemeinsamer Familien-Assistent
-  (pro-Nutzer via `?profile=<name>` als Folgeschritt).
-- **Reverse-Proxy `/agent/*`** reicht HTTP durch und erlaubt die Einbettung
-  (X-Frame-Options entfernt, same-origin). **WebSocket** (Dashboard-PTY) wird in
-  v1 **nicht** geproxied. Falls das Dashboard Asset-Pfad-Rewrites braucht, hinter
-  einem Pfad-Präfix betreiben oder Traefik/NPM vorschalten.
-- **Nicht multi-tenant** out-of-the-box.
+- **Kein offizielles Image** → Build aus dem Repo; **Version pinnen** (sehr aktiv).
+- **Schwergewicht** (~610 MB Build) + eigener Dienst; braucht **Docker**.
+- **Server-Start-Befehl versionsabhängig** (`command:` im Compose ggf. anpassen;
+  `serve`/`gateway`). Prüfe, dass `:8642/v1/chat/completions` antwortet.
+- **Login einmalig manuell** (Wizard/OAuth/Device-Code) — nicht vollständig headless.
+- **Dashboard**: nur einbetten, wenn die gepinnte Version eines mitbringt
+  (`hermes dashboard`); sonst `HERMES_AGENT_DASHBOARD_URL` leer lassen (der
+  `/agent/*`-Proxy meldet dann sauber 503). **WebSocket/PTY** wird nicht geproxied.
+- **Single-Profile:** zunächst ein gemeinsamer Familien-Assistent.
 
 ## Ohne Sidecar
-Ist `AI_PROVIDER` nicht `hermes_agent`, nutzt der „Assistent" das konfigurierte
-Cloud-/Lokalmodell **oder** den regelbasierten Fallback — die App bleibt voll nutzbar.
+Ist `AI_PROVIDER` nicht `hermes_agent` (oder der Sidecar nicht erreichbar), zeigt
+der „Assistent" einen klaren **„nicht verbunden"**-Hinweis. Die App bleibt voll
+nutzbar – nur der KI-Chat pausiert (kein Fake-Assistent).
