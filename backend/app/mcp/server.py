@@ -120,6 +120,18 @@ async def get_requests() -> str:
     return await _run("get_requests")
 
 
+@mcp.tool(name="get_upcoming_media", annotations={"title": "Demnächst (Serien/Filme)", **READ})
+async def get_upcoming_media() -> str:
+    """Anstehende Serien-Folgen (Sonarr) und Film-Releases (Radarr)."""
+    return await _run("get_upcoming_media")
+
+
+@mcp.tool(name="get_download_queue", annotations={"title": "Download-Queue", **READ})
+async def get_download_queue() -> str:
+    """Laufende Downloads (Sonarr/Radarr) mit Fortschritt."""
+    return await _run("get_download_queue")
+
+
 @mcp.tool(name="list_packages", annotations={"title": "Pakete", **READ})
 async def list_packages() -> str:
     """Listet offene Pakete auf."""
@@ -198,6 +210,18 @@ async def add_meal(title: str, date: Optional[str] = None, meal_type: str = "din
 async def generate_shopping_list(days: int = 7) -> str:
     """Sammelt Zutaten aus dem Essensplan und legt sie in KitchenOwl an."""
     return await _run("generate_shopping_list", days=days)
+
+
+@mcp.tool(name="add_series", annotations={"title": "Serie herunterladen (Sonarr)", **WRITE})
+async def add_series(query: str) -> str:
+    """Sucht eine Serie und legt sie in Sonarr zum Download an."""
+    return await _run("add_series", query=query)
+
+
+@mcp.tool(name="add_movie", annotations={"title": "Film herunterladen (Radarr)", **WRITE})
+async def add_movie(query: str) -> str:
+    """Sucht einen Film und legt ihn in Radarr zum Download an."""
+    return await _run("add_movie", query=query)
 
 
 def main() -> None:

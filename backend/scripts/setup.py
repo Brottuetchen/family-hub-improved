@@ -15,6 +15,7 @@ werden).
 from __future__ import annotations
 
 import getpass
+import json
 import os
 import re
 import secrets
@@ -65,6 +66,14 @@ CONNECTORS = [
     ("Media-Requests (Overseerr)", [
         ("OVERSEERR_URL", "URL", False),
         ("OVERSEERR_API_KEY", "API-Key", True),
+    ]),
+    ("Serien (Sonarr)", [
+        ("SONARR_URL", "URL (z.B. http://192.168.1.71:8989)", False),
+        ("SONARR_API_KEY", "API-Key (Settings → General)", True),
+    ]),
+    ("Filme (Radarr)", [
+        ("RADARR_URL", "URL (z.B. http://192.168.1.73:7878)", False),
+        ("RADARR_API_KEY", "API-Key (Settings → General)", True),
     ]),
 ]
 
@@ -149,6 +158,7 @@ def write_env(path: Path, env: dict) -> None:
         ("Hermes AI", ["AI_ENABLED", "AI_PROVIDER", "AI_BASE_URL", "AI_API_KEY", "AI_MODEL", "AI_MAX_TOKENS", "AI_TRANSCRIBE_MODEL"]),
         ("Hermes Agent (Sidecar)", ["HERMES_AGENT_URL", "HERMES_AGENT_DASHBOARD_URL", "HERMES_AGENT_MODEL", "HERMES_AGENT_TOKEN", "HERMES_AGENT_IMAGE"]),
         ("Connectoren", [k for _, fields in CONNECTORS for (k, _, _) in fields]),
+        ("Homelab-Status-Board", ["HOMELAB_SERVICES"]),
     ]
     lines = ["# Hermes Family OS – erzeugt vom Installer (backend/scripts/setup.py)", ""]
     written = set()
@@ -295,6 +305,34 @@ def main() -> int:
         for key, label, secret in fields:
             cur = env.get(key, "")
             env[key] = ask_secret(label, cur) if secret else ask(label, cur)
+
+    # Homelab-Status-Board (generisch: up/down + Link, für Dienste ohne tiefe Integration)
+    head("Homelab-Status-Board (optional)")
+    print("  Up/Down-Kacheln + Links für Dienste ohne eigene Integration (SABnzbd, Immich, Trilium …).")
+    services = []
+    if env.get("HOMELAB_SERVICES"):
+        try:
+            services = json.loads(env["HOMELAB_SERVICES"]) or []
+        except (json.JSONDecodeError, TypeError):
+            services = []
+    if ask_yesno("Dienste fürs Status-Board hinzufügen?", bool(services)):
+        if services and ask_yesno(f"{len(services)} vorhandene verwerfen und neu erfassen?", False):
+            services = []
+        while True:
+            name = ask("Dienst-Name (leer = fertig)")
+            if not name:
+                break
+            url = ask("URL (z.B. http://192.168.1.90:8080)")
+            if not url:
+                continue
+            services.append({
+                "name": name,
+                "url": url,
+                "category": ask("Kategorie", "service"),
+                "icon": ask("Icon (Emoji)", "🖥️"),
+            })
+    if services:
+        env["HOMELAB_SERVICES"] = json.dumps(services, separators=(",", ":"), ensure_ascii=False)
 
     # Schreiben
     head("Speichern")

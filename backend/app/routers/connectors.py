@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from app.connectors.registry import registry
 from app.core.security import get_current_user
 from app.models.user import User
+from app.services.service_status import probe_services
 
 router = APIRouter(prefix="/api/connectors", tags=["connectors"])
 
@@ -21,3 +22,9 @@ async def list_connectors(current_user: User = Depends(get_current_user)):
 async def health(current_user: User = Depends(get_current_user)):
     """Live-Erreichbarkeit aller Fachsysteme (parallel geprüft)."""
     return await registry.health_all()
+
+
+@router.get("/services")
+async def homelab_services(current_user: User = Depends(get_current_user)):
+    """Generisches Homelab-Status-Board (up/down + Links) für HOMELAB_SERVICES."""
+    return await probe_services()

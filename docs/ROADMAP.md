@@ -26,6 +26,8 @@ inklusive Connector-Architektur und Hermes AI.
 - [x] Paket-Carrier-Auto-Erkennung (DHL/DPD/GLS/Amazon/UPS) + Tracking-Links
 - [x] Rezepte & Essensplanung (Wochenplan → automatische Einkaufsliste)
 - [x] Finanzen (Daueraufträge/Versicherungen/Abos, monatliche Fixkosten)
+- [x] Serien/Filme: Sonarr/Radarr (Demnächst, Download-Queue, Hinzufügen) – im Medien-Modul + per Chat/MCP steuerbar
+- [x] Homelab-Status-Board (up/down + Links) für Dienste ohne tiefe Integration (SABnzbd, Immich, Trilium …)
 - [ ] Paket-Status-Abruf via Carrier-API (statt manuell/Link)
 - [ ] Fristen aus Paperless-Custom-Fields (statt Titel-Heuristik)
 
