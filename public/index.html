@@ -3,21 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0e0f1a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#05050c">
   <title>Hermes Family OS</title>
   <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <!-- iOS: als eigenständige App zum Home-Bildschirm hinzufügbar -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Hermes">
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="apple-touch-icon" href="/assets/icons/app-icon-192.png">
 </head>
 <body>
+  <div class="nav-scrim" id="nav-scrim"></div>
+
   <div class="app">
     <header class="topbar">
+      <button class="burger" id="btn-menu" title="Menü" aria-label="Menü" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
       <div class="brand">
         <span class="logo">☿</span>
         <span>Hermes<small>Family OS</small></span>
@@ -30,8 +37,8 @@
     </header>
 
     <section class="greeting">
-      <h1 id="greeting">Willkommen</h1>
       <div class="date" id="date"></div>
+      <h1 id="greeting">Willkommen</h1>
     </section>
 
     <nav class="nav" id="nav"></nav>
@@ -42,5 +49,24 @@
   <div class="toasts" id="toasts"></div>
 
   <script src="/app.js"></script>
+  <script>
+    /* Burger-Menü: öffnet die bestehende .nav als Glas-Drawer.
+       app.js bleibt unverändert – es füllt #nav weiterhin mit Modul-Buttons. */
+    (function () {
+      var body = document.body;
+      var btn = document.getElementById("btn-menu");
+      var scrim = document.getElementById("nav-scrim");
+      var nav = document.getElementById("nav");
+
+      function setOpen(open) {
+        body.classList.toggle("nav-open", open);
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+      btn.addEventListener("click", function () { setOpen(!body.classList.contains("nav-open")); });
+      scrim.addEventListener("click", function () { setOpen(false); });
+      nav.addEventListener("click", function (e) { if (e.target.closest("[data-nav]")) setOpen(false); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(false); });
+    })();
+  </script>
 </body>
 </html>
