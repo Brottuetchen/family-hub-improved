@@ -85,7 +85,22 @@ class MyServiceConnector(BaseConnector):
 
 `weather` (Open-Meteo), `caldav` (Nextcloud/CalDAV), `vikunja`, `kitchenowl`,
 `paperless`, `homebox`, `homeassistant`, `plex`, `audiobookshelf`,
-`teddycloud` (Tonies), `overseerr` (Media-Requests).
+`teddycloud` (Tonies), `overseerr` (Media-Requests), `sonarr` (Serien),
+`radarr` (Filme).
 
 Die Medien-Connectoren speisen den vereinten `/api/media/now-playing`-Endpunkt
 („Läuft gerade": Plex-Streams + Hörbücher + Tonies) und das Dashboard-Widget.
+
+**Sonarr/Radarr** liefern zusätzlich `/api/media/upcoming` (Demnächst) und
+`/api/media/queue` (Downloads) und erlauben **Schreibaktionen** – `POST
+/api/media/series` bzw. `/api/media/movie` (ab Rolle *partner*) – sowie die
+KI-/MCP-Werkzeuge `get_upcoming_media`, `get_download_queue`, `add_series`,
+`add_movie`. Für POST-Aufrufe bietet die Basis `_post_json(path, json)`.
+
+## Homelab-Status-Board (ohne Connector)
+
+Dienste ohne eigene Integration (SABnzbd, Immich, Trilium, Nextcloud …) lassen
+sich als **up/down-Kacheln + Link** anzeigen: konfigurierbar über
+`HOMELAB_SERVICES` (JSON-Liste in der `.env`), geprüft von
+`app/services/service_status.py`, ausgeliefert über `GET /api/connectors/services`
+und dargestellt in der „System"-Ansicht. Der Installer fragt die Dienste ab.

@@ -411,16 +411,26 @@ VIEWS.smarthome = async function () {
 VIEWS.media = async function () {
   const v = $("#view"); v.innerHTML = loading();
   try {
-    const [np, reqs, recent] = await Promise.all([
+    const [np, reqs, recent, upcoming, queue] = await Promise.all([
       api("/api/media/now-playing"),
       api("/api/media/requests").catch(() => []),
       api("/api/media/recent?limit=6").catch(() => []),
+      api("/api/media/upcoming?days=14").catch(() => []),
+      api("/api/media/queue").catch(() => []),
     ]);
     let html = `<div class="card"><h3>▶️ Läuft gerade <span class="count">${np.count}</span></h3>`;
     html += np.streams.length
       ? list(np.streams.map((s) => rowHTML({ lead: s.icon || "▶️", t: s.title, s: [s.subtitle, s.user].filter(Boolean).join(" · ") })))
       : empty("Gerade läuft nichts (oder Medien-Connectoren nicht konfiguriert)");
     html += `</div>`;
+    if (queue.length) {
+      html += `<div class="card" style="margin-top:14px"><h3>⬇️ Downloads <span class="count">${queue.length}</span></h3>` +
+        list(queue.map((q) => rowHTML({ lead: q.icon || "⬇️", t: q.title, s: `${q.progress}%${q.status ? " · " + q.status : ""}` }))) + `</div>`;
+    }
+    if (upcoming.length) {
+      html += `<div class="card" style="margin-top:14px"><h3>🗓️ Demnächst</h3>` +
+        list(upcoming.slice(0, 15).map((u) => rowHTML({ lead: u.icon || "•", t: u.title, s: [u.subtitle, (u.date || "").slice(0, 10)].filter(Boolean).join(" · ") }))) + `</div>`;
+    }
     if (reqs.length) {
       html += `<div class="card" style="margin-top:14px"><h3>🎞️ Offene Anfragen <span class="count">${reqs.length}</span></h3>` +
         list(reqs.map((r) => rowHTML({ lead: r.type === "tv" ? "📺" : "🎬", t: r.title, s: "von " + r.requested_by }))) + `</div>`;
@@ -428,6 +438,15 @@ VIEWS.media = async function () {
     if (recent.length) {
       html += `<div class="card" style="margin-top:14px"><h3>🆕 Neu bei Plex</h3>` +
         list(recent.map((r) => rowHTML({ lead: "🎬", t: r.title, s: r.year ? String(r.year) : "" }))) + `</div>`;
+    }
+    if (["partner", "admin"].includes(currentUser && currentUser.role)) {
+      html += `<div class="card" style="margin-top:14px"><h3>➕ Serie/Film anlegen</h3>
+        <form class="add-row" data-form="add-media" style="flex-wrap:wrap">
+          <select class="input" name="kind" style="flex:0 0 auto"><option value="series">📺 Serie</option><option value="movie">🎬 Film</option></select>
+          <input class="input" name="query" placeholder="Titel suchen …" style="flex:1 1 55%">
+          <button class="btn">Suchen &amp; anlegen</button>
+        </form>
+        <div class="s" style="color:var(--text-soft);margin-top:6px">Legt den Titel in Sonarr/Radarr an und startet die Suche.</div></div>`;
     }
     v.innerHTML = html;
   } catch (e) { v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; }
@@ -532,13 +551,21 @@ VIEWS.maintenance = async function () {
 VIEWS.system = async function () {
   const v = $("#view"); v.innerHTML = loading();
   try {
-    const [health, conns, aiStatus] = await Promise.all([
+    const [health, conns, aiStatus, services] = await Promise.all([
       api("/api/health"), api("/api/connectors/health"), api("/api/ai/status"),
+      api("/api/connectors/services").catch(() => []),
     ]);
     let html = `<div class="card"><h3>🔌 Fachsysteme (Connectors)</h3>` + conns.map((c) => `
       <div class="row"><div class="lead">${esc(c.icon)}</div>
       <div class="body"><div class="t">${esc(c.display_name)}</div><div class="s">${c.configured ? "konfiguriert" : "nicht konfiguriert"}</div></div>
       <span class="status-dot ${esc(c.status)}" title="${esc(c.status)}"></span></div>`).join("") + `</div>`;
+
+    if (services.length) {
+      html += `<div class="card" style="margin-top:14px"><h3>🖥️ Homelab-Dienste</h3>` + services.map((s) => `
+        <a class="row" href="${esc(s.url)}" target="_blank" rel="noopener"><div class="lead">${esc(s.icon || "🖥️")}</div>
+        <div class="body"><div class="t">${esc(s.name)}</div><div class="s">${esc(s.category || "")}</div></div>
+        <span class="status-dot ${esc(s.status)}" title="${esc(s.status)}"></span></a>`).join("") + `</div>`;
+    }
 
     const aiLabel = aiStatus.connected
       ? `Hermes Agent verbunden${aiStatus.model ? " · " + esc(aiStatus.model) : ""}`
@@ -652,6 +679,11 @@ async function onViewSubmit(e) {
       if (!data.title) return;
       await api("/api/maintenance", { method: "POST", body: JSON.stringify({ title: data.title, category: data.category, interval_days: data.interval_days ? parseInt(data.interval_days, 10) : null }) });
       toast("Wartungsplan angelegt 🔧");
+    } else if (kind === "add-media") {
+      if (!data.query) return;
+      const path = data.kind === "movie" ? "/api/media/movie" : "/api/media/series";
+      const r = await api(path, { method: "POST", body: JSON.stringify({ query: data.query }) });
+      toast(`„${r.title}" wird gesucht ⬇️`);
     } else if (kind === "search") {
       const res = await api("/api/search?q=" + encodeURIComponent(data.q));
       $("#search-results").innerHTML = res.results.length

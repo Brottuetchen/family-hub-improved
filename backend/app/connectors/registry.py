@@ -18,6 +18,8 @@ from app.connectors.kitchenowl_connector import KitchenOwlConnector
 from app.connectors.overseerr_connector import OverseerrConnector
 from app.connectors.paperless_connector import PaperlessConnector
 from app.connectors.plex_connector import PlexConnector
+from app.connectors.radarr_connector import RadarrConnector
+from app.connectors.sonarr_connector import SonarrConnector
 from app.connectors.teddycloud_connector import TeddyCloudConnector
 from app.connectors.vikunja_connector import VikunjaConnector
 from app.connectors.weather_connector import WeatherConnector
@@ -38,6 +40,8 @@ class ConnectorRegistry:
             AudiobookshelfConnector,
             TeddyCloudConnector,
             OverseerrConnector,
+            SonarrConnector,
+            RadarrConnector,
         ):
             instance = connector_cls()
             self._connectors[instance.name] = instance

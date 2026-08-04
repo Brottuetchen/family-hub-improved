@@ -76,6 +76,12 @@ class BaseConnector:
             resp.raise_for_status()
             return resp.json()
 
+    async def _post_json(self, path: str, json: Any, **kwargs: Any) -> Any:
+        async with self._client() as client:
+            resp = await client.post(path, json=json, **kwargs)
+            resp.raise_for_status()
+            return resp.json() if resp.content else None
+
     # --- Standardmethoden ---
 
     async def health(self) -> Dict[str, Any]:

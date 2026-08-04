@@ -382,6 +382,46 @@ async def _get_requests(ctx: ToolContext) -> str:
     return "🎞️ Offene Anfragen:\n" + "\n".join(f"   • {r['title']} (von {r['requested_by']})" for r in reqs)
 
 
+async def _get_upcoming_media(ctx: ToolContext) -> str:
+    lines: List[str] = []
+    for key in ("sonarr", "radarr"):
+        c = registry.get(key)
+        if c and c.is_configured:
+            for it in await c.get_upcoming(14):  # type: ignore[attr-defined]
+                d = (it.get("date") or "")[:10]
+                base = f"{it.get('icon', '•')} {it.get('title')}"
+                if it.get("subtitle"):
+                    base += f" — {it['subtitle']}"
+                lines.append(base + (f" ({d})" if d else ""))
+    return "\n".join(lines) if lines else "Nichts Anstehendes (oder Sonarr/Radarr nicht konfiguriert)."
+
+
+async def _get_download_queue(ctx: ToolContext) -> str:
+    lines: List[str] = []
+    for key in ("sonarr", "radarr"):
+        c = registry.get(key)
+        if c and c.is_configured:
+            for it in await c.get_queue():  # type: ignore[attr-defined]
+                lines.append(f"{it.get('icon', '•')} {it.get('title')} — {it.get('progress', 0)}% ({it.get('status', '')})")
+    return "\n".join(lines) if lines else "Keine laufenden Downloads (oder Sonarr/Radarr nicht konfiguriert)."
+
+
+async def _add_series(ctx: ToolContext, query: str) -> str:
+    c = registry.get("sonarr")
+    if not c or not c.is_configured:
+        return "Sonarr ist nicht konfiguriert."
+    title = await c.add(query)  # type: ignore[attr-defined]
+    return f"📺 '{title}' wurde in Sonarr angelegt und wird gesucht." if title else f"Konnte '{query}' nicht anlegen."
+
+
+async def _add_movie(ctx: ToolContext, query: str) -> str:
+    c = registry.get("radarr")
+    if not c or not c.is_configured:
+        return "Radarr ist nicht konfiguriert."
+    title = await c.add(query)  # type: ignore[attr-defined]
+    return f"🎬 '{title}' wurde in Radarr angelegt und wird gesucht." if title else f"Konnte '{query}' nicht anlegen."
+
+
 # === Registry ===
 
 TOOLS: Dict[str, Tool] = {
@@ -586,6 +626,41 @@ TOOLS: Dict[str, Tool] = {
         description="Zeigt offene Media-Anfragen (Overseerr).",
         parameters={"type": "object", "properties": {}},
         handler=_get_requests,
+    ),
+    "get_upcoming_media": Tool(
+        name="get_upcoming_media",
+        description="Zeigt anstehende Serien-Folgen (Sonarr) und Film-Releases (Radarr) der nächsten 2 Wochen.",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_upcoming_media,
+    ),
+    "get_download_queue": Tool(
+        name="get_download_queue",
+        description="Zeigt laufende Downloads (Sonarr/Radarr) mit Fortschritt.",
+        parameters={"type": "object", "properties": {}},
+        handler=_get_download_queue,
+        min_role="child",
+    ),
+    "add_series": Tool(
+        name="add_series",
+        description="Sucht eine Serie und legt sie in Sonarr zum Download an.",
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "Serientitel, z.B. 'The Bear'"}},
+            "required": ["query"],
+        },
+        handler=_add_series,
+        min_role="partner",
+    ),
+    "add_movie": Tool(
+        name="add_movie",
+        description="Sucht einen Film und legt ihn in Radarr zum Download an.",
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "Filmtitel, z.B. 'Dune'"}},
+            "required": ["query"],
+        },
+        handler=_add_movie,
+        min_role="partner",
     ),
 }
 

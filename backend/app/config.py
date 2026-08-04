@@ -107,6 +107,23 @@ class Settings(BaseSettings):
     overseerr_url: Optional[str] = None
     overseerr_api_key: Optional[str] = None
 
+    # --- Connector: Serien (Sonarr) ---
+    sonarr_url: Optional[str] = None
+    sonarr_api_key: Optional[str] = None
+    # Optionale Defaults fürs Hinzufügen (sonst erstes vorhandenes Profil/Root).
+    sonarr_quality_profile_id: Optional[int] = None
+    sonarr_root_folder: Optional[str] = None
+
+    # --- Connector: Filme (Radarr) ---
+    radarr_url: Optional[str] = None
+    radarr_api_key: Optional[str] = None
+    radarr_quality_profile_id: Optional[int] = None
+    radarr_root_folder: Optional[str] = None
+
+    # --- Homelab-Status-Board (generisch, up/down + Link) ---
+    # JSON-Liste, z.B. [{"name":"SABnzbd","url":"http://…:8080","category":"automation","icon":"📥"}]
+    homelab_services: str = ""
+
     # --- Hermes AI ---
     # Der Chat ist ein reiner Client zum hermes-agent-Sidecar. Sinnvolle Werte:
     #   hermes_agent = mit dem Sidecar verbunden (er ist der Agent; wir relayen nur)
@@ -151,6 +168,31 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
+
+    @property
+    def homelab_service_list(self) -> List[dict]:
+        """Homelab-Dienste fürs Status-Board (JSON in HOMELAB_SERVICES)."""
+        raw = (self.homelab_services or "").strip()
+        if not raw:
+            return []
+        import json
+
+        try:
+            data = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return []
+        out: List[dict] = []
+        for s in data if isinstance(data, list) else []:
+            if isinstance(s, dict) and s.get("name") and s.get("url"):
+                out.append(
+                    {
+                        "name": str(s["name"]),
+                        "url": str(s["url"]),
+                        "category": str(s.get("category", "service")),
+                        "icon": str(s.get("icon", "🖥️")),
+                    }
+                )
+        return out
 
 
 @lru_cache
