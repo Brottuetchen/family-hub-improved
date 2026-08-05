@@ -70,3 +70,31 @@ def test_docker_install_defaults_to_sqlite(monkeypatch, tmp_path):
     # Docker-Ziel ohne Postgres-Zusage -> ebenfalls SQLite (kein 'db'-Host).
     env = _run_setup(monkeypatch, tmp_path, "docker")
     assert env["DATABASE_URL"] == "sqlite:///./hermes.db"
+
+
+def test_install_bundle_sets_profile_and_url(monkeypatch, tmp_path):
+    # "Aufgaben (Vikunja)" installieren -> COMPOSE_PROFILES + Service-URL + Secret.
+    env_path = tmp_path / ".env"
+    monkeypatch.setattr(setup, "ENV_PATH", env_path)
+    monkeypatch.setenv("HERMES_INSTALL_TARGET", "docker")
+    monkeypatch.setattr(setup, "gen_vapid", lambda: ("", ""))
+
+    def _input(prompt=""):
+        if "Aufgaben (Vikunja)" in prompt:
+            return "i"                       # installieren
+        if "Server erreichbar" in prompt:
+            return "myhost"
+        return ""                            # alles andere: Vorgabe/überspringen
+
+    monkeypatch.setattr(builtins, "input", _input)
+    monkeypatch.setattr(getpass, "getpass", lambda *a, **k: "")
+    assert setup.main() == 0
+
+    env = load_env(env_path)
+    assert "vikunja" in env["COMPOSE_PROFILES"].split(",")
+    assert env["VIKUNJA_URL"] == "http://vikunja:3456"       # Docker -> Service-Name
+    assert env["VIKUNJA_PUBLICURL"] == "http://myhost:3456/"
+    assert env.get("VIKUNJA_JWTSECRET")                       # Secret erzeugt
+    # *arr/Medien werden NICHT installiert (kein Profil dafür)
+    assert "sonarr" not in env.get("COMPOSE_PROFILES", "")
+    assert "radarr" not in env.get("COMPOSE_PROFILES", "")

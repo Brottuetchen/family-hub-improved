@@ -119,7 +119,99 @@ services:
       db:
         condition: service_healthy
 
+  # ============================================================
+  # Optional bundle-fähige Fach-Dienste — je EIGENES Profil, damit einzeln
+  # wählbar. Der Installer aktiviert die gewünschten über COMPOSE_PROFILES in der
+  # .env (Docker Compose liest die Variable automatisch). Beispiel:
+  #   COMPOSE_PROFILES=agent,vikunja,paperless
+  # MEDIEN/*arr (Plex, Sonarr, Radarr, Overseerr, Audiobookshelf, Tonies) werden
+  # BEWUSST NICHT gebündelt – die bringst du selbst mit (nur verbinden).
+  # Bilder als :latest; für reproduzierbare Installs bitte Tags PINNEN.
+  # WICHTIG: API-Tokens (Vikunja/KitchenOwl/Paperless/Homebox) entstehen erst nach
+  # dem ersten Login in der jeweiligen Weboberfläche → siehe docs/SELFHOSTED.md.
+  # ============================================================
+
+  # Kalender (CalDAV) – Radicale, leichtgewichtig. Auth: deploy/radicale/{config,users}
+  radicale:
+    image: tomsquest/docker-radicale:latest
+    profiles: ["radicale"]
+    restart: unless-stopped
+    volumes:
+      - ./deploy/radicale:/config
+      - hermes_radicale:/data
+    ports:
+      - "${RADICALE_PORT:-5232}:5232"
+
+  # Aufgaben – Vikunja (Unified-Image, SQLite)
+  vikunja:
+    image: vikunja/vikunja:latest
+    profiles: ["vikunja"]
+    restart: unless-stopped
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: ${VIKUNJA_PUBLICURL:-http://localhost:3456/}
+      VIKUNJA_SERVICE_JWTSECRET: ${VIKUNJA_JWTSECRET:-please-change-me}
+      VIKUNJA_DATABASE_TYPE: sqlite
+      VIKUNJA_DATABASE_PATH: /db/vikunja.db
+    volumes:
+      - hermes_vikunja_db:/db
+      - hermes_vikunja_files:/app/vikunja/files
+    ports:
+      - "${VIKUNJA_PORT:-3456}:3456"
+
+  # Einkauf/Essensplan – KitchenOwl (Unified-Image, SQLite unter /data)
+  kitchenowl:
+    image: tombursch/kitchenowl:latest
+    profiles: ["kitchenowl"]
+    restart: unless-stopped
+    environment:
+      JWT_SECRET_KEY: ${KITCHENOWL_JWT_SECRET:-please-change-me}
+    volumes:
+      - hermes_kitchenowl:/data
+    ports:
+      - "${KITCHENOWL_PORT:-8082}:8080"
+
+  # Dokumente – Paperless-ngx (SQLite; nutzt unseren Redis auf DB-Index 1)
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    profiles: ["paperless"]
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_started
+    environment:
+      PAPERLESS_REDIS: redis://redis:6379/1
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY:-please-change-me}
+      PAPERLESS_URL: ${PAPERLESS_PUBLICURL:-http://localhost:8081}
+      PAPERLESS_ADMIN_USER: ${PAPERLESS_ADMIN_USER:-admin}
+      PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD:-}
+      PAPERLESS_TIME_ZONE: ${TIMEZONE:-Europe/Berlin}
+      PAPERLESS_OCR_LANGUAGE: deu+eng
+    volumes:
+      - hermes_paperless_data:/usr/src/paperless/data
+      - hermes_paperless_media:/usr/src/paperless/media
+    ports:
+      - "${PAPERLESS_PORT:-8081}:8000"
+
+  # Inventar – Homebox (SQLite unter /data)
+  homebox:
+    image: ghcr.io/sysadminsmedia/homebox:latest
+    profiles: ["homebox"]
+    restart: unless-stopped
+    environment:
+      HBOX_OPTIONS_ALLOW_REGISTRATION: "true"
+    volumes:
+      - hermes_homebox:/data
+    ports:
+      - "${HOMEBOX_PORT:-7745}:7745"
+
 volumes:
   hermes_pgdata:
   hermes_redis:
   hermes_agent_home:
+  hermes_radicale:
+  hermes_vikunja_db:
+  hermes_vikunja_files:
+  hermes_kitchenowl:
+  hermes_paperless_data:
+  hermes_paperless_media:
+  hermes_homebox:

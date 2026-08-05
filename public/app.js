@@ -533,17 +533,38 @@ VIEWS.maintenance = async function () {
   } catch (e) { v.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; }
 };
 
+function connFormHTML(c) {
+  const dot = c.configured === true ? "online" : (c.configured === false ? "disabled" : "");
+  const fields = c.fields.map((f) => f.secret
+    ? `<input class="input" name="${esc(f.key)}" type="password" autocomplete="off" placeholder="${f.is_set ? "•••••••• (gesetzt – leer = behalten)" : esc(f.label)}" style="flex:1 1 100%">`
+    : `<input class="input" name="${esc(f.key)}" value="${esc(f.value)}" placeholder="${esc(f.label)}" style="flex:1 1 100%">`
+  ).join("");
+  return `<form class="add-row" data-form="admin-conn" style="flex-wrap:wrap;margin-top:12px">
+    <div style="flex:1 1 100%;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
+      <span class="status-dot ${dot}"></span>${esc(c.title)}</div>
+    ${fields}
+    <button class="btn">Speichern</button></form>`;
+}
+
 VIEWS.system = async function () {
   const v = $("#view"); v.innerHTML = loading();
   try {
-    const [health, conns, aiStatus, services] = await Promise.all([
+    const isAdmin = currentUser && currentUser.role === "admin";
+    const [health, conns, aiStatus, services, adminConns] = await Promise.all([
       api("/api/health"), api("/api/connectors/health"), api("/api/ai/status"),
       api("/api/connectors/services").catch(() => []),
+      isAdmin ? api("/api/admin/settings").catch(() => []) : Promise.resolve([]),
     ]);
     let html = `<div class="card"><h3>🔌 Fachsysteme (Connectors)</h3>` + conns.map((c) => `
       <div class="row"><div class="lead">${esc(c.icon)}</div>
       <div class="body"><div class="t">${esc(c.display_name)}</div><div class="s">${c.configured ? "konfiguriert" : "nicht konfiguriert"}</div></div>
       <span class="status-dot ${esc(c.status)}" title="${esc(c.status)}"></span></div>`).join("") + `</div>`;
+
+    if (adminConns.length) {
+      html += `<div class="card" style="margin-top:14px"><h3>🔐 Verbindungen verwalten (Admin)</h3>
+        <div class="s" style="color:var(--text-soft);margin-bottom:4px">URLs &amp; Tokens hier eintragen – sofort aktiv, kein Neustart. Tokens werden verschlüsselt gespeichert.</div>`
+        + adminConns.map(connFormHTML).join("") + `</div>`;
+    }
 
     if (services.length) {
       html += `<div class="card" style="margin-top:14px"><h3>🖥️ Homelab-Dienste</h3>` + services.map((s) => `
@@ -669,6 +690,9 @@ async function onViewSubmit(e) {
       const path = data.kind === "movie" ? "/api/media/movie" : "/api/media/series";
       const r = await api(path, { method: "POST", body: JSON.stringify({ query: data.query }) });
       toast(`„${r.title}" wird gesucht ⬇️`);
+    } else if (kind === "admin-conn") {
+      await api("/api/admin/settings", { method: "PUT", body: JSON.stringify({ values: data }) });
+      toast("Verbindung gespeichert ✓");
     } else if (kind === "search") {
       const res = await api("/api/search?q=" + encodeURIComponent(data.q));
       $("#search-results").innerHTML = res.results.length

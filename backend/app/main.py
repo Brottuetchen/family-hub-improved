@@ -19,6 +19,7 @@ from app.core.database import init_db
 from app.core.logging_config import get_logger, setup_logging
 from app.services.scheduler import run_scheduler
 from app.routers import (
+    admin,
     agent_proxy,
     ai,
     auth,
@@ -53,6 +54,15 @@ async def lifespan(app: FastAPI):
     logger.info("%s v%s starting (%s)", settings.app_name, __version__, settings.environment)
     init_db()
     logger.info("Database initialized: %s", settings.database_url)
+    # Admin-editierbare Laufzeit-Overrides (Connector-Zugänge) anwenden.
+    from app.core.database import SessionLocal
+    from app.services.config_store import apply_overrides
+
+    _cfg_db = SessionLocal()
+    try:
+        apply_overrides(_cfg_db)
+    finally:
+        _cfg_db.close()
     logger.info("AI: %s | Push: %s", settings.ai_provider, bool(settings.vapid_public_key))
     if settings.secret_key == "CHANGE_ME_dev_only_secret_key":
         logger.warning("SECRET_KEY is default – set a strong SECRET_KEY in production!")
@@ -114,6 +124,7 @@ for module in (
     connectors,
     media,
     agent_proxy,
+    admin,
 ):
     app.include_router(module.router)
 

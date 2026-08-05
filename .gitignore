@@ -49,6 +49,9 @@ hermes.db
 backend/.venv/
 .venv/
 
+# Radicale-Zugangsdaten (vom Installer erzeugt, enthält Klartext-Passwort)
+deploy/radicale/users
+
 # Debug pages
 public/push-test-ios.html
 public/*.broken

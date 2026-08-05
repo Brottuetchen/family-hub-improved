@@ -11,41 +11,47 @@ c()   { if [ -t 1 ]; then printf '\033[%sm%s\033[0m' "$1" "$2"; else printf '%s'
 say() { printf '%s\n' "$*"; }
 hr()  { say ""; c "1;36" "── $* "; say ""; }
 
-# Baut/startet den NousResearch/hermes-agent-Sidecar und stößt das Setup/Login an.
-# Nur relevant, wenn in der .env AI_PROVIDER=hermes_agent gesetzt ist.
-bring_up_agent() {
-  grep -qE '^AI_PROVIDER=hermes_agent$' .env 2>/dev/null || return 0
-  hr "Nous Hermes Agent (Sidecar)"
-  if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
-    say "  Docker (compose) nicht gefunden – der hermes-agent-Sidecar braucht Docker."
-    say "  Bare-metal-Alternative (offizieller Installer + Setup):"
-    c "1" "    curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash && hermes setup"; say ""
-    say "  Danach HERMES_AGENT_URL auf den API-Server zeigen lassen (…:8642/v1)."
-    return 0
-  fi
-  local a=""
-  read -r -p "hermes-agent jetzt aus dem Repo BAUEN & starten (großer Build ~610 MB)? [J/n]: " a || true
-  if [[ "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
-    say "  Später:  docker compose --profile agent up -d --build"
-    return 0
-  fi
-  say "  Baue & starte hermes-agent + hermes-mcp … (Build kann dauern)"
-  docker compose --profile agent up -d --build
-  c "32" "  ✅ Container gebaut/gestartet."; say ""
+# COMPOSE_PROFILES (aus .env) → Compose-Service-Namen der gebündelten Dienste.
+bundle_services() {
+  local profs svc="" p
+  profs="$(grep -E '^COMPOSE_PROFILES=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"
+  for p in ${profs//,/ }; do
+    case "$p" in
+      agent) svc="$svc hermes-agent hermes-mcp" ;;
+      radicale|vikunja|kitchenowl|paperless|homebox) svc="$svc $p" ;;
+    esac
+  done
+  printf '%s' "$svc"
+}
 
-  # Einmalige Einrichtung: Login + API-Plattform (der OpenAI-API-Server ist eine
-  # Gateway-Plattform -> muss aktiviert werden).
-  a=""
-  read -r -p "Jetzt einrichten/einloggen (interaktiv)? [J/n]: " a || true
+# Lokaler Modus: startet NUR die gebündelten Dienste (nicht den Core-Container,
+# der läuft bare-metal). Docker-Modus braucht das nicht (COMPOSE_PROFILES startet alles mit).
+start_bundles_local() {
+  local svc; svc="$(bundle_services)"
+  [ -n "${svc// /}" ] || return 0
+  if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+    say "  Docker fehlt – gebündelte Dienste ($svc) bitte separat starten."; return 0
+  fi
+  hr "Gebündelte Dienste (Docker)"
+  say "  Baue & starte:$svc   (Build kann dauern)"
+  docker compose up -d --build $svc
+  c "32" "  ✅ gestartet."; say ""
+}
+
+# hermes-agent Setup/Login (Container muss bereits laufen). Nur bei AI_PROVIDER=hermes_agent.
+setup_agent() {
+  grep -qE '^AI_PROVIDER=hermes_agent$' .env 2>/dev/null || return 0
+  command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 || return 0
+  hr "Nous Hermes Agent – Einrichtung"
+  local a=""
+  read -r -p "Login + API-Plattform jetzt einrichten (interaktiv)? [J/n]: " a || true
   if [[ ! "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
     say "  1) Login (Codex/ChatGPT-Abo oder Nous Portal):"
     docker compose exec hermes-agent hermes setup || true
-    say "  2) API-Plattform aktivieren (OpenAI-API auf :8642):"
+    say "  2) API-Plattform aktivieren (OpenAI-API :8642):"
     docker compose exec hermes-agent hermes gateway setup || true
     docker compose restart hermes-agent || true
   fi
-
-  # Auf Health warten (API :8642 muss auf /v1/models antworten).
   say "  Warte auf hermes-agent (API :8642) …"
   local cid ok=0 st
   cid="$(docker compose ps -q hermes-agent 2>/dev/null || true)"
@@ -54,22 +60,25 @@ bring_up_agent() {
     [ "$st" = "healthy" ] && { ok=1; break; }
     sleep 5
   done
-  if [ "$ok" = "1" ]; then
-    c "32" "  ✅ hermes-agent ist healthy – die API antwortet."; say ""
-  else
-    c "33" "  ⚠ hermes-agent noch nicht healthy (Status: ${st:-unbekannt})."; say ""
-    say "    Logs:            docker compose logs -f hermes-agent"
-    say "    API-Plattform:   docker compose exec hermes-agent hermes gateway setup"
-    say "    Danach:          docker compose restart hermes-agent"
-  fi
-
-  # Haushalts-Tools (MCP) mit hermes verbinden.
+  if [ "$ok" = "1" ]; then c "32" "  ✅ hermes-agent healthy."; say ""
+  else c "33" "  ⚠ noch nicht healthy (${st:-?}).  Logs: docker compose logs -f hermes-agent"; say ""; fi
   a=""
-  read -r -p "Haushalts-Tools (MCP) jetzt mit hermes verbinden? [J/n]: " a || true
+  read -r -p "Haushalts-Tools (MCP) mit hermes verbinden? [J/n]: " a || true
   if [[ ! "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
     docker compose exec hermes-agent hermes mcp add hermes-family \
       --transport streamable-http --url http://hermes-mcp:8765/mcp || true
   fi
+}
+
+# Hinweise zu gebündelten Web-UIs + Token-Erstellung.
+print_bundle_hints() {
+  local svc; svc="$(bundle_services)"
+  [ -n "${svc// /}" ] || return 0
+  hr "Gebündelte Dienste – letzter Schritt"
+  say "  Einmal je Web-UI einloggen. Für Vikunja/KitchenOwl/Paperless/Homebox einen"
+  say "  API-Token erstellen, in die .env eintragen und dann:"
+  c "1" "    docker compose restart hermes"; say ""
+  say "  Adressen/Details: docs/SELFHOSTED.md"
 }
 
 say ""
@@ -117,7 +126,8 @@ if [ "$TARGET" = "docker" ]; then
     docker compose exec hermes python -m scripts.create_admin || true
   fi
 
-  bring_up_agent
+  setup_agent          # hermes-agent Login/Plattform (falls installiert)
+  print_bundle_hints   # Token-Schritte für die gebündelten Dienste
 
   PORT="$(grep -E '^PORT=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"; PORT="${PORT:-8000}"
   say ""; c "1;32" "Fertig. App: http://localhost:${PORT}"; say ""
@@ -205,7 +215,9 @@ if [ "$SERVICE_DONE" -ne 1 ]; then
   c "1" "    uvicorn app.main:app --host $HOSTB --port $PORT"; say ""
 fi
 
-bring_up_agent
+start_bundles_local   # gebündelte Dienste (Docker) starten – Core läuft bare-metal
+setup_agent           # hermes-agent Login/Plattform (falls installiert)
+print_bundle_hints    # Token-Schritte für die gebündelten Dienste
 
 say ""
 c "1;32" "Fertig. App: http://<server-ip>:${PORT}"; say ""
