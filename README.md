@@ -91,6 +91,12 @@ Der Installer ist **one-shot**: du wählst *lokal* (Python-venv) oder *Docker*.
 Er installiert **alle** Abhängigkeiten, schreibt die `.env`, legt den Admin an und
 startet Hermes – lokal auf Wunsch als `systemd`-Dienst.
 
+Pro Fach-Dienst kannst du wählen: **installieren** (Hermes startet ihn per Docker
+mit – nous hermes-agent, Vikunja, KitchenOwl, Paperless, Homebox, CalDAV/Radicale),
+**verbinden** (bestehender Dienst) oder **überspringen**. Medien & \*arr
+(Plex/Sonarr/Radarr/…) werden bewusst **nicht** installiert, nur verbunden.
+Details: **[docs/SELFHOSTED.md](docs/SELFHOSTED.md)**.
+
 ### Variante B – Docker manuell
 
 ```bash

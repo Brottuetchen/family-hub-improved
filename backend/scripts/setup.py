@@ -77,6 +77,48 @@ CONNECTORS = [
     ]),
 ]
 
+# Dienste, die der Installer per Docker SELBST installieren kann (Profil je Dienst).
+# host_port = veröffentlicht (Browser), container_port = im Compose-Netz.
+BUNDLES = {
+    "Kalender (Nextcloud/CalDAV)": {
+        "profile": "radicale", "host_port": 5232, "container_port": 5232,
+        "url_key": "CALDAV_URL", "suffix": "/", "kind": "caldav",
+    },
+    "Aufgaben (Vikunja)": {
+        "profile": "vikunja", "host_port": 3456, "container_port": 3456,
+        "url_key": "VIKUNJA_URL", "suffix": "", "kind": "token", "token_key": "VIKUNJA_TOKEN",
+        "secrets": {"VIKUNJA_JWTSECRET": 48}, "publicurl_key": "VIKUNJA_PUBLICURL",
+    },
+    "Einkauf (KitchenOwl)": {
+        "profile": "kitchenowl", "host_port": 8082, "container_port": 8080,
+        "url_key": "KITCHENOWL_URL", "suffix": "", "kind": "token", "token_key": "KITCHENOWL_TOKEN",
+        "secrets": {"KITCHENOWL_JWT_SECRET": 48},
+    },
+    "Dokumente (Paperless-ngx)": {
+        "profile": "paperless", "host_port": 8081, "container_port": 8000,
+        "url_key": "PAPERLESS_URL", "suffix": "", "kind": "token", "token_key": "PAPERLESS_TOKEN",
+        "secrets": {"PAPERLESS_SECRET_KEY": 48, "PAPERLESS_ADMIN_PASSWORD": 16},
+        "publicurl_key": "PAPERLESS_PUBLICURL", "admin_user_key": "PAPERLESS_ADMIN_USER",
+    },
+    "Inventar (Homebox)": {
+        "profile": "homebox", "host_port": 7745, "container_port": 7745,
+        "url_key": "HOMEBOX_URL", "suffix": "", "kind": "token", "token_key": "HOMEBOX_TOKEN",
+    },
+}
+
+# Medien/*arr/Smart Home: bewusst NICHT installierbar – nur verbinden.
+CONNECT_ONLY = [
+    "Smart Home (Home Assistant)", "Medien (Plex)", "Hörbücher (Audiobookshelf)",
+    "Tonies (TeddyCloud)", "Media-Requests (Overseerr)", "Serien (Sonarr)", "Filme (Radarr)",
+]
+
+
+def _write_radicale_users(user: str, password: str) -> None:
+    """Schreibt die Radicale-Zugangsdaten (Klartext) – gitignored."""
+    d = ROOT / "deploy" / "radicale"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "users").write_text(f"{user}:{password}\n", encoding="utf-8")
+
 
 # --- I/O-Helfer ---
 
@@ -158,6 +200,12 @@ def write_env(path: Path, env: dict) -> None:
         ("Hermes AI", ["AI_ENABLED", "AI_PROVIDER", "AI_BASE_URL", "AI_API_KEY", "AI_MODEL", "AI_MAX_TOKENS", "AI_TRANSCRIBE_MODEL"]),
         ("Hermes Agent (Sidecar)", ["HERMES_AGENT_URL", "HERMES_AGENT_DASHBOARD_URL", "HERMES_AGENT_MODEL", "HERMES_AGENT_TOKEN", "HERMES_AGENT_IMAGE"]),
         ("Connectoren", [k for _, fields in CONNECTORS for (k, _, _) in fields]),
+        ("Gebündelte Dienste (Docker-Profile + Secrets)", [
+            "COMPOSE_PROFILES", "PUBLIC_HOST",
+            "VIKUNJA_JWTSECRET", "VIKUNJA_PUBLICURL",
+            "KITCHENOWL_JWT_SECRET",
+            "PAPERLESS_SECRET_KEY", "PAPERLESS_ADMIN_USER", "PAPERLESS_ADMIN_PASSWORD", "PAPERLESS_PUBLICURL",
+        ]),
         ("Homelab-Status-Board", ["HOMELAB_SERVICES"]),
     ]
     lines = ["# Hermes Family OS – erzeugt vom Installer (backend/scripts/setup.py)", ""]
@@ -191,6 +239,10 @@ def main() -> int:
     env = load_env(ENV_PATH)
     if env:
         print(_c(f"\nBestehende {ENV_PATH} gefunden – Werte werden als Vorgaben genutzt.", "33"))
+
+    # Docker-Profile, die der Installer selbst starten soll (COMPOSE_PROFILES).
+    profiles = {p.strip() for p in env.get("COMPOSE_PROFILES", "").split(",") if p.strip()}
+    public_host = env.get("PUBLIC_HOST", "")  # Browser-Adresse dieses Servers (lazy erfragt)
 
     # Core
     head("Grundeinstellungen")
@@ -266,11 +318,13 @@ def main() -> int:
     print("  Der Chat spricht ausschließlich den hermes-agent-Sidecar an:")
     print("  seine Tools/Skills/Memory/Voice + Steuerung unserer Module via MCP.")
     env["AI_MAX_TOKENS"] = env.get("AI_MAX_TOKENS", "1024")
-    if ask_yesno("hermes-agent verbinden (empfohlen)?", env.get("AI_PROVIDER") == "hermes_agent"):
+    if ask_yesno("hermes-agent (nous) installieren (empfohlen)?", env.get("AI_PROVIDER") == "hermes_agent"):
         env["AI_ENABLED"] = "true"
         env["AI_PROVIDER"] = "hermes_agent"
+        profiles.add("agent")  # baut/startet hermes-agent + hermes-mcp
         # OpenAI-kompatibler API-Server des Sidecars, Default-Port 8642.
-        env["HERMES_AGENT_URL"] = ask("hermes-agent API-URL (…/v1)", env.get("HERMES_AGENT_URL", "http://hermes-agent:8642/v1"))
+        default_agent_url = "http://hermes-agent:8642/v1" if target == "docker" else "http://localhost:8642/v1"
+        env["HERMES_AGENT_URL"] = ask("hermes-agent API-URL (…/v1)", env.get("HERMES_AGENT_URL", default_agent_url))
         env["HERMES_AGENT_DASHBOARD_URL"] = ask("Dashboard-URL (optional, leer = keins)", env.get("HERMES_AGENT_DASHBOARD_URL", ""))
         env["HERMES_AGENT_MODEL"] = ask("Modell (im Sidecar)", env.get("HERMES_AGENT_MODEL", "default"))
         # Bearer-Token = API_SERVER_KEY des Sidecars; automatisch erzeugen, wenn leer.
@@ -295,16 +349,54 @@ def main() -> int:
             print(_c("  VAPID-Schlüssel erzeugt.", "32"))
     env["VAPID_EMAIL"] = ask("Kontakt-E-Mail (mailto:)", env.get("VAPID_EMAIL", "mailto:admin@example.com"))
 
-    # Connectoren
-    head("Connectoren (Fachsysteme)")
-    print("  Jeder Connector ist optional – nur einrichten, was du nutzt.\n")
-    for title, fields in CONNECTORS:
-        has_existing = any(env.get(k) for k, _, _ in fields)
-        if not ask_yesno(f"{title} einrichten?", has_existing):
-            continue
-        for key, label, secret in fields:
+    # Fach-Dienste: installieren (Docker) / verbinden (bestehend) / überspringen.
+    head("Fach-Dienste")
+    print("  Pro Dienst:  i = installieren (Docker)  ·  v = verbinden (bestehend)  ·  Enter = überspringen")
+    print("  Medien & *arr werden bewusst NICHT installiert – nur verbinden.\n")
+    fields_by_title = {title: fields for title, fields in CONNECTORS}
+
+    def _connect(title: str) -> None:
+        for key, label, secret in fields_by_title[title]:
             cur = env.get(key, "")
             env[key] = ask_secret(label, cur) if secret else ask(label, cur)
+
+    for title, b in BUNDLES.items():
+        choice = ask(f"{title} — i/v/Enter", "").strip().lower()
+        if choice.startswith("i"):
+            profiles.add(b["profile"])
+            if not public_host:
+                public_host = ask("Unter welcher Adresse ist DIESER Server erreichbar (für die Web-UIs)?", "localhost")
+                env["PUBLIC_HOST"] = public_host
+            # App-Datenabruf: Docker → Service-Name, lokal → localhost:host_port.
+            if target == "docker":
+                env[b["url_key"]] = f"http://{b['profile']}:{b['container_port']}{b['suffix']}"
+            else:
+                env[b["url_key"]] = f"http://localhost:{b['host_port']}{b['suffix']}"
+            pub_url = f"http://{public_host}:{b['host_port']}{b['suffix']}"
+            if b.get("publicurl_key"):
+                env[b["publicurl_key"]] = pub_url if pub_url.endswith("/") else pub_url + "/"
+            for skey, n in (b.get("secrets") or {}).items():
+                env[skey] = env.get(skey) or secrets.token_urlsafe(n)
+            if b["kind"] == "caldav":
+                env["CALDAV_USERNAME"] = env.get("CALDAV_USERNAME") or "family"
+                env["CALDAV_PASSWORD"] = env.get("CALDAV_PASSWORD") or secrets.token_urlsafe(12)
+                _write_radicale_users(env["CALDAV_USERNAME"], env["CALDAV_PASSWORD"])
+                print(_c(f"  ✓ Radicale wird installiert · Web: {pub_url} · Login: {env['CALDAV_USERNAME']} / (CALDAV_PASSWORD in .env)", "32"))
+            else:
+                print(_c(f"  ✓ {title} wird installiert · Web: {pub_url}", "32"))
+                if b.get("admin_user_key"):
+                    env[b["admin_user_key"]] = env.get(b["admin_user_key"]) or "admin"
+                    print(_c(f"    Admin: {env[b['admin_user_key']]} / (PAPERLESS_ADMIN_PASSWORD in .env)", "36"))
+                if b.get("token_key"):
+                    print(_c(f"    → nach dem Start einloggen, API-Token erstellen, als {b['token_key']} in die .env, dann 'docker compose restart hermes'.", "33"))
+        elif choice.startswith("v"):
+            profiles.discard(b["profile"])
+            _connect(title)
+
+    for title in CONNECT_ONLY:
+        has_existing = any(env.get(k) for k, _, _ in fields_by_title[title])
+        if ask_yesno(f"{title} verbinden?", has_existing):
+            _connect(title)
 
     # Homelab-Status-Board (generisch: up/down + Link, für Dienste ohne tiefe Integration)
     head("Homelab-Status-Board (optional)")
@@ -334,6 +426,11 @@ def main() -> int:
     if services:
         env["HOMELAB_SERVICES"] = json.dumps(services, separators=(",", ":"), ensure_ascii=False)
 
+    # Docker Compose liest COMPOSE_PROFILES automatisch → 'docker compose up' startet
+    # genau die gewählten Dienste mit.
+    if profiles:
+        env["COMPOSE_PROFILES"] = ",".join(sorted(profiles))
+
     # Schreiben
     head("Speichern")
     write_env(ENV_PATH, env)
@@ -342,18 +439,21 @@ def main() -> int:
     # Nächste Schritte
     head("Nächste Schritte")
     port = env.get("PORT", "8000")
+    bundled = sorted(profiles)
+    print(_c("  Am einfachsten:  ./install.sh   (One-Shot: Deps, .env, Dienste, Admin)", "1;32"))
     if target == "docker":
-        print("  Mit Docker starten:")
+        print("\n  Oder manuell mit Docker (COMPOSE_PROFILES startet die gewählten Dienste mit):")
         print(_c("    docker compose up -d --build", "1"))
         print(_c("    docker compose exec hermes python -m scripts.create_admin", "1"))
-        print(f"\n  App danach unter http://localhost:{port}\n")
+        print(f"\n  App danach unter http://localhost:{port}")
     else:
-        print("  Lokal starten (venv):")
-        print(_c("    cd backend && source .venv/bin/activate", "1"))
-        print(_c("    python -m scripts.create_admin", "1"))
-        print(_c(f"    uvicorn app.main:app --host 0.0.0.0 --port {port}", "1"))
-        print(_c("\n  Tipp: ./install.sh erledigt venv, Abhängigkeiten, Admin und Dienst automatisch.", "33"))
-        print(f"\n  App danach unter http://<server-ip>:{port}\n")
+        print(f"\n  App danach unter http://<server-ip>:{port}")
+    if bundled:
+        print(_c(f"\n  Gebündelte Dienste: {', '.join(bundled)}", "36"))
+        print(_c("  → je Web-UI einmal einloggen; für Vikunja/KitchenOwl/Paperless/Homebox einen", "33"))
+        print(_c("    API-Token erstellen, in die .env eintragen und 'docker compose restart hermes'.", "33"))
+        print(_c("  Details: docs/SELFHOSTED.md", "33"))
+    print()
     return 0
 
 
