@@ -24,6 +24,15 @@ bundle_services() {
   printf '%s' "$svc"
 }
 
+# COMPOSE_PROFILES (aus .env) → explizite '--profile X'-Flags (robust über alle
+# compose-Versionen, unabhängig davon, ob .env-COMPOSE_PROFILES gelesen wird).
+compose_profile_args() {
+  local profs args="" p
+  profs="$(grep -E '^COMPOSE_PROFILES=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"
+  for p in ${profs//,/ }; do [ -n "$p" ] && args="$args --profile $p"; done
+  printf '%s' "$args"
+}
+
 # Lokaler Modus: startet NUR die gebündelten Dienste (nicht den Core-Container,
 # der läuft bare-metal). Docker-Modus braucht das nicht (COMPOSE_PROFILES startet alles mit).
 start_bundles_local() {
@@ -119,7 +128,14 @@ if [ "$TARGET" = "docker" ]; then
   python3 backend/scripts/setup.py
 
   hr "Start (Docker)"
-  docker compose up -d --build
+  BUNDLES="$(bundle_services)"
+  if [ -n "${BUNDLES// /}" ]; then
+    say "  Gebündelte Dienste werden mitgestartet:${BUNDLES}"
+  else
+    c "33" "  Hinweis: keine Dienste zum Selbst-Installieren gewählt (im Installer je Dienst 'i' tippen)."; say ""
+  fi
+  # Profile EXPLIZIT übergeben (robust, unabhängig vom .env-Auto-Read).
+  docker compose $(compose_profile_args) up -d --build
 
   a2=""; read -r -p "Admin-Benutzer jetzt anlegen? [J/n]: " a2 || true
   if [[ ! "${a2:-}" =~ ^([nN]|nein|no)$ ]]; then
@@ -128,6 +144,9 @@ if [ "$TARGET" = "docker" ]; then
 
   setup_agent          # hermes-agent Login/Plattform (falls installiert)
   print_bundle_hints   # Token-Schritte für die gebündelten Dienste
+
+  hr "Laufende Container"
+  docker compose ps
 
   PORT="$(grep -E '^PORT=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"; PORT="${PORT:-8000}"
   say ""; c "1;32" "Fertig. App: http://localhost:${PORT}"; say ""

@@ -398,6 +398,12 @@ def main() -> int:
         if ask_yesno(f"{title} verbinden?", has_existing):
             _connect(title)
 
+    # Direktes Feedback, was tatsächlich SELBST installiert wird.
+    if profiles:
+        print(_c(f"\n  → Zum Selbst-Installieren gewählt: {', '.join(sorted(profiles))}", "1;32"))
+    else:
+        print(_c("\n  → Kein Dienst zum Selbst-Installieren gewählt (dafür beim Dienst 'i' tippen).", "33"))
+
     # Homelab-Status-Board (generisch: up/down + Link, für Dienste ohne tiefe Integration)
     head("Homelab-Status-Board (optional)")
     print("  Up/Down-Kacheln + Links für Dienste ohne eigene Integration (SABnzbd, Immich, Trilium …).")
