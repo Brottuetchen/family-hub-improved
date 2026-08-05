@@ -38,9 +38,13 @@ def test_alembic_head_matches_models(tmp_path, monkeypatch):
 
 def test_stamp_preserves_existing_data(tmp_path, monkeypatch):
     # Alt-Installation: via create_all entstanden, mit Daten, OHNE alembic_version.
+    from app.models.config import ConfigOverride
+
     url = f"sqlite:///{tmp_path}/existing.db"
     eng = create_engine(url)
     Base.metadata.create_all(eng)
+    # Alt-Stand simulieren: die NEUESTE Tabelle gab es damals noch nicht.
+    ConfigOverride.__table__.drop(eng)
     with Session(eng) as s:
         s.add(User(username="old", email="o@e.de", hashed_password=get_password_hash("x"),
                    role="admin", is_admin=True))
@@ -51,6 +55,7 @@ def test_stamp_preserves_existing_data(tmp_path, monkeypatch):
     cfg = _alembic_config()
     insp = inspect(create_engine(url))
     assert insp.has_table("users") and not insp.has_table("alembic_version")
+    assert not insp.has_table("config_overrides")
 
     # Bestandsschutz-Pfad (spiegelt init_db): Baseline stampen, dann upgrade head.
     base = ScriptDirectory.from_config(cfg).get_bases()[0]
@@ -62,3 +67,5 @@ def test_stamp_preserves_existing_data(tmp_path, monkeypatch):
         from sqlalchemy import text
         assert conn.execute(text("SELECT COUNT(*) FROM users WHERE username='old'")).scalar() == 1
         assert conn.execute(text("SELECT COUNT(*) FROM alembic_version")).scalar() == 1
+    # die neue Migration hat die fehlende Tabelle ergänzt (kein Datenverlust)
+    assert inspect(eng2).has_table("config_overrides")
