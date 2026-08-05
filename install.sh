@@ -35,16 +35,34 @@ compose_profile_args() {
 
 # Lokaler Modus: startet NUR die gebündelten Dienste (nicht den Core-Container,
 # der läuft bare-metal). Docker-Modus braucht das nicht (COMPOSE_PROFILES startet alles mit).
+# Stellt sicher, dass Docker + Compose vorhanden sind; bietet Auto-Installation an
+# (offizielles get.docker.com-Skript). Gibt 0 zurück, wenn Docker danach nutzbar ist.
+ensure_docker() {
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then return 0; fi
+  hr "Docker wird benötigt"
+  say "  Die gewählten Dienste laufen als Container – dafür braucht es Docker + Compose."
+  local a=""
+  read -r -p "Docker jetzt automatisch installieren (offizielles Skript get.docker.com)? [J/n]: " a || true
+  if [[ "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
+    say "  Später manuell:"; c "1" "    curl -fsSL https://get.docker.com | sh"; say ""
+    return 1
+  fi
+  command -v curl >/dev/null 2>&1 || { c "31" "  'curl' fehlt – Docker bitte manuell installieren."; say ""; return 1; }
+  say "  Installiere Docker … (das kann ein paar Minuten dauern)"
+  $SUDO sh -c "curl -fsSL https://get.docker.com | sh" || { c "31" "  Docker-Installation fehlgeschlagen."; say ""; return 1; }
+  $SUDO systemctl enable --now docker >/dev/null 2>&1 || true
+  command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1
+}
+
 start_bundles_local() {
   local svc; svc="$(bundle_services)"
   [ -n "${svc// /}" ] || return 0
-  if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
-    say "  Docker fehlt – gebündelte Dienste ($svc) bitte separat starten."; return 0
-  fi
+  ensure_docker || { say "  Nach Docker-Installation starten:  docker compose$(compose_profile_args) up -d --build"; say ""; return 0; }
   hr "Gebündelte Dienste (Docker)"
   say "  Baue & starte:$svc   (Build kann dauern)"
   docker compose up -d --build $svc
   c "32" "  ✅ gestartet."; say ""
+  docker compose ps
 }
 
 # hermes-agent Setup/Login (Container muss bereits laufen). Nur bei AI_PROVIDER=hermes_agent.
