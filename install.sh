@@ -24,18 +24,64 @@ bundle_services() {
   printf '%s' "$svc"
 }
 
+# COMPOSE_PROFILES (aus .env) → explizite '--profile X'-Flags (robust über alle
+# compose-Versionen, unabhängig davon, ob .env-COMPOSE_PROFILES gelesen wird).
+compose_profile_args() {
+  local profs args="" p
+  profs="$(grep -E '^COMPOSE_PROFILES=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"
+  for p in ${profs//,/ }; do [ -n "$p" ] && args="$args --profile $p"; done
+  printf '%s' "$args"
+}
+
 # Lokaler Modus: startet NUR die gebündelten Dienste (nicht den Core-Container,
 # der läuft bare-metal). Docker-Modus braucht das nicht (COMPOSE_PROFILES startet alles mit).
+# Stellt sicher, dass Docker + Compose vorhanden sind; bietet Auto-Installation an
+# (offizielles get.docker.com-Skript). Gibt 0 zurück, wenn Docker danach nutzbar ist.
+ensure_docker() {
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then return 0; fi
+  hr "Docker wird benötigt"
+  say "  Die gewählten Dienste laufen als Container – dafür braucht es Docker + Compose."
+  local a=""
+  read -r -p "Docker jetzt automatisch installieren (offizielles Skript get.docker.com)? [J/n]: " a || true
+  if [[ "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
+    say "  Später manuell:"; c "1" "    curl -fsSL https://get.docker.com | sh"; say ""
+    return 1
+  fi
+  command -v curl >/dev/null 2>&1 || { c "31" "  'curl' fehlt – Docker bitte manuell installieren."; say ""; return 1; }
+  say "  Installiere Docker … (das kann ein paar Minuten dauern)"
+  $SUDO sh -c "curl -fsSL https://get.docker.com | sh" || { c "31" "  Docker-Installation fehlgeschlagen."; say ""; return 1; }
+  $SUDO systemctl enable --now docker >/dev/null 2>&1 || true
+  command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1
+}
+
 start_bundles_local() {
   local svc; svc="$(bundle_services)"
   [ -n "${svc// /}" ] || return 0
-  if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
-    say "  Docker fehlt – gebündelte Dienste ($svc) bitte separat starten."; return 0
-  fi
+  ensure_docker || { say "  Nach Docker-Installation starten:  docker compose$(compose_profile_args) up -d --build"; say ""; return 0; }
   hr "Gebündelte Dienste (Docker)"
   say "  Baue & starte:$svc   (Build kann dauern)"
   docker compose up -d --build $svc
   c "32" "  ✅ gestartet."; say ""
+  docker compose ps
+}
+
+# Vollautomatik: erzeugt die API-Tokens der gebündelten Dienste (Login/erster
+# Nutzer → Token → in .env) – ersetzt den früheren manuellen Schritt komplett.
+# Läuft nach dem Start der Container; $1 = zu verwendendes Python (Default python3).
+provision_tokens() {
+  local svc; svc="$(bundle_services)"
+  case " $svc " in
+    *" vikunja "*|*" kitchenowl "*|*" paperless "*|*" homebox "*) ;;
+    *) return 0 ;;   # kein token-fähiger Dienst gebündelt → nichts zu tun
+  esac
+  local py="${1:-python3}"
+  ( cd "$ROOT/backend" && "$py" -m scripts.provision_tokens ) || \
+    c "33" "  ⚠ Token-Provisionierung teils unvollständig – Hinweise oben."
+}
+
+# Prüft, ob mind. ein Dienst-Token in der .env steht (→ Hermes muss neu einlesen).
+have_service_tokens() {
+  grep -qE '^(VIKUNJA|KITCHENOWL|PAPERLESS|HOMEBOX)_TOKEN=.+' .env 2>/dev/null
 }
 
 # hermes-agent Setup/Login (Container muss bereits laufen). Nur bei AI_PROVIDER=hermes_agent.
@@ -68,17 +114,6 @@ setup_agent() {
     docker compose exec hermes-agent hermes mcp add hermes-family \
       --transport streamable-http --url http://hermes-mcp:8765/mcp || true
   fi
-}
-
-# Hinweise zu gebündelten Web-UIs + Token-Erstellung.
-print_bundle_hints() {
-  local svc; svc="$(bundle_services)"
-  [ -n "${svc// /}" ] || return 0
-  hr "Gebündelte Dienste – letzter Schritt"
-  say "  Einmal je Web-UI einloggen. Für Vikunja/KitchenOwl/Paperless/Homebox einen"
-  say "  API-Token erstellen, in die .env eintragen und dann:"
-  c "1" "    docker compose restart hermes"; say ""
-  say "  Adressen/Details: docs/SELFHOSTED.md"
 }
 
 say ""
@@ -119,7 +154,27 @@ if [ "$TARGET" = "docker" ]; then
   python3 backend/scripts/setup.py
 
   hr "Start (Docker)"
-  docker compose up -d --build
+  BUNDLES="$(bundle_services)"
+  if [ -n "${BUNDLES// /}" ]; then
+    say "  Gebündelte Dienste werden mitgestartet:${BUNDLES}"
+  else
+    c "33" "  Hinweis: keine Dienste zum Selbst-Installieren gewählt (im Installer je Dienst 'i' tippen)."; say ""
+  fi
+  # Profile EXPLIZIT übergeben (robust, unabhängig vom .env-Auto-Read).
+  docker compose $(compose_profile_args) up -d --build
+
+  # Vollautomatik: Tokens der gebündelten Dienste erzeugen (Host-Python spricht die
+  # veröffentlichten Ports an), dann Hermes neu erstellen, damit es sie einliest.
+  if [ -n "${BUNDLES// /}" ]; then
+    hr "API-Tokens (vollautomatisch)"
+    provision_tokens python3
+    if have_service_tokens; then
+      say "  Übernehme Tokens in Hermes …"
+      docker compose up -d --force-recreate --no-deps hermes >/dev/null 2>&1 \
+        || docker compose up -d --force-recreate --no-deps hermes || true
+      c "32" "  ✅ Tokens aktiv."; say ""
+    fi
+  fi
 
   a2=""; read -r -p "Admin-Benutzer jetzt anlegen? [J/n]: " a2 || true
   if [[ ! "${a2:-}" =~ ^([nN]|nein|no)$ ]]; then
@@ -127,7 +182,9 @@ if [ "$TARGET" = "docker" ]; then
   fi
 
   setup_agent          # hermes-agent Login/Plattform (falls installiert)
-  print_bundle_hints   # Token-Schritte für die gebündelten Dienste
+
+  hr "Laufende Container"
+  docker compose ps
 
   PORT="$(grep -E '^PORT=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"; PORT="${PORT:-8000}"
   say ""; c "1;32" "Fertig. App: http://localhost:${PORT}"; say ""
@@ -177,6 +234,17 @@ fi
 PORT="$(grep -E '^PORT=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"; PORT="${PORT:-8000}"
 HOSTB="$(grep -E '^HOST=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"; HOSTB="${HOSTB:-0.0.0.0}"
 
+# Gebündelte Dienste (Docker) zuerst starten und ihre Tokens erzeugen – VOR dem
+# Hermes-Start, damit der Core sie beim ersten Hochfahren direkt einliest.
+start_bundles_local
+# Nur provisionieren, wenn Docker nutzbar ist (sonst laufen keine Container und wir
+# würden sinnlos auf nicht erreichbare Dienste warten).
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 \
+   && bundle_services | grep -qE 'vikunja|kitchenowl|paperless|homebox'; then
+  hr "API-Tokens (vollautomatisch)"
+  provision_tokens "$PY"
+fi
+
 hr "Start"
 SERVICE_DONE=0
 if command -v systemctl >/dev/null 2>&1 && { [ "$IS_ROOT" = "1" ] || [ -n "$SUDO" ]; }; then
@@ -201,7 +269,8 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
     $SUDO systemctl daemon-reload
-    $SUDO systemctl enable --now hermes
+    $SUDO systemctl enable hermes
+    $SUDO systemctl restart hermes   # (neu)starten → liest die frisch provisionierten Tokens
     SERVICE_DONE=1
     say ""; c "32" "  ✅ Dienst 'hermes' läuft."; say ""
     say "     Status:  systemctl status hermes"
@@ -215,9 +284,7 @@ if [ "$SERVICE_DONE" -ne 1 ]; then
   c "1" "    uvicorn app.main:app --host $HOSTB --port $PORT"; say ""
 fi
 
-start_bundles_local   # gebündelte Dienste (Docker) starten – Core läuft bare-metal
 setup_agent           # hermes-agent Login/Plattform (falls installiert)
-print_bundle_hints    # Token-Schritte für die gebündelten Dienste
 
 say ""
 c "1;32" "Fertig. App: http://<server-ip>:${PORT}"; say ""

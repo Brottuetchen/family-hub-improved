@@ -85,8 +85,10 @@ services:
       HERMES_HOME: /opt/data
     volumes:
       - hermes_agent_home:/opt/data   # Config + Credential-Pool (Login) – persistent
-    expose:
-      - "8642"   # OpenAI-kompatibler API-Server (unser Relay: HERMES_AGENT_URL=…:8642/v1)
+    # Veröffentlicht (nicht nur 'expose'), damit auch eine bare-metal-App den
+    # API-Server über http://localhost:8642/v1 erreicht (durch API_SERVER_KEY geschützt).
+    ports:
+      - "${HERMES_AGENT_PORT:-8642}:8642"   # OpenAI-kompatibler API-Server
     # Startet den Gateway-Runner (hostet die 'api'-Plattform = OpenAI-API auf 8642).
     command: ["gateway"]
     # Health = API-Server antwortet auf /v1/models (python ist im Image vorhanden).

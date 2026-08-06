@@ -19,6 +19,9 @@
 </head>
 <body>
   <div class="nav-scrim" id="nav-scrim"></div>
+  <!-- Drawer als direktes <body>-Kind: sonst fängt der Stacking-Context von .app
+       (z-index:1) die Nav ein und der Scrim (z-90) läge ÜBER der Schrift. -->
+  <nav class="nav" id="nav"></nav>
 
   <div class="app">
     <header class="topbar">
@@ -40,8 +43,6 @@
       <div class="date" id="date"></div>
       <h1 id="greeting">Willkommen</h1>
     </section>
-
-    <nav class="nav" id="nav"></nav>
 
     <main id="view"></main>
   </div>

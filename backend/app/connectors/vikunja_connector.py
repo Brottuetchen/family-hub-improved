@@ -30,7 +30,10 @@ class VikunjaConnector(BaseConnector):
         return {"Authorization": f"Bearer {settings.vikunja_token}"}
 
     async def _probe(self) -> bool:
-        await self._get_json("/api/v1/user")
+        # /api/v1/tasks/all statt /api/v1/user: dauerhafte API-Tokens dürfen die
+        # User-Route nicht, wohl aber die Aufgaben-Route – so ist die Health-Prüfung
+        # sowohl mit API-Token als auch mit JWT grün.
+        await self._get_json("/api/v1/tasks/all", params={"per_page": 1})
         return True
 
     async def get_tasks(self, include_done: bool = False, limit: int = 50) -> List[Dict[str, Any]]:
