@@ -112,7 +112,7 @@ setup_agent() {
   read -r -p "Haushalts-Tools (MCP) mit hermes verbinden? [J/n]: " a || true
   if [[ ! "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
     docker compose exec hermes-agent hermes mcp add hermes-family \
-      --transport streamable-http --url http://hermes-mcp:8765/mcp || true
+      --url http://hermes-mcp:8765/mcp || true
   fi
 }
 

@@ -67,7 +67,7 @@ services:
   #      docker compose exec hermes-agent hermes setup --portal   # Nous Portal
   #      docker compose exec hermes-agent hermes gateway setup    # 'api'-Plattform aktivieren
   #      docker compose exec hermes-agent hermes mcp add hermes-family \
-  #        --transport streamable-http --url http://hermes-mcp:8765/mcp
+  #        --url http://hermes-mcp:8765/mcp   # HTTP-Transport wird aus der URL erkannt
   #  * Web-Dashboard: 'hermes dashboard' (Port/Existenz je nach Version prüfen).
   hermes-agent:
     image: hermes-agent-local:pinned
