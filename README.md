@@ -87,15 +87,20 @@ erzeugt `SECRET_KEY` und VAPID-Schlüssel automatisch und schreibt die `.env`:
 ./install.sh
 # alternativ nur den Assistenten:  python3 backend/scripts/setup.py
 ```
-Der Installer ist **one-shot**: du wählst *lokal* (Python-venv) oder *Docker*.
-Er installiert **alle** Abhängigkeiten, schreibt die `.env`, legt den Admin an und
-startet Hermes – lokal auf Wunsch als `systemd`-Dienst.
+Der Installer ist **one-shot, volle Automatik**: du wählst *lokal* (Python-venv)
+oder *Docker*. Er installiert **alle** Abhängigkeiten (bei Bedarf sogar Docker
+selbst), schreibt die `.env`, legt den Admin an und startet Hermes – lokal auf
+Wunsch als `systemd`-Dienst.
 
 Pro Fach-Dienst kannst du wählen: **installieren** (Hermes startet ihn per Docker
 mit – nous hermes-agent, Vikunja, KitchenOwl, Paperless, Homebox, CalDAV/Radicale),
 **verbinden** (bestehender Dienst) oder **überspringen**. Medien & \*arr
 (Plex/Sonarr/Radarr/…) werden bewusst **nicht** installiert, nur verbunden.
-Details: **[docs/SELFHOSTED.md](docs/SELFHOSTED.md)**.
+
+Für selbst-installierte Dienste erzeugt der Installer die **API-Tokens
+vollautomatisch** (erster Nutzer + Token + Eintrag in die `.env`) – kein manuelles
+Einloggen, Kopieren oder Neustarten mehr. Details:
+**[docs/SELFHOSTED.md](docs/SELFHOSTED.md)**.
 
 ### Variante B – Docker manuell
 

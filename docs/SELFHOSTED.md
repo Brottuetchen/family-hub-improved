@@ -13,34 +13,51 @@ sich nur. Home Assistant ebenso (nur verbinden).
 
 ## Bundle-fähige Dienste
 
-| Dienst | Profil | Port (Host) | Login/Token |
-|--------|--------|-------------|-------------|
-| Kalender (Radicale/CalDAV) | `radicale` | 5232 | User/Passwort erzeugt der Installer (in `.env`) |
-| Aufgaben (Vikunja) | `vikunja` | 3456 | nach 1. Login **API-Token** erstellen |
-| Einkauf (KitchenOwl) | `kitchenowl` | 8082 | nach 1. Login **API-Token** erstellen |
-| Dokumente (Paperless-ngx) | `paperless` | 8081 | Admin erzeugt der Installer; **API-Token** in der UI |
-| Inventar (Homebox) | `homebox` | 7745 | nach 1. Login **API-Token** erstellen |
+| Dienst | Profil | Port (Host) | Token |
+|--------|--------|-------------|-------|
+| Kalender (Radicale/CalDAV) | `radicale` | 5232 | kein Token – User/Passwort erzeugt der Installer |
+| Aufgaben (Vikunja) | `vikunja` | 3456 | **automatisch** (dauerhafter API-Token) |
+| Einkauf (KitchenOwl) | `kitchenowl` | 8082 | **automatisch** (Long-Lived-Token) |
+| Dokumente (Paperless-ngx) | `paperless` | 8081 | **automatisch** (DRF-API-Token) |
+| Inventar (Homebox) | `homebox` | 7745 | **automatisch** (Login-Token) |
 | KI (NousResearch/hermes-agent) | `agent` | 8642 | `hermes setup` (Codex/Nous) – der Installer stößt es an |
 
 Die Auswahl landet als **`COMPOSE_PROFILES`** in der `.env`; Docker Compose liest
 das automatisch, `docker compose up -d` startet genau diese Dienste mit.
 
-## Ablauf (One-Shot)
+## Ablauf (One-Shot, volle Automatik)
 
 ```bash
-./install.sh          # Ziel wählen (lokal/Docker), Dienste je i/v/Enter,
-                      # dann: Deps, .env, Container, Admin, hermes-agent-Login
+./install.sh          # Ziel wählen (lokal/Docker), Dienste je i/v/Enter …
+                      # dann VOLLAUTOMATISCH: Deps, .env, Container, API-Tokens, Admin
 ```
 
-**Wichtig – API-Tokens:** Vikunja/KitchenOwl/Paperless/Homebox erzeugen ihren
-API-Token erst **nach dem ersten Login** in ihrer Weboberfläche
-(`http://<PUBLIC_HOST>:<port>`). Danach:
+**API-Tokens werden automatisch erzeugt.** Nach dem Start der Container legt der
+Installer für Vikunja/KitchenOwl/Paperless/Homebox den ersten Nutzer an, erstellt
+einen (möglichst dauerhaften) API-Token und schreibt ihn in die `.env` – ganz ohne
+manuelles Einloggen, Token-Kopieren oder Neustarten. Danach liest Hermes die Tokens
+direkt ein. Dahinter steckt `backend/scripts/provision_tokens.py`.
 
-1. Token in der jeweiligen Web-UI erstellen.
-2. In die `.env` eintragen (`VIKUNJA_TOKEN`, `KITCHENOWL_TOKEN`,
-   `PAPERLESS_TOKEN`, `HOMEBOX_TOKEN`).
-3. `docker compose restart hermes` (bzw. `systemctl restart hermes` bei lokaler
-   Installation).
+- Die Dienste nutzen **einen gemeinsamen Admin-Login** (`BUNDLE_ADMIN_USER` /
+  `BUNDLE_ADMIN_PASSWORD` in der `.env`) – damit meldest du dich später auch selbst
+  in den Weboberflächen an.
+- **Idempotent:** ein zweiter `./install.sh`-Lauf lässt bestehende Tokens in Ruhe.
+- **Nachträglich/erneut** (z. B. wenn ein Dienst beim ersten Mal noch nicht bereit
+  war):
+
+  ```bash
+  cd backend && python -m scripts.provision_tokens            # fehlende Tokens nachziehen
+  cd backend && python -m scripts.provision_tokens --force    # alle neu erzeugen
+  cd backend && python -m scripts.provision_tokens --only vikunja
+  ```
+
+  Bei Docker danach `docker compose up -d --force-recreate hermes`, lokal
+  `systemctl restart hermes`.
+
+**Fallback:** Sollte ein Dienst nicht rechtzeitig erreichbar sein, meldet der
+Installer das je Dienst und du kannst den Token wie gehabt manuell in der Web-UI
+(`http://<PUBLIC_HOST>:<port>`) erstellen und als `<DIENST>_TOKEN` in die `.env`
+eintragen.
 
 CalDAV/Radicale braucht **keinen** Token – User/Passwort erzeugt der Installer
 (steht in der `.env`, Datei `deploy/radicale/users`).
