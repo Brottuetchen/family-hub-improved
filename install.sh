@@ -84,6 +84,45 @@ have_service_tokens() {
   grep -qE '^(VIKUNJA|KITCHENOWL|PAPERLESS|HOMEBOX)_TOKEN=.+' .env 2>/dev/null
 }
 
+# Lauscht lokal schon jemand auf diesem TCP-Port? (ss oder lsof; ohne beides: keine Prüfung)
+port_in_use() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    [ -n "$(ss -ltnH "sport = :$port" 2>/dev/null)" ]
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+  else
+    return 1
+  fi
+}
+
+# Stellt sicher, dass der Host-Port für den Docker-Hermes frei ist. Häufigster
+# Stolperstein: ein früherer LOKALER Install ließ den systemd-Dienst 'hermes' auf
+# demselben Port laufen → Docker kann ihn nicht binden ('address already in use').
+# Bietet an, den lokalen Dienst zu stoppen; sonst klare Meldung statt Docker-Fehler.
+ensure_port_free() {
+  local port="$1"
+  port_in_use "$port" || return 0
+  hr "Port $port ist belegt"
+  if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet hermes 2>/dev/null; then
+    say "  Der lokale systemd-Dienst 'hermes' läuft schon auf Port $port (aus einer"
+    say "  früheren lokalen Installation) – Docker kann den Port so nicht binden."
+    local a=""; read -r -p "  Lokalen Dienst stoppen/deaktivieren, damit Docker übernimmt? [J/n]: " a || true
+    if [[ ! "${a:-}" =~ ^([nN]|nein|no)$ ]]; then
+      $SUDO systemctl disable --now hermes || true
+      sleep 1
+      if port_in_use "$port"; then c "31" "  Port weiterhin belegt – bitte manuell prüfen."; say ""; return 1; fi
+      c "32" "  ✅ lokaler Dienst gestoppt, Port frei."; say ""
+      return 0
+    fi
+  fi
+  c "33" "  Port $port wird von einem anderen Prozess belegt:"; say ""
+  { $SUDO ss -ltnp "sport = :$port" 2>/dev/null || ss -ltn "sport = :$port" 2>/dev/null; } | sed 's/^/    /'
+  say ""
+  say "  → Prozess stoppen ODER in der .env  PORT=<frei>  setzen und erneut ausführen."
+  return 1
+}
+
 # hermes-agent Setup/Login (Container muss bereits laufen). Nur bei AI_PROVIDER=hermes_agent.
 setup_agent() {
   grep -qE '^AI_PROVIDER=hermes_agent$' .env 2>/dev/null || return 0
@@ -160,6 +199,12 @@ if [ "$TARGET" = "docker" ]; then
   else
     c "33" "  Hinweis: keine Dienste zum Selbst-Installieren gewählt (im Installer je Dienst 'i' tippen)."; say ""
   fi
+  # Preflight: ist der Host-Port frei? Verhindert das kryptische Docker-'address
+  # already in use', wenn noch eine ALTE Instanz (lokaler systemd-Dienst 'hermes'
+  # aus einer früheren Installation) auf demselben Port läuft.
+  DPORT="$(grep -E '^PORT=' .env 2>/dev/null | tail -n1 | cut -d= -f2 || true)"; DPORT="${DPORT:-8000}"
+  ensure_port_free "$DPORT" || { c "31" "Abbruch: Host-Port $DPORT ist nicht frei."; say ""; exit 1; }
+
   # Profile EXPLIZIT übergeben (robust, unabhängig vom .env-Auto-Read).
   docker compose $(compose_profile_args) up -d --build
 
