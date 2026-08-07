@@ -103,6 +103,8 @@ BUNDLES = {
     "Inventar (Homebox)": {
         "profile": "homebox", "host_port": 7745, "container_port": 7745,
         "url_key": "HOMEBOX_URL", "suffix": "", "kind": "token", "token_key": "HOMEBOX_TOKEN",
+        # Pflicht-Secret: Homebox startet ohne api_key_pepper (>= 32 Byte) nicht.
+        "secrets": {"HOMEBOX_API_KEY_PEPPER": 48},
     },
 }
 
@@ -205,6 +207,7 @@ def write_env(path: Path, env: dict) -> None:
             "VIKUNJA_JWTSECRET", "VIKUNJA_PUBLICURL",
             "KITCHENOWL_JWT_SECRET",
             "PAPERLESS_SECRET_KEY", "PAPERLESS_ADMIN_USER", "PAPERLESS_ADMIN_PASSWORD", "PAPERLESS_PUBLICURL",
+            "HOMEBOX_API_KEY_PEPPER",
         ]),
         ("Homelab-Status-Board", ["HOMELAB_SERVICES"]),
     ]
