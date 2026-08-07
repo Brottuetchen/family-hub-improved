@@ -13,9 +13,13 @@ hermes-agent-Seite: einen MCP-Server hinzufügen, der auf
 Jeder Aufruf öffnet eine eigene DB-Session und handelt mit der Rolle
 ``MCP_ROLE`` (Standard: partner) – dieselbe rollenbasierte Rechteprüfung wie im
 Chat gilt also auch hier.
-"""
 
-from __future__ import annotations
+WICHTIG: KEIN ``from __future__ import annotations`` hier! FastMCP inspiziert die
+Tool-Parameter und ruft für sie ``issubclass(param.annotation, Context)`` auf.
+Mit den PEP-563-„lazy"-Annotations würden die Annotationen zu Strings – und
+``issubclass("str", …)`` wirft ``TypeError: issubclass() arg 1 must be a class``
+(reproduzierbar mit mcp<=1.12). Deshalb bleiben die Annotationen echte Typen.
+"""
 
 from typing import Optional
 

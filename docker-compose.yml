@@ -117,6 +117,14 @@ services:
     command: ["python", "-m", "app.mcp.server"]
     expose:
       - "8765"
+    # Eigener Healthcheck auf :8765 – sonst würde der aus dem Image geerbte
+    # HEALTHCHECK (Port 8000, für den Haupt-hermes) hier immer 'unhealthy' melden.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1',8765),timeout=3)\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     depends_on:
       db:
         condition: service_healthy
@@ -144,11 +152,27 @@ services:
     ports:
       - "${RADICALE_PORT:-5232}:5232"
 
+  # Vikunja läuft als UID 1000, frische Named-Volumes gehören aber root → der
+  # Prozess kann /db und /app/vikunja/files nicht beschreiben ('permission denied',
+  # Migration/DB scheitern). Dieser Init-Schritt setzt die Rechte EINMALIG, bevor
+  # Vikunja startet – deklarativ, greift also bei jedem Deploy automatisch.
+  vikunja-init:
+    image: busybox:stable
+    profiles: ["vikunja"]
+    command: ["sh", "-c", "chown -R 1000:1000 /db /files"]
+    volumes:
+      - hermes_vikunja_db:/db
+      - hermes_vikunja_files:/files
+    restart: "no"
+
   # Aufgaben – Vikunja (Unified-Image, SQLite)
   vikunja:
     image: vikunja/vikunja:latest
     profiles: ["vikunja"]
     restart: unless-stopped
+    depends_on:
+      vikunja-init:
+        condition: service_completed_successfully
     environment:
       VIKUNJA_SERVICE_PUBLICURL: ${VIKUNJA_PUBLICURL:-http://localhost:3456/}
       VIKUNJA_SERVICE_JWTSECRET: ${VIKUNJA_JWTSECRET:-please-change-me}
@@ -201,6 +225,10 @@ services:
     restart: unless-stopped
     environment:
       HBOX_OPTIONS_ALLOW_REGISTRATION: "true"
+      # PFLICHT-Secret: ohne dieses (>= 32 Byte) startet Homebox nicht
+      # ('panic: auth.api_key_pepper must be set to at least 32 bytes').
+      # Der Installer erzeugt HOMEBOX_API_KEY_PEPPER automatisch in der .env.
+      HBOX_AUTH_API_KEY_PEPPER: ${HOMEBOX_API_KEY_PEPPER:-please-change-me-please-change-me-please}
     volumes:
       - hermes_homebox:/data
     ports:
