@@ -208,9 +208,14 @@ def prov_vikunja(base: str, user: str, email: str, pw: str):
         t = http("PUT", f"{base}/api/v1/tokens", headers=auth,
                  data={"title": "Hermes Family OS", "permissions": perms, "expires_at": exp})
         tok = (t.json() or {}).get("token") if t.status in (200, 201) else None
+        # Verifizieren: API-Tokens haben GRANULARE Rechte. Greift die Permission-
+        # Zuordnung nicht (Vikunja liefert je nach Version andere Route-Strukturen),
+        # ist der Token zwar erstellt, aber ohne Zugriff → dann lieber JWT nutzen.
         if tok:
-            return tok, "API-Token (dauerhaft)"
-    # 4) Fallback: langlebiges JWT (30 Tage) – falls der API-Token-Endpoint fehlt.
+            chk = http("GET", f"{base}/api/v1/tasks/all", headers={"Authorization": f"Bearer {tok}"})
+            if chk.status == 200:
+                return tok, "API-Token (dauerhaft)"
+    # 4) Fallback: langlebiges JWT (30 Tage) – falls API-Token fehlt/ohne Rechte.
     r2 = http("POST", f"{base}/api/v1/login", data={"username": user, "password": pw, "long_token": True})
     if r2.status == 200 and (r2.json() or {}).get("token"):
         return r2.json()["token"], "JWT (langlebig, ~30 Tage)"

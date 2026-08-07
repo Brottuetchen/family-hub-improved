@@ -89,6 +89,7 @@ def test_vikunja_creates_permanent_token_with_flattened_perms(monkeypatch):
         "/api/v1/login": (200, {"token": "jwt"}),
         "/api/v1/routes": (200, {"tasks": {"read_all": {}, "update": {}}, "projects": {"read_all": {}}}),
         "/api/v1/tokens": (200, {"token": "tk_PERM"}),
+        "/api/v1/tasks/all": (200, []),   # Verifikation: Token darf Aufgaben lesen
     })
     monkeypatch.setattr(prov, "http", fake)
     tok, note = prov.prov_vikunja("http://h:3456", "u", "e@x.y", "pw")
@@ -119,6 +120,28 @@ def test_vikunja_falls_back_to_long_jwt_when_token_endpoint_missing(monkeypatch)
     tok, note = prov.prov_vikunja("http://h:3456", "u", "e@x.y", "pw")
     assert tok == "jwt-long"
     assert "30" in note or "langlebig" in note.lower()
+
+
+def test_vikunja_falls_back_to_jwt_when_api_token_has_no_access(monkeypatch):
+    # Token wird erstellt, aber die granularen Rechte greifen nicht (tasks/all → 403).
+    # Erwartung: kein kaputter API-Token, sondern Rückfall auf langlebiges JWT.
+    def _http(method, url, *, headers=None, data=None, form=None, timeout=20):
+        if url.endswith("/api/v1/register"):
+            return prov.Resp(201, "")
+        if url.endswith("/api/v1/login"):
+            return prov.Resp(200, json.dumps({"token": "jwt-long" if (data or {}).get("long_token") else "jwt-short"}))
+        if url.endswith("/api/v1/routes"):
+            return prov.Resp(200, json.dumps({"tasks": {"read_all": {}}}))
+        if url.endswith("/api/v1/tokens"):
+            return prov.Resp(200, json.dumps({"token": "tk_no_access"}))
+        if url.endswith("/api/v1/tasks/all"):
+            return prov.Resp(403, "")            # Token darf doch nichts
+        return prov.Resp(404, "")
+
+    monkeypatch.setattr(prov, "http", _http)
+    tok, note = prov.prov_vikunja("http://h:3456", "u", "e@x.y", "pw")
+    assert tok == "jwt-long"                       # nicht der unbrauchbare tk_no_access
+    assert "JWT" in note
 
 
 def test_kitchenowl_signup_then_longlived(monkeypatch):
@@ -180,6 +203,7 @@ def test_main_provisions_and_writes_env(monkeypatch, tmp_path):
         "/api/v1/login": (200, {"token": "jwt"}),
         "/api/v1/routes": (200, {"tasks": {"read_all": {}}}),
         "/api/v1/tokens": (200, {"token": "tk_V"}),
+        "/api/v1/tasks/all": (200, []),
         "/api/token/": (200, {"token": "tk_P"}),
     }))
     assert prov.main([]) == 0
@@ -197,6 +221,7 @@ def test_main_is_idempotent_and_force_reprovisions(monkeypatch, tmp_path):
         "/api/v1/login": (200, {"token": "jwt"}),
         "/api/v1/routes": (200, {"tasks": {"read_all": {}}}),
         "/api/v1/tokens": (200, {"token": "tk_NEU"}),
+        "/api/v1/tasks/all": (200, []),
     })
     monkeypatch.setattr(prov, "http", fake)
 
@@ -217,6 +242,7 @@ def test_main_only_flag_limits_service(monkeypatch, tmp_path):
         "/api/v1/login": (200, {"token": "jwt"}),
         "/api/v1/routes": (200, {"tasks": {"read_all": {}}}),
         "/api/v1/tokens": (200, {"token": "tk_V"}),
+        "/api/v1/tasks/all": (200, []),
     })
     monkeypatch.setattr(prov, "http", fake)
     assert prov.main(["--only", "vikunja"]) == 0
