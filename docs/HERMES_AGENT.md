@@ -81,8 +81,10 @@ exponiert unsere Werkzeuge als **MCP-Server** (Streamable HTTP) unter
 In hermes-agent registrieren (einmalig):
 ```bash
 docker compose exec hermes-agent hermes mcp add hermes-family \
-  --transport streamable-http --url http://hermes-mcp:8765/mcp
+  --url http://hermes-mcp:8765/mcp
 ```
+(Der HTTP/Streamable-Transport wird aus der `--url` erkannt – ein `--transport`-Flag
+gibt es in der gepinnten Agent-Version nicht.)
 
 - Der Agent handelt mit der Rolle **`MCP_ROLE`** (Standard `partner`): dieselbe
   rollenbasierte Rechteprüfung wie im Chat (Kinder-Rolle darf z.B. kein Smart Home).
